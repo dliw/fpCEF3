@@ -1,0 +1,71 @@
+object Mainform: TMainform
+  Left = 415
+  Height = 382
+  Top = 211
+  Width = 628
+  Caption = 'Browser -'
+  ClientHeight = 382
+  ClientWidth = 628
+  LCLVersion = '1.0.8.0'
+  object Chromium: TChromium
+    AnchorSideLeft.Control = Owner
+    AnchorSideTop.Side = asrBottom
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    AnchorSideBottom.Control = Owner
+    AnchorSideBottom.Side = asrBottom
+    Left = 0
+    Height = 332
+    Top = 50
+    Width = 628
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    TabOrder = 0
+    OnLoadEnd = ChromiumLoadEnd
+    OnTitleChange = ChromiumTitleChange
+  end
+  object BGo: TButton
+    AnchorSideTop.Control = Owner
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    Left = 544
+    Height = 25
+    Top = 10
+    Width = 79
+    Anchors = [akTop, akRight]
+    BorderSpacing.Top = 10
+    BorderSpacing.Right = 5
+    Caption = 'Go'
+    OnClick = BGoClick
+    TabOrder = 1
+  end
+  object LUrl: TStaticText
+    AnchorSideTop.Control = Owner
+    Left = 8
+    Height = 22
+    Top = 12
+    Width = 25
+    BorderSpacing.Top = 12
+    Caption = 'Url:'
+    Font.Style = [fsBold]
+    ParentFont = False
+    TabOrder = 2
+  end
+  object EUrl: TEdit
+    AnchorSideLeft.Control = LUrl
+    AnchorSideLeft.Side = asrBottom
+    AnchorSideTop.Control = Owner
+    AnchorSideRight.Control = BGo
+    Left = 38
+    Height = 25
+    Top = 10
+    Width = 501
+    Anchors = [akTop, akLeft, akRight]
+    AutoSize = False
+    BorderSpacing.Left = 5
+    BorderSpacing.Top = 10
+    BorderSpacing.Right = 5
+    OnEditingDone = EUrlEditingDone
+    TabOrder = 3
+    Text = 'http://'
+  end
+end

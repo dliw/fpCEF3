@@ -1,0 +1,9 @@
+backup/
+lib/
+*.lps
+*.[oa]
+*.exe
+*.res
+.directory
+gmon.out
+ppas.sh

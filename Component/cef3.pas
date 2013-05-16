@@ -1,0 +1,22 @@
+{ This file was automatically created by Lazarus. Do not edit!
+  This source is only used to compile and install the package.
+ }
+
+unit CEF3;
+
+interface
+
+uses
+  cef3lcl, cef3api, cef3api_static, cef3class, cef3gui, cef3intf, 
+  LazarusPackageIntf;
+
+implementation
+
+procedure Register;
+begin
+  RegisterUnit('cef3lcl', @cef3lcl.Register);
+end;
+
+initialization
+  RegisterPackage('CEF3', @Register);
+end.
