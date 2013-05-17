@@ -19,6 +19,7 @@ object Mainform: TMainform
     Top = 50
     Width = 628
     Anchors = [akTop, akLeft, akRight, akBottom]
+    DefaultUrl = 'www.google.de'
     TabOrder = 0
     OnLoadEnd = ChromiumLoadEnd
     OnTitleChange = ChromiumTitleChange
@@ -64,7 +65,7 @@ object Mainform: TMainform
     BorderSpacing.Left = 5
     BorderSpacing.Top = 10
     BorderSpacing.Right = 5
-    OnEditingDone = EUrlEditingDone
+    OnKeyDown = EUrlKeyDown
     TabOrder = 3
     Text = 'http://'
   end

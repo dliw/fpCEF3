@@ -33,7 +33,6 @@ Unit cef3class;
 Interface
 
 Uses
-  cwstring,
   Classes, SysUtils, Math,
   cef3lib, cef3api, cef3intf;
 
@@ -1473,21 +1472,21 @@ Var
   CefProductVersion: ustring = '';
   CefLocale: ustring = '';
   CefLogFile: ustring = '';
-  CefLogSeverity: TCefLogSeverity = LOGSEVERITY_DISABLE;
+  CefLogSeverity: TCefLogSeverity = LOGSEVERITY_VERBOSE;
   CefLocalStorageQuota: Cardinal = 0;
   CefSessionStorageQuota: Cardinal = 0;
   CefJavaScriptFlags: ustring = '';
   CefResourcesDirPath: ustring = '';
   CefLocalesDirPath: ustring = '';
   CefPackLoadingDisabled: Boolean = False;
-  CefSingleProcess: Boolean = False;
+  CefSingleProcess: Boolean = True;
   CefBrowserSubprocessPath: ustring = '';
   CefCommandLineArgsDisabled: Boolean = False;
   CefRemoteDebuggingPort: Integer = 0;
   CefGetDataResource: TGetDataResource = nil;
   CefGetLocalizedString: TGetLocalizedString = nil;
   CefReleaseDCheck: Boolean = False;
-  CefUncaughtExceptionStackSize: Integer = 0;
+  CefUncaughtExceptionStackSize: Integer = 10;
   CefContextSafetyImplementation: Integer = 0;
 
   CefResourceBundleHandler: ICefResourceBundleHandler = nil;
@@ -1574,8 +1573,11 @@ Var
 begin
   WriteLn('CefInitialize');
 
-  If CefIsMainProcess then Exit;
-
+  If CefIsMainProcess then
+  begin
+    WriteLn('Already loaded.');
+    Exit;
+  end;
   CefLoadLibrary;
 
   FillChar(settings, SizeOf(settings), 0);
@@ -1662,7 +1664,7 @@ begin
   begin
     cef_shutdown;
 
-    //CefCloseLibrary;
+    CefIsMainProcess := False;
   end;
 end;
 
@@ -1822,8 +1824,8 @@ end;
 
 function CefGetObject(ptr: Pointer): TObject; {$IFDEF SUPPORTS_INLINE} inline; {$ENDIF}
 begin
-  //Dec(ptr, SizeOf(Pointer));
-  Dec(PByte(ptr), SizeOf(Pointer));
+  Dec(ptr, SizeOf(Pointer));
+  //Dec(PByte(ptr), SizeOf(Pointer));
 
   Result := TObject(PPointer(ptr)^);
 end;
@@ -3153,7 +3155,8 @@ constructor TCefBaseOwn.CreateData(size: Cardinal; owned: Boolean);
 begin
   GetMem(FData, size + SizeOf(Pointer));
   PPointer(FData)^ := Self;
-  Inc(PByte(FData), SizeOf(Pointer));
+  //Inc(PByte(FData), SizeOf(Pointer));
+  Inc(FData, SizeOf(Pointer));
   FillChar(FData^, size, 0);
   PCefBase(FData)^.size := size;
 
@@ -3179,7 +3182,8 @@ end;
 
 destructor TCefBaseOwn.Destroy;
 begin
-  Dec(PByte(FData), SizeOf(Pointer));
+  //Dec(PByte(FData), SizeOf(Pointer));
+  Dec(FData, SizeOf(Pointer));
   FreeMem(FData);
   inherited;
 end;

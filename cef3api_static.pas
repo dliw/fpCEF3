@@ -15,7 +15,7 @@
 
 Unit cef3api_static;
 
-{$mode objfpc}{$H+}
+{$MODE objfpc}{$H+}
 
 Interface
 
@@ -669,4 +669,3 @@ Initialization
   SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
 
 end.
-

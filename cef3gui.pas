@@ -1038,6 +1038,4 @@ begin
   FEvent.doOnPopupSize(Browser, rect);
 end;
 
-
-
 end.

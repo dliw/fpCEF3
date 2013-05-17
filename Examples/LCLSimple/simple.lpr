@@ -1,14 +1,13 @@
-program simple;
+Program simple;
 
-{$mode objfpc}{$H+}
+{$MODE objfpc}{$H+}
 
-uses
+Uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}
   cthreads,
   {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, Main
-  { you can add units after this };
+  Forms, Main;
 
 {$R *.res}
 

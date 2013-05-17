@@ -8,7 +8,7 @@ It is still in an early state, expect crashes, exceptions and other bad things..
 ## How to get started on
 #### [Linux]
 Download CEF3 from [here][1] and copy / link _libcef.so_,  
-  a) to the default library paths, eg. `/usr/lib(64)`, `/usr/local/lib(64)` __OR__  
+  a) to a default library location, eg. `/usr/lib(64)`, `/usr/local/lib(64)` __OR__  
   b) somewhere and set `LD_LIBRARY_PATH` accordingly
 
 Install `cef3.lpk` into Lazarus
@@ -19,6 +19,8 @@ Look into the examples
 Make sure to switch **off** any runtime checks in the project settings:
 **No** `-Ci` `-Co` `-Cr` `-Ct`, unless you want to have various crashes at different places.
 Unfortunately it's not clear to me, what the reason is...
+
+Also libcef.so needs the resources (folder `locales` and `cef.pak`, you can find them in the CEF package) in the directory where your executable is.
 
 
 ## FAQ:

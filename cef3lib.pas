@@ -40,7 +40,7 @@ Interface
 
 Uses
   {$IFDEF CEF_MULTI_THREADED_MESSAGE_LOOP}Messages,{$ENDIF}
-  SysUtils, Classes, SyncObjs
+  SysUtils, Classes
   {$IFDEF MSWINDOWS}, Windows{$ENDIF}
   ;
 

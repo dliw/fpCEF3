@@ -948,7 +948,8 @@ begin
     //) then raise ECefException.Create('Invalid CEF Library version');
 
     WriteLn(': Loaded');
-  end;
+  end
+  Else WriteLn(': already loaded');
 end;
 
 procedure CefCloseLibrary;
@@ -960,7 +961,8 @@ begin
 
     FreeLibrary(LibHandle);
     LibHandle := 0;
-  end;
+  end
+  Else WriteLn('already freed.');
 end;
 
 Finalization

@@ -1,12 +1,12 @@
 Unit Main;
 
-{$mode objfpc}{$H+}
+{$MODE objfpc}{$H+}
 
 Interface
 
 Uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, cef3lcl, cef3lib, cef3intf, cef3gui;
+  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, LCLType,
+  ExtCtrls, cef3lcl, cef3lib, cef3intf;
 
 Type
 
@@ -22,7 +22,8 @@ Type
       const Frame : ICefFrame; httpStatusCode : Integer);
     procedure ChromiumTitleChange(Sender : TObject;
       const Browser : ICefBrowser; const title : ustring);
-    procedure EUrlEditingDone(Sender : TObject);
+    procedure EUrlKeyDown(Sender : TObject; var Key : Word;
+      Shift : TShiftState);
   private
     { private declarations }
   public
@@ -54,10 +55,9 @@ begin
   Caption := 'Browser - ' + title;
 end;
 
-procedure TMainform.EUrlEditingDone(Sender : TObject);
+procedure TMainform.EUrlKeyDown(Sender : TObject; var Key : Word; Shift : TShiftState);
 begin
-  BGoClick(Sender);
+  If Key = VK_RETURN then BGoClick(Sender);
 end;
 
 end.
-

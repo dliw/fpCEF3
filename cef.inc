@@ -33,4 +33,12 @@
 //original comment: force multithreading message loop on FPC, still not work
 //seems to be wrong, works perfectly without on fpc
 {.$DEFINE CEF_MULTI_THREADED_MESSAGE_LOOP}
-{$DEFINE SUPPORTS_INLINE}
+{$DEFINE SUPPORTS_INLINE}
+
+
+// Sanity check
+{$IFDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
+  {$IFNDEF WINDOWS}
+    {$ERROR CEF doesn't support the mulithreaded message loop on systems other than Windows}
+  {$ENDIF}
+{$ENDIF}
