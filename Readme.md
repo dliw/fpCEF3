@@ -12,7 +12,6 @@ Download CEF3 from [here][1] and copy all .dll files from either `Debug` or `Rel
 Install `cef3.lpk` into Lazarus
 
 Look into the examples
-`WinMinimal` is a minimal, non-LCL example
 
 #### [Linux]
 Download CEF3 from [here][1] and copy / link _libcef.so_,  
@@ -22,7 +21,6 @@ Download CEF3 from [here][1] and copy / link _libcef.so_,
 Install `cef3.lpk` into Lazarus
 
 Look into the examples
-`GTK2Minimal` is a minimal GTK2, non-LCL example
 
 ### Very important:
 Make sure to switch **off** any runtime checks in the project settings:
