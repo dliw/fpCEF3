@@ -8,7 +8,7 @@
  * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
  * the specific language governing rights and limitations under the License.
  *
- * Ported to Free Pascal and Linux by d.l.i.w <dev.dliw@gmail.com>
+ * Ported to Free Pascal by d.l.i.w <dev.dliw@gmail.com>
  * based on 'Delphi Chromium Embedded'
  *
  * Repository: http://github.com/dliw/fpCEF3

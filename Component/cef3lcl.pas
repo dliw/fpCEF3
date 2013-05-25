@@ -20,8 +20,19 @@ Unit cef3lcl;
 {
  Choose the right backend depending on used LCL widgetset
  Currently supported:
-   gtk2 / Linux
+   Windows
+   Linux / GTK2
 }
+
+{$IFDEF LCLWin32}
+  {$DEFINE TargetDefined}
+{$ENDIF}
+{$IFDEF LCLGTK2}
+  {$IFDEF Linux}
+    {$DEFINE TargetDefined}
+  {$ENDIF}
+{$ENDIF}
+
 (*
 {$IFDEF LCLGTK}
   {$IFDEF Linux}
@@ -29,16 +40,8 @@ Unit cef3lcl;
   {$ENDIF}
 {$ENDIF}
 *)
-{$IFDEF LCLGTK2}
-  {$IFDEF Linux}
-    {$DEFINE TargetDefined}
-  {$ENDIF}
-{$ENDIF}
 (*
 {$IFDEF LCLCarbon}
-  {$DEFINE TargetDefined}
-{$ENDIF}
-{$IFDEF LCLWin32}
   {$DEFINE TargetDefined}
 {$ENDIF}
 {$IFDEF LCLQT}
@@ -46,13 +49,16 @@ Unit cef3lcl;
 {$ENDIF}
 *)
 {$IFNDEF TargetDefined}
-  {$ERROR this LCL widgetset/OS is not yet supported}
+  {$ERROR This LCL widgetset/OS is not yet supported}
 {$ENDIF}
 
 Interface
 Uses
   Classes, SysUtils, LCLProc, Forms, Controls, LCLType, LCLIntf, LResources, InterfaceBase,
   Graphics, LMessages, WSLCLClasses, WSControls,
+  {$IFDEF WINDOWS}
+  Windows,
+  {$ENDIF}
   {$IFDEF LCLGTK2}
   Gtk2Def, gdk2x, glib2, gtk2, Gtk2Int,  Gtk2Proc,
   {$ENDIF}
@@ -128,6 +134,10 @@ type
     protected
       procedure CreateWnd; override;
       procedure WMPaint(var Msg : TLMPaint); message LM_PAINT;
+      {$IFDEF WINDOWS}
+      procedure WndProc(var Message : TLMessage); override;
+      procedure Resize; override;
+      {$ENDIF}
     protected
       function doOnProcessMessageReceived(const Browser: ICefBrowser;
         sourceProcess: TCefProcessId; const Message: ICefProcessMessage): Boolean; virtual;
@@ -528,15 +538,82 @@ begin
   Exclude(FControlState, csCustomPaint);
 end;
 
+{$IFDEF WINDOWS}
+procedure TCustomChromium.WndProc(var Message : TLMessage);
+begin
+  Case Message.Msg of
+    WM_SETFOCUS:
+      begin
+        If (FBrowser <> nil) and (FBrowser.Host.WindowHandle <> 0) then
+          PostMessage(FBrowser.Host.WindowHandle, WM_SETFOCUS, Message.WParam, 0);
+
+        inherited WndProc(Message);
+      end;
+    WM_ERASEBKGND:
+      If (csDesigning in ComponentState) or (FBrowser = nil) then inherited WndProc(Message);
+    CM_WANTSPECIALKEY:
+      If not (TWMKey(Message).CharCode in [VK_LEFT .. VK_DOWN]) then Message.Result := 1
+      Else inherited WndProc(Message);
+    WM_GETDLGCODE:
+      Message.Result := DLGC_WANTARROWS or DLGC_WANTCHARS;
+  Else
+    inherited WndProc(Message);
+  end;
+end;
+
+procedure TCustomChromium.Resize;
+Var
+  Brow : ICefBrowser;
+  Rect : TRect;
+  Hand : THandle;
+begin
+  inherited Resize;
+
+  If not (csDesigning in ComponentState) then
+  begin
+    Brow := FBrowser;
+
+    If (Brow <> nil) and (Brow.Host.WindowHandle <> INVALID_HANDLE_VALUE) then
+    begin
+      Rect := GetClientRect;
+      Hand := BeginDeferWindowPos(1);
+      try
+        Hand := DeferWindowPos(Hand, Browser.Host.WindowHandle, 0, Rect.Left, Rect.Top,
+                                 Rect.Right - Rect.Left, Rect.Bottom - Rect.Top, SWP_NOZORDER);
+      finally
+        EndDeferWindowPos(Hand);
+      end;
+    end;
+  end;
+end;
+{$ENDIF}
+
 procedure TCustomChromium.CreateBrowser;
 Var
   info: TCefWindowInfo;
   settings: TCefBrowserSettings;
+
+  {$IFDEF WINDOWS}
+  rect : TRect;
+  {$ENDIF}
 begin
   If not (csDesigning in ComponentState) then
   begin
     FillChar(info, SizeOf(info), 0);
-    info.parent_widget := Pointer(Handle);
+
+    {$IFDEF WINDOWS}
+      rect := GetClientRect;
+
+      info.style := WS_CHILD or WS_VISIBLE or WS_CLIPCHILDREN or WS_CLIPSIBLINGS or WS_TABSTOP;
+      info.parent_window := Handle;
+      info.x := rect.Left;
+      info.y := rect.Top;
+      info.width := rect.Right - rect.Left;
+      info.height := rect.Bottom - rect.Top;
+    {$ENDIF}
+    {$IFDEF LINUX}
+      info.parent_widget := Pointer(Handle);
+    {$ENDIF}
 
     FillChar(settings, SizeOf(TCefBrowserSettings), 0);
     settings.size := SizeOf(TCefBrowserSettings);
@@ -942,14 +1019,14 @@ end;
 
 { TWSChromiumControl }
 
-{$IFDEF LCLGTK2}
-  {$I lclgtk2.inc}
-{$ENDIF}
-
 class function TWSChromiumControl.CreateHandle(const AWinControl: TWinControl;
   const AParams: TCreateParams): HWND;
 Var
   ChromiumControl: TCustomChromium;
+
+  {$IFDEF LCLGTK2}
+  NewWidget : PGtkWidget;
+  {$ENDIF}
 begin
   If csDesigning in AWinControl.ComponentState then begin
     // do not use "inherited CreateHandle", because the LCL changes the hierarchy at run time
@@ -959,7 +1036,17 @@ begin
   begin
     ChromiumControl := AWinControl as TCustomChromium;
 
-    Result := LCreateContext(ChromiumControl, AParams);
+    {$IFDEF WINDOWS}
+      Result := TWSWinControlClass(ClassParent).CreateHandle(ChromiumControl, AParams);
+    {$ENDIF}
+    {$IFDEF LCLGTK2}
+      NewWidget := gtk_vbox_new(False, 0);
+      Result := HWND(PtrUInt(Pointer(NewWidget)));
+
+      //PGtkObject(NewWidget)^.flags := PGtkObject(NewWidget)^.flags or GTK_CAN_FOCUS;
+
+      TGtk2WidgetSet(WidgetSet).FinishCreateHandle(ChromiumControl, NewWidget, AParams);
+    {$ENDIF}
   end;
 end;
 
@@ -967,7 +1054,6 @@ class procedure TWSChromiumControl.DestroyHandle(const AWinControl: TWinControl)
 begin
   WriteLn('DestroyHandle');
 
-  LDestroyContext(AWinControl);
   // do not use "inherited DestroyHandle", because the LCL changes the hierarchy at run time
   TWSWinControlClass(ClassParent).DestroyHandle(AWinControl);
 end;

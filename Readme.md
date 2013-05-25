@@ -6,6 +6,14 @@ Chromium Embedded Framework for Free Pascal
 It is still in an early state, expect crashes, exceptions and other bad things...
 
 ## How to get started on
+#### [Windows]
+Download CEF3 from [here][1] and copy all .dll files from either `Debug` or `Release` to the directory your .exe is / will be in.
+
+Install `cef3.lpk` into Lazarus
+
+Look into the examples
+`WinMinimal` is a minimal, non-LCL example
+
 #### [Linux]
 Download CEF3 from [here][1] and copy / link _libcef.so_,  
   a) to a default library location, eg. `/usr/lib(64)`, `/usr/local/lib(64)` __OR__  
@@ -14,6 +22,7 @@ Download CEF3 from [here][1] and copy / link _libcef.so_,
 Install `cef3.lpk` into Lazarus
 
 Look into the examples
+`GTK2Minimal` is a minimal GTK2, non-LCL example
 
 ### Very important:
 Make sure to switch **off** any runtime checks in the project settings:
@@ -27,13 +36,16 @@ Also libcef.so needs the resources (folder `locales` and `cef.pak`, you can find
 ### Which versions of CEF are supported?
 
 fpCEF3 only supports CEF3, *no* support for CEF1.  
-Version 3.1453.1255 (and newer) should work, didn't test for older ones.
+Version 3.1453.1255 (and newer) should work.
+
+Older releases lack some symbols on Windows; I didn't test on Linux.
 
 ### Which platforms are supported?
 
-Currently only Linux with gtk2 is tested and fully implemented.
+- Windows
+- Linux with GTK2
 
-The plain header should be ready for Windows and Mac (maybe with small changes), but the component definitely needs a bit of work to support more platforms.
+The plain header should be ready for Mac (maybe with small changes), but the component needs to be adopted.
 
 
 ### Is there a documentation for fpCEF?

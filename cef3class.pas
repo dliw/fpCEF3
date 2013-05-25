@@ -8,7 +8,7 @@
  * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
  * the specific language governing rights and limitations under the License.
  *
- * Ported to Free Pascal and Linux by d.l.i.w <dev.dliw@gmail.com>
+ * Ported to Free Pascal by d.l.i.w <dev.dliw@gmail.com>
  * based on 'Delphi Chromium Embedded'
  *
  * Repository: http://github.com/dliw/fpCEF3
@@ -26,7 +26,7 @@
 
 Unit cef3class;
 
-{$mode objfpc}{$H+}
+{$MODE objfpc}{$H+}
 
 {$I cef.inc}
 
@@ -608,7 +608,7 @@ Type
     function IsSame(const that: ICefTaskRunner): Boolean;
     function BelongsToCurrentThread: Boolean;
     function BelongsToThread(threadId: TCefThreadId): Boolean;
-    function PostTask(const task: ICefTask): Boolean; cdecl;
+    function PostTask(const task: ICefTask): Boolean; cconv;
     function PostDelayedTask(const task: ICefTask; delayMs: Int64): Boolean;
   public
     class function UnWrap(data: Pointer): ICefTaskRunner;
@@ -1075,7 +1075,7 @@ Type
   TCefSchemeRegistrarRef = class(TCefBaseRef, ICefSchemeRegistrar)
   protected
     function AddCustomScheme(const schemeName: ustring; IsStandard, IsLocal,
-      IsDisplayIsolated: Boolean): Boolean; cdecl;
+      IsDisplayIsolated: Boolean): Boolean; cconv;
   public
     class function UnWrap(data: Pointer): ICefSchemeRegistrar;
   end;
@@ -1536,7 +1536,9 @@ begin
 end;
 
 
-{$IFDEF MSWINDOWS}
+{$IFDEF WINDOWS}
+{ TODO : Where are these types defined? }
+{
 function TzSpecificLocalTimeToSystemTime(
   lpTimeZoneInformation: PTimeZoneInformation;
   lpLocalTime, lpUniversalTime: PSystemTime): BOOL; cdecl; external 'kernel32.dll';
@@ -1544,6 +1546,7 @@ function TzSpecificLocalTimeToSystemTime(
 function SystemTimeToTzSpecificLocalTime(
   lpTimeZoneInformation: PTimeZoneInformation;
   lpUniversalTime, lpLocalTime: PSystemTime): BOOL; cdecl; external 'kernel32.dll';
+}
 {$ENDIF}
 
 Var
@@ -1608,16 +1611,17 @@ begin
 
   app := TInternalApp.Create;
 
-  {$IFDEF LINUX}
+  {$IFDEF WINDOWS}
+  Args.instance := HINSTANCE();
+
+  ErrCode := cef_execute_process(@Args, CefGetData(app));
+  {$ELSE}
   Args.argc := argc;
   Args.argv := argv;
 
-  errcode := cef_execute_process(@Args, CefGetData(app));
+  ErrCode := cef_execute_process(@Args, CefGetData(app));
   {$ENDIF}
-  {$IFDEF MSWINDOWS}
-  errcode := cef_execute_process(@HInstance, CefGetData(app));
-  {$ENDIF}
-  If errcode >= 0 then
+  If ErrCode >= 0 then
   begin
     Assert(False, 'cef_execute_process went wrong');
 
@@ -1628,7 +1632,6 @@ begin
   ErrCode := cef_initialize(@Args, @settings, CefGetData(app));
   If ErrCode <> 1 then
   begin
-    WriteLn(errcode);
     Assert(False, 'cef_initialize went wrong');
 
     Result := False;
@@ -1691,7 +1694,7 @@ begin
   Else Result := '';
 end;
 
-procedure _free_string(str: PChar16); cdecl;
+procedure _free_string(str: PChar16); cconv;
 begin
   If str <> nil then FreeMem(str);
 end;
@@ -2029,22 +2032,27 @@ begin
   end;
 end;
 
+{ TODO : Time functions }
 function CefTimeToDateTime(const dt: TCefTime): TDateTime;
 Var
   st: TSystemTime;
 begin
+  {
   st := CefTimeToSystemTime(dt);
   SystemTimeToTzSpecificLocalTime(nil, @st, @st);
   Result := SystemTimeToDateTime(st);
+  }
 end;
 
 function DateTimeToCefTime(dt: TDateTime): TCefTime;
 Var
   st: TSystemTime;
 begin
+  {
   DateTimeToSystemTime(dt, st);
   TzSpecificLocalTimeToSystemTime(nil, @st, @st);
   Result := SystemTimeToCefTime(st);
+  }
 end;
 
 {$ELSE}
@@ -2079,114 +2087,114 @@ end;
 
 { cef_base }
 
-function cef_base_add_ref(self: PCefBase): Integer; cdecl;
+function cef_base_add_ref(self: PCefBase): Integer; cconv;
 begin
   //WriteLn('AddRef');
   Result := TCefBaseOwn(CefGetObject(self))._AddRef;
 end;
 
-function cef_base_release(self: PCefBase): Integer; cdecl;
+function cef_base_release(self: PCefBase): Integer; cconv;
 begin
   //WriteLn('Release');
   Result := TCefBaseOwn(CefGetObject(self))._Release;
 end;
 
-function cef_base_get_refct(self: PCefBase): Integer; cdecl;
+function cef_base_get_refct(self: PCefBase): Integer; cconv;
 begin
   Result := TCefBaseOwn(CefGetObject(self)).FRefCount;
 end;
 
-function cef_base_add_ref_owned(self: PCefBase): Integer; cdecl;
+function cef_base_add_ref_owned(self: PCefBase): Integer; cconv;
 begin
   Result := 1;
 end;
 
-function cef_base_release_owned(self: PCefBase): Integer; cdecl;
+function cef_base_release_owned(self: PCefBase): Integer; cconv;
 begin
   Result := 1;
 end;
 
-function cef_base_get_refct_owned(self: PCefBase): Integer; cdecl;
+function cef_base_get_refct_owned(self: PCefBase): Integer; cconv;
 begin
   Result := 1;
 end;
 
 { cef_client }
 
-function cef_client_get_context_menu_handler(self: PCefClient): PCefContextMenuHandler; cdecl;
+function cef_client_get_context_menu_handler(self: PCefClient): PCefContextMenuHandler; cconv;
 begin
   With TCefClientOwn(CefGetObject(self)) do
     Result := CefGetData(GetContextMenuHandler);
 end;
 
-function cef_client_get_dialog_handler(self: PCefClient): PCefDialogHandler; cdecl;
+function cef_client_get_dialog_handler(self: PCefClient): PCefDialogHandler; cconv;
 begin
   With TCefClientOwn(CefGetObject(self)) do
     Result := CefGetData(GetDialogHandler);
 end;
 
-function cef_client_get_display_handler(self: PCefClient): PCefDisplayHandler; cdecl;
+function cef_client_get_display_handler(self: PCefClient): PCefDisplayHandler; cconv;
 begin
   With TCefClientOwn(CefGetObject(self)) do
     Result := CefGetData(GetDisplayHandler);
 end;
 
-function cef_client_get_download_handler(self: PCefClient): PCefDownloadHandler; cdecl;
+function cef_client_get_download_handler(self: PCefClient): PCefDownloadHandler; cconv;
 begin
   With TCefClientOwn(CefGetObject(self)) do
     Result := CefGetData(GetDownloadHandler);
 end;
 
-function cef_client_get_focus_handler(self: PCefClient): PCefFocusHandler; cdecl;
+function cef_client_get_focus_handler(self: PCefClient): PCefFocusHandler; cconv;
 begin
   With TCefClientOwn(CefGetObject(self)) do
     Result := CefGetData(GetFocusHandler);
 end;
 
-function cef_client_get_geolocation_handler(self: PCefClient): PCefGeolocationHandler; cdecl;
+function cef_client_get_geolocation_handler(self: PCefClient): PCefGeolocationHandler; cconv;
 begin
   With TCefClientOwn(CefGetObject(self)) do
     Result := CefGetData(GetGeolocationHandler);
 end;
 
-function cef_client_get_jsdialog_handler(self: PCefClient): PCefJsDialogHandler; cdecl;
+function cef_client_get_jsdialog_handler(self: PCefClient): PCefJsDialogHandler; cconv;
 begin
   With TCefClientOwn(CefGetObject(self)) do
     Result := CefGetData(GetJsdialogHandler);
 end;
 
-function cef_client_get_keyboard_handler(self: PCefClient): PCefKeyboardHandler; cdecl;
+function cef_client_get_keyboard_handler(self: PCefClient): PCefKeyboardHandler; cconv;
 begin
   With TCefClientOwn(CefGetObject(self)) do
     Result := CefGetData(GetKeyboardHandler);
 end;
 
-function cef_client_get_life_span_handler(self: PCefClient): PCefLifeSpanHandler; cdecl;
+function cef_client_get_life_span_handler(self: PCefClient): PCefLifeSpanHandler; cconv;
 begin
   With TCefClientOwn(CefGetObject(self)) do
     Result := CefGetData(GetLifeSpanHandler);
 end;
 
-function cef_client_get_load_handler(self: PCefClient): PCefLoadHandler; cdecl;
+function cef_client_get_load_handler(self: PCefClient): PCefLoadHandler; cconv;
 begin
   With TCefClientOwn(CefGetObject(self)) do
     Result := CefGetData(GetLoadHandler);
 end;
 
-function cef_client_get_get_render_handler(self: PCefClient): PCefRenderHandler; cdecl;
+function cef_client_get_get_render_handler(self: PCefClient): PCefRenderHandler; cconv;
 begin
   With TCefClientOwn(CefGetObject(self)) do
     Result := CefGetData(GetRenderHandler);
 end;
 
-function cef_client_get_request_handler(self: PCefClient): PCefRequestHandler; cdecl;
+function cef_client_get_request_handler(self: PCefClient): PCefRequestHandler; cconv;
 begin
   With TCefClientOwn(CefGetObject(self)) do
     Result := CefGetData(GetRequestHandler);
 end;
 
 function cef_client_on_process_message_received(self: PCefClient; browser: PCefBrowser;
-  source_process: TCefProcessId; message: PCefProcessMessage): Integer; cdecl;
+  source_process: TCefProcessId; message: PCefProcessMessage): Integer; cconv;
 begin
   With TCefClientOwn(CefGetObject(self)) do
     Result := Ord(OnProcessMessageReceived(TCefBrowserRef.UnWrap(browser), source_process,
@@ -2197,7 +2205,7 @@ end;
 
 procedure cef_geolocation_handler_on_request_geolocation_permission(self: PCefGeolocationHandler;
   browser: PCefBrowser; const requesting_url: PCefString; request_id: Integer;
-  callback: PCefGeolocationCallback); cdecl;
+  callback: PCefGeolocationCallback); cconv;
 begin
   With TCefGeolocationHandlerOwn(CefGetObject(self)) do
     OnRequestGeolocationPermission(TCefBrowserRef.UnWrap(browser), CefString(requesting_url),
@@ -2205,7 +2213,7 @@ begin
 end;
 
 procedure cef_geolocation_handler_on_cancel_geolocation_permission(self: PCefGeolocationHandler;
-  browser: PCefBrowser; const requesting_url: PCefString; request_id: Integer); cdecl;
+  browser: PCefBrowser; const requesting_url: PCefString; request_id: Integer); cconv;
 begin
   With TCefGeolocationHandlerOwn(CefGetObject(self)) do
     OnCancelGeolocationPermission(TCefBrowserRef.UnWrap(browser), CefString(requesting_url), request_id);
@@ -2215,11 +2223,11 @@ end;
 
 //function cef_life_span_handler_on_before_popup(self: PCefLifeSpanHandler; parentBrowser: PCefBrowser;
 //   const popupFeatures: PCefPopupFeatures; windowInfo: PCefWindowInfo; const url: PCefString;
-//   var client: PCefClient; settings: PCefBrowserSettings): Integer; cdecl;
+//   var client: PCefClient; settings: PCefBrowserSettings): Integer; cconv;
 function cef_life_span_handler_on_before_popup(self: PCefLifeSpanHandler;
   browser: PCefBrowser; frame: PCefFrame; const target_url, target_frame_name: PCefString;
   const popupFeatures: PCefPopupFeatures; windowInfo: PCefWindowInfo; var client: PCefClient;
-  settings: PCefBrowserSettings; no_javascript_access: PInteger): Integer; cdecl;
+  settings: PCefBrowserSettings; no_javascript_access: PInteger): Integer; cconv;
 Var
   _url, _frame: ustring;
   _client: ICefClient;
@@ -2248,24 +2256,24 @@ begin
   _client := nil;
 end;
 
-procedure cef_life_span_handler_on_after_created(self: PCefLifeSpanHandler; browser: PCefBrowser); cdecl;
+procedure cef_life_span_handler_on_after_created(self: PCefLifeSpanHandler; browser: PCefBrowser); cconv;
 begin
   TCefLifeSpanHandlerOwn(CefGetObject(self)).OnAfterCreated(TCefBrowserRef.UnWrap(browser));
 end;
 
-procedure cef_life_span_handler_on_before_close(self: PCefLifeSpanHandler; browser: PCefBrowser); cdecl;
+procedure cef_life_span_handler_on_before_close(self: PCefLifeSpanHandler; browser: PCefBrowser); cconv;
 begin
   with TCefLifeSpanHandlerOwn(CefGetObject(self)) do
     OnBeforeClose(TCefBrowserRef.UnWrap(browser));
 end;
 
-function cef_life_span_handler_run_modal(self: PCefLifeSpanHandler; browser: PCefBrowser): Integer; cdecl;
+function cef_life_span_handler_run_modal(self: PCefLifeSpanHandler; browser: PCefBrowser): Integer; cconv;
 begin
   with TCefLifeSpanHandlerOwn(CefGetObject(self)) do
     Result := Ord(RunModal(TCefBrowserRef.UnWrap(browser)));
 end;
 
-function cef_life_span_handler_do_close(self: PCefLifeSpanHandler; browser: PCefBrowser): Integer; cdecl;
+function cef_life_span_handler_do_close(self: PCefLifeSpanHandler; browser: PCefBrowser): Integer; cconv;
 begin
 
   with TCefLifeSpanHandlerOwn(CefGetObject(self)) do
@@ -2276,21 +2284,21 @@ end;
 { cef_load_handler }
 
 procedure cef_load_handler_on_load_start(self: PCefLoadHandler;
-  browser: PCefBrowser; frame: PCefFrame); cdecl;
+  browser: PCefBrowser; frame: PCefFrame); cconv;
 begin
   with TCefLoadHandlerOwn(CefGetObject(self)) do
     OnLoadStart(TCefBrowserRef.UnWrap(browser), TCefFrameRef.UnWrap(frame));
 end;
 
 procedure cef_load_handler_on_load_end(self: PCefLoadHandler;
-  browser: PCefBrowser; frame: PCefFrame; httpStatusCode: Integer); cdecl;
+  browser: PCefBrowser; frame: PCefFrame; httpStatusCode: Integer); cconv;
 begin
   with TCefLoadHandlerOwn(CefGetObject(self)) do
     OnLoadEnd(TCefBrowserRef.UnWrap(browser), TCefFrameRef.UnWrap(frame), httpStatusCode);
 end;
 
 procedure cef_load_handler_on_load_error(self: PCefLoadHandler; browser: PCefBrowser;
-  frame: PCefFrame; errorCode: Integer; const errorText, failedUrl: PCefString); cdecl;
+  frame: PCefFrame; errorCode: Integer; const errorText, failedUrl: PCefString); cconv;
 begin
   with TCefLoadHandlerOwn(CefGetObject(self)) do
     OnLoadError(TCefBrowserRef.UnWrap(browser), TCefFrameRef.UnWrap(frame),
@@ -2298,14 +2306,14 @@ begin
 end;
 
 procedure cef_load_handler_on_render_process_terminated(self: PCefLoadHandler;
-  browser: PCefBrowser; status: TCefTerminationStatus); cdecl;
+  browser: PCefBrowser; status: TCefTerminationStatus); cconv;
 begin
   with TCefLoadHandlerOwn(CefGetObject(self)) do
     OnRenderProcessTerminated(TCefBrowserRef.UnWrap(browser), status);
 end;
 
 procedure cef_load_handler_on_plugin_crashed(self: PCefLoadHandler;
-  browser: PCefBrowser; const plugin_path: PCefString); cdecl;
+  browser: PCefBrowser; const plugin_path: PCefString); cconv;
 begin
   with TCefLoadHandlerOwn(CefGetObject(self)) do
     OnPluginCrashed(TCefBrowserRef.UnWrap(browser), CefString(plugin_path));
@@ -2314,7 +2322,7 @@ end;
 { cef_request_handler }
 
 function cef_request_handler_on_before_resource_load(self: PCefRequestHandler;
-   browser: PCefBrowser; frame: PCefFrame; request: PCefRequest): Integer; cdecl;
+   browser: PCefBrowser; frame: PCefFrame; request: PCefRequest): Integer; cconv;
 begin
   with TCefRequestHandlerOwn(CefGetObject(self)) do
     Result := Ord(OnBeforeResourceLoad(
@@ -2324,7 +2332,7 @@ begin
 end;
 
 function cef_request_handler_get_resource_handler(self: PCefRequestHandler;
-  browser: PCefBrowser; frame: PCefFrame; request: PCefRequest): PCefResourceHandler; cdecl;
+  browser: PCefBrowser; frame: PCefFrame; request: PCefRequest): PCefResourceHandler; cconv;
 begin
   with TCefRequestHandlerOwn(CefGetObject(self)) do
     Result := CefGetData(GetResourceHandler(TCefBrowserRef.UnWrap(browser),
@@ -2332,7 +2340,7 @@ begin
 end;
 
 procedure cef_request_handler_on_resource_redirect(self: PCefRequestHandler;
-  browser: PCefBrowser; frame: PCefFrame; const old_url: PCefString; new_url: PCefString); cdecl;
+  browser: PCefBrowser; frame: PCefFrame; const old_url: PCefString; new_url: PCefString); cconv;
 var
   url: ustring;
 begin
@@ -2346,7 +2354,7 @@ end;
 
 function cef_request_handler_get_auth_credentials(self: PCefRequestHandler;
   browser: PCefBrowser; frame: PCefFrame; isProxy: Integer; const host: PCefString;
-  port: Integer; const realm, scheme: PCefString; callback: PCefAuthCallback): Integer; cdecl;
+  port: Integer; const realm, scheme: PCefString; callback: PCefAuthCallback): Integer; cconv;
 begin
   with TCefRequestHandlerOwn(CefGetObject(self)) do
     Result := Ord(GetAuthCredentials(
@@ -2355,7 +2363,7 @@ begin
 end;
 
 function cef_request_handler_on_quota_request(self: PCefRequestHandler; browser: PCefBrowser;
-  const origin_url: PCefString; new_size: Int64; callback: PCefQuotaCallback): Integer; cdecl;
+  const origin_url: PCefString; new_size: Int64; callback: PCefQuotaCallback): Integer; cconv;
 begin
   with TCefRequestHandlerOwn(CefGetObject(self)) do
     Result := Ord(OnQuotaRequest(TCefBrowserRef.UnWrap(browser),
@@ -2363,14 +2371,14 @@ begin
 end;
 
 function cef_request_handler_get_cookie_manager(self: PCefRequestHandler;
-  browser: PCefBrowser; const main_url: PCefString): PCefCookieManager; cdecl;
+  browser: PCefBrowser; const main_url: PCefString): PCefCookieManager; cconv;
 begin
   with TCefRequestHandlerOwn(CefGetObject(self)) do
     Result := CefGetData(GetCookieManager(TCefBrowserRef.UnWrap(browser), CefString(main_url)));
 end;
 
 procedure cef_request_handler_on_protocol_execution(self: PCefRequestHandler;
-  browser: PCefBrowser; const url: PCefString; allow_os_execution: PInteger); cdecl;
+  browser: PCefBrowser; const url: PCefString; allow_os_execution: PInteger); cconv;
 var
   allow: Boolean;
 begin
@@ -2383,7 +2391,7 @@ begin
 end;
 
 function cef_request_handler_on_before_plugin_load(self: PCefRequestHandler; browser: PCefBrowser;
-  const url, policy_url: PCefString; info: PCefWebPluginInfo): Integer; cdecl;
+  const url, policy_url: PCefString; info: PCefWebPluginInfo): Integer; cconv;
 begin
   with TCefRequestHandlerOwn(CefGetObject(self)) do
     Result := Ord(OnBeforePluginLoad(TCefBrowserRef.UnWrap(browser),
@@ -2393,7 +2401,7 @@ end;
 { cef_display_handler }
 
 procedure cef_display_handler_on_loading_state_change(self: PCefDisplayHandler;
-  browser: PCefBrowser; isLoading, canGoBack, canGoForward: Integer); cdecl;
+  browser: PCefBrowser; isLoading, canGoBack, canGoForward: Integer); cconv;
 begin
   with TCefDisplayHandlerOwn(CefGetObject(self)) do
     OnLoadingStateChange(TCefBrowserRef.UnWrap(browser), isLoading <> 0,
@@ -2401,7 +2409,7 @@ begin
 end;
 
 procedure cef_display_handler_on_address_change(self: PCefDisplayHandler;
-  browser: PCefBrowser; frame: PCefFrame; const url: PCefString); cdecl;
+  browser: PCefBrowser; frame: PCefFrame; const url: PCefString); cconv;
 begin
   with TCefDisplayHandlerOwn(CefGetObject(self)) do
     OnAddressChange(
@@ -2411,14 +2419,14 @@ begin
 end;
 
 procedure cef_display_handler_on_title_change(self: PCefDisplayHandler;
-  browser: PCefBrowser; const title: PCefString); cdecl;
+  browser: PCefBrowser; const title: PCefString); cconv;
 begin
   with TCefDisplayHandlerOwn(CefGetObject(self)) do
     OnTitleChange(TCefBrowserRef.UnWrap(browser), CefString(title));
 end;
 
 function cef_display_handler_on_tooltip(self: PCefDisplayHandler;
-  browser: PCefBrowser; text: PCefString): Integer; cdecl;
+  browser: PCefBrowser; text: PCefString): Integer; cconv;
 var
   t: ustring;
 begin
@@ -2430,7 +2438,7 @@ begin
 end;
 
 procedure cef_display_handler_on_status_message(self: PCefDisplayHandler;
-  browser: PCefBrowser; const value: PCefString); cdecl;
+  browser: PCefBrowser; const value: PCefString); cconv;
 begin
   with TCefDisplayHandlerOwn(CefGetObject(self)) do
     OnStatusMessage(TCefBrowserRef.UnWrap(browser), CefString(value));
@@ -2438,7 +2446,7 @@ end;
 
 function cef_display_handler_on_console_message(self: PCefDisplayHandler;
     browser: PCefBrowser; const message: PCefString;
-    const source: PCefString; line: Integer): Integer; cdecl;
+    const source: PCefString; line: Integer): Integer; cconv;
 begin
   with TCefDisplayHandlerOwn(CefGetObject(self)) do
     Result := Ord(OnConsoleMessage(TCefBrowserRef.UnWrap(browser),
@@ -2448,20 +2456,20 @@ end;
 { cef_focus_handler }
 
 procedure cef_focus_handler_on_take_focus(self: PCefFocusHandler;
-  browser: PCefBrowser; next: Integer); cdecl;
+  browser: PCefBrowser; next: Integer); cconv;
 begin
   with TCefFocusHandlerOwn(CefGetObject(self)) do
     OnTakeFocus(TCefBrowserRef.UnWrap(browser), next <> 0);
 end;
 
 function cef_focus_handler_on_set_focus(self: PCefFocusHandler;
-  browser: PCefBrowser; source: TCefFocusSource): Integer; cdecl;
+  browser: PCefBrowser; source: TCefFocusSource): Integer; cconv;
 begin
   with TCefFocusHandlerOwn(CefGetObject(self)) do
     Result := Ord(OnSetFocus(TCefBrowserRef.UnWrap(browser), source))
 end;
 
-procedure cef_focus_handler_on_got_focus(self: PCefFocusHandler; browser: PCefBrowser); cdecl;
+procedure cef_focus_handler_on_got_focus(self: PCefFocusHandler; browser: PCefBrowser); cconv;
 begin
   with TCefFocusHandlerOwn(CefGetObject(self)) do
     OnGotFocus(TCefBrowserRef.UnWrap(browser));
@@ -2471,7 +2479,7 @@ end;
 
 function cef_keyboard_handler_on_pre_key_event(self: PCefKeyboardHandler;
   browser: PCefBrowser; const event: PCefKeyEvent;
-  os_event: TCefEventHandle; is_keyboard_shortcut: PInteger): Integer; cdecl;
+  os_event: TCefEventHandle; is_keyboard_shortcut: PInteger): Integer; cconv;
 var
   ks: Boolean;
 begin
@@ -2482,7 +2490,7 @@ begin
 end;
 
 function cef_keyboard_handler_on_key_event(self: PCefKeyboardHandler;
-    browser: PCefBrowser; const event: PCefKeyEvent; os_event: TCefEventHandle): Integer; cdecl;
+    browser: PCefBrowser; const event: PCefKeyEvent; os_event: TCefEventHandle): Integer; cconv;
 begin
   with TCefKeyboardHandlerOwn(CefGetObject(self)) do
     Result := Ord(OnKeyEvent(TCefBrowserRef.UnWrap(browser), event, os_event));
@@ -2493,7 +2501,7 @@ end;
 function cef_jsdialog_handler_on_jsdialog(self: PCefJsDialogHandler;
   browser: PCefBrowser; const origin_url, accept_lang: PCefString;
   dialog_type: TCefJsDialogType; const message_text, default_prompt_text: PCefString;
-  callback: PCefJsDialogCallback; suppress_message: PInteger): Integer; cdecl;
+  callback: PCefJsDialogCallback; suppress_message: PInteger): Integer; cconv;
 var
   sm: Boolean;
 begin
@@ -2507,7 +2515,7 @@ end;
 
 function cef_jsdialog_handler_on_before_unload_dialog(self: PCefJsDialogHandler;
   browser: PCefBrowser; const message_text: PCefString; is_reload: Integer;
-  callback: PCefJsDialogCallback): Integer; cdecl;
+  callback: PCefJsDialogCallback): Integer; cconv;
 begin
   with TCefJsDialogHandlerOwn(CefGetObject(self)) do
     Result := Ord(OnBeforeUnloadDialog(TCefBrowserRef.UnWrap(browser), CefString(message_text),
@@ -2515,7 +2523,7 @@ begin
 end;
 
 procedure cef_jsdialog_handler_on_reset_dialog_state(self: PCefJsDialogHandler;
-  browser: PCefBrowser); cdecl;
+  browser: PCefBrowser); cconv;
 begin
   with TCefJsDialogHandlerOwn(CefGetObject(self)) do
     OnResetDialogState(TCefBrowserRef.UnWrap(browser));
@@ -2525,7 +2533,7 @@ end;
 
 procedure cef_context_menu_handler_on_before_context_menu(self: PCefContextMenuHandler;
   browser: PCefBrowser; frame: PCefFrame; params: PCefContextMenuParams;
-  model: PCefMenuModel); cdecl;
+  model: PCefMenuModel); cconv;
 begin
   with TCefContextMenuHandlerOwn(CefGetObject(self)) do
     OnBeforeContextMenu(TCefBrowserRef.UnWrap(browser), TCefFrameRef.UnWrap(frame),
@@ -2534,7 +2542,7 @@ end;
 
 function cef_context_menu_handler_on_context_menu_command(self: PCefContextMenuHandler;
   browser: PCefBrowser; frame: PCefFrame; params: PCefContextMenuParams;
-  command_id: Integer; event_flags: Integer): Integer; cdecl;
+  command_id: Integer; event_flags: Integer): Integer; cconv;
 begin
   with TCefContextMenuHandlerOwn(CefGetObject(self)) do
     Result := Ord(OnContextMenuCommand(TCefBrowserRef.UnWrap(browser), TCefFrameRef.UnWrap(frame),
@@ -2542,7 +2550,7 @@ begin
 end;
 
 procedure cef_context_menu_handler_on_context_menu_dismissed(self: PCefContextMenuHandler;
-  browser: PCefBrowser; frame: PCefFrame); cdecl;
+  browser: PCefBrowser; frame: PCefFrame); cconv;
 begin
   with TCefContextMenuHandlerOwn(CefGetObject(self)) do
     OnContextMenuDismissed(TCefBrowserRef.UnWrap(browser), TCefFrameRef.UnWrap(frame));
@@ -2550,25 +2558,25 @@ end;
 
 {  cef_stream_reader }
 
-function cef_stream_reader_read(self: PCefReadHandler; ptr: Pointer; size, n: Cardinal): Cardinal; cdecl;
+function cef_stream_reader_read(self: PCefReadHandler; ptr: Pointer; size, n: Cardinal): Cardinal; cconv;
 begin
   with TCefCustomStreamReader(CefGetObject(self)) do
     Result := Read(ptr, size, n);
 end;
 
-function cef_stream_reader_seek(self: PCefReadHandler; offset: Int64; whence: Integer): Integer; cdecl;
+function cef_stream_reader_seek(self: PCefReadHandler; offset: Int64; whence: Integer): Integer; cconv;
 begin
   with TCefCustomStreamReader(CefGetObject(self)) do
     Result := Seek(offset, whence);
 end;
 
-function cef_stream_reader_tell(self: PCefReadHandler): Int64; cdecl;
+function cef_stream_reader_tell(self: PCefReadHandler): Int64; cconv;
 begin
   with TCefCustomStreamReader(CefGetObject(self)) do
     Result := Tell;
 end;
 
-function cef_stream_reader_eof(self: PCefReadHandler): Integer; cdecl;
+function cef_stream_reader_eof(self: PCefReadHandler): Integer; cconv;
 begin
   with TCefCustomStreamReader(CefGetObject(self)) do
     Result := Ord(eof);
@@ -2576,49 +2584,49 @@ end;
 
 { cef_post_data_element }
 
-function cef_post_data_element_is_read_only(self: PCefPostDataElement): Integer; cdecl;
+function cef_post_data_element_is_read_only(self: PCefPostDataElement): Integer; cconv;
 begin
   with TCefPostDataElementOwn(CefGetObject(self)) do
     Result := Ord(IsReadOnly)
 end;
 
-procedure cef_post_data_element_set_to_empty(self: PCefPostDataElement); cdecl;
+procedure cef_post_data_element_set_to_empty(self: PCefPostDataElement); cconv;
 begin
   with TCefPostDataElementOwn(CefGetObject(self)) do
     SetToEmpty;
 end;
 
-procedure cef_post_data_element_set_to_file(self: PCefPostDataElement; const fileName: PCefString); cdecl;
+procedure cef_post_data_element_set_to_file(self: PCefPostDataElement; const fileName: PCefString); cconv;
 begin
   with TCefPostDataElementOwn(CefGetObject(self)) do
     SetToFile(CefString(fileName));
 end;
 
-procedure cef_post_data_element_set_to_bytes(self: PCefPostDataElement; size: Cardinal; const bytes: Pointer); cdecl;
+procedure cef_post_data_element_set_to_bytes(self: PCefPostDataElement; size: Cardinal; const bytes: Pointer); cconv;
 begin
   with TCefPostDataElementOwn(CefGetObject(self)) do
     SetToBytes(size, bytes);
 end;
 
-function cef_post_data_element_get_type(self: PCefPostDataElement): TCefPostDataElementType; cdecl;
+function cef_post_data_element_get_type(self: PCefPostDataElement): TCefPostDataElementType; cconv;
 begin
   with TCefPostDataElementOwn(CefGetObject(self)) do
     Result := GetType;
 end;
 
-function cef_post_data_element_get_file(self: PCefPostDataElement): PCefStringUserFree; cdecl;
+function cef_post_data_element_get_file(self: PCefPostDataElement): PCefStringUserFree; cconv;
 begin
   with TCefPostDataElementOwn(CefGetObject(self)) do
     Result := CefUserFreeString(GetFile);
 end;
 
-function cef_post_data_element_get_bytes_count(self: PCefPostDataElement): Cardinal; cdecl;
+function cef_post_data_element_get_bytes_count(self: PCefPostDataElement): Cardinal; cconv;
 begin
   with TCefPostDataElementOwn(CefGetObject(self)) do
     Result := GetBytesCount;
 end;
 
-function cef_post_data_element_get_bytes(self: PCefPostDataElement; size: Cardinal; bytes: Pointer): Cardinal; cdecl;
+function cef_post_data_element_get_bytes(self: PCefPostDataElement; size: Cardinal; bytes: Pointer): Cardinal; cconv;
 begin
   with TCefPostDataElementOwn(CefGetObject(self)) do
     Result := GetBytes(size, bytes)
@@ -2629,7 +2637,7 @@ end;
 function cef_v8_handler_execute(self: PCefv8Handler;
   const name: PCefString; obj: PCefv8Value; argumentsCount: Cardinal;
   const arguments: PPCefV8Value; var retval: PCefV8Value;
-  var exception: TCefString): Integer; cdecl;
+  var exception: TCefString): Integer; cconv;
 var
   args: TCefv8ValueArray;
   i: Integer;
@@ -2649,7 +2657,7 @@ end;
 
 { cef_task }
 
-procedure cef_task_execute(self: PCefTask); cdecl;
+procedure cef_task_execute(self: PCefTask); cconv;
 begin
   TCefTaskOwn(CefGetObject(self)).Execute();
 end;
@@ -2658,7 +2666,7 @@ end;
 
 procedure cef_download_handler_on_before_download(self: PCefDownloadHandler;
   browser: PCefBrowser; download_item: PCefDownloadItem;
-  const suggested_name: PCefString; callback: PCefBeforeDownloadCallback); cdecl;
+  const suggested_name: PCefString; callback: PCefBeforeDownloadCallback); cconv;
 begin
   TCefDownloadHandlerOwn(CefGetObject(self)).
     OnBeforeDownload(TCefBrowserRef.UnWrap(browser),
@@ -2667,7 +2675,7 @@ begin
 end;
 
 procedure cef_download_handler_on_download_updated(self: PCefDownloadHandler;
-  browser: PCefBrowser; download_item: PCefDownloadItem; callback: PCefDownloadItemCallback); cdecl;
+  browser: PCefBrowser; download_item: PCefDownloadItem; callback: PCefDownloadItemCallback); cconv;
 begin
   TCefDownloadHandlerOwn(CefGetObject(self)).
     OnDownloadUpdated(TCefBrowserRef.UnWrap(browser),
@@ -2677,14 +2685,14 @@ end;
 
 { cef_dom_visitor }
 
-procedure cef_dom_visitor_visite(self: PCefDomVisitor; document: PCefDomDocument); cdecl;
+procedure cef_dom_visitor_visite(self: PCefDomVisitor; document: PCefDomDocument); cconv;
 begin
   TCefDomVisitorOwn(CefGetObject(self)).visit(TCefDomDocumentRef.UnWrap(document));
 end;
 
 { cef_dom_event_listener }
 
-procedure cef_dom_event_listener_handle_event(self: PCefDomEventListener; event: PCefDomEvent); cdecl;
+procedure cef_dom_event_listener_handle_event(self: PCefDomEventListener; event: PCefDomEvent); cconv;
 begin
   TCefDomEventListenerOwn(CefGetObject(self)).HandleEvent(TCefDomEventRef.UnWrap(event));
 end;
@@ -2692,7 +2700,7 @@ end;
 { cef_v8_accessor }
 
 function cef_v8_accessor_get(self: PCefV8Accessor; const name: PCefString;
-      obj: PCefv8Value; out retval: PCefv8Value; exception: PCefString): Integer; cdecl;
+      obj: PCefv8Value; out retval: PCefv8Value; exception: PCefString): Integer; cconv;
 var
   ret: ICefv8Value;
 begin
@@ -2703,7 +2711,7 @@ end;
 
 
 function cef_v8_accessor_put(self: PCefV8Accessor; const name: PCefString;
-      obj: PCefv8Value; value: PCefv8Value; exception: PCefString): Integer; cdecl;
+      obj: PCefv8Value; value: PCefv8Value; exception: PCefString): Integer; cconv;
 begin
   Result := Ord(TCefV8AccessorOwn(CefGetObject(self)).Put(CefString(name),
     TCefv8ValueRef.UnWrap(obj), TCefv8ValueRef.UnWrap(value), CefString(exception)));
@@ -2712,7 +2720,7 @@ end;
 { cef_cookie_visitor }
 
 function cef_cookie_visitor_visit(self: PCefCookieVisitor; const cookie: PCefCookie;
-  count, total: Integer; deleteCookie: PInteger): Integer; cdecl;
+  count, total: Integer; deleteCookie: PInteger): Integer; cconv;
 var
   delete: Boolean;
   exp: TDateTime;
@@ -2731,7 +2739,7 @@ end;
 { cef_resource_bundle_handler }
 
 function cef_resource_bundle_handler_get_localized_string(self: PCefResourceBundleHandler;
-  message_id: Integer; string_val: PCefString): Integer; cdecl;
+  message_id: Integer; string_val: PCefString): Integer; cconv;
 var
   str: ustring;
 begin
@@ -2742,7 +2750,7 @@ begin
 end;
 
 function cef_resource_bundle_handler_get_data_resource(self: PCefResourceBundleHandler;
-  resource_id: Integer; var data: Pointer; var data_size: Cardinal): Integer; cdecl;
+  resource_id: Integer; var data: Pointer; var data_size: Cardinal): Integer; cconv;
 begin
   Result := Ord(TCefResourceBundleHandlerOwn(CefGetObject(self)).
     GetDataResource(resource_id, data, data_size));
@@ -2751,55 +2759,55 @@ end;
 { cef_app }
 
 procedure cef_app_on_before_command_line_processing(self: PCefApp;
-  const process_type: PCefString; command_line: PCefCommandLine); cdecl;
+  const process_type: PCefString; command_line: PCefCommandLine); cconv;
 begin
   With TCefAppOwn(CefGetObject(self)) do
     OnBeforeCommandLineProcessing(CefString(process_type), TCefCommandLineRef.UnWrap(command_line));
 end;
 
-procedure cef_app_on_register_custom_schemes(self: PCefApp; registrar: PCefSchemeRegistrar); cdecl;
+procedure cef_app_on_register_custom_schemes(self: PCefApp; registrar: PCefSchemeRegistrar); cconv;
 begin
   With TCefAppOwn(CefGetObject(self)) do
     OnRegisterCustomSchemes(TCefSchemeRegistrarRef.UnWrap(registrar));
 end;
 
-function cef_app_get_resource_bundle_handler(self: PCefApp): PCefResourceBundleHandler; cdecl;
+function cef_app_get_resource_bundle_handler(self: PCefApp): PCefResourceBundleHandler; cconv;
 begin
   Result := CefGetData(TCefAppOwn(CefGetObject(self)).GetResourceBundleHandler());
 end;
 
-function cef_app_get_browser_process_handler(self: PCefApp): PCefBrowserProcessHandler; cdecl;
+function cef_app_get_browser_process_handler(self: PCefApp): PCefBrowserProcessHandler; cconv;
 begin
   Result := CefGetData(TCefAppOwn(CefGetObject(self)).GetBrowserProcessHandler());
 end;
 
-function cef_app_get_render_process_handler(self: PCefApp): PCefRenderProcessHandler; cdecl;
+function cef_app_get_render_process_handler(self: PCefApp): PCefRenderProcessHandler; cconv;
 begin
   Result := CefGetData(TCefAppOwn(CefGetObject(self)).GetRenderProcessHandler());
 end;
 
 { cef_string_visitor_visit }
 
-procedure cef_string_visitor_visit(self: PCefStringVisitor; const str: PCefString); cdecl;
+procedure cef_string_visitor_visit(self: PCefStringVisitor; const str: PCefString); cconv;
 begin
   TCefStringVisitorOwn(CefGetObject(self)).Visit(CefString(str));
 end;
 
 { cef_browser_process_handler }
 
-procedure cef_browser_process_handler_on_context_initialized(self: PCefBrowserProcessHandler); cdecl;
+procedure cef_browser_process_handler_on_context_initialized(self: PCefBrowserProcessHandler); cconv;
 begin
   TCefBrowserProcessHandlerOwn(CefGetObject(self)).OnContextInitialized;
 end;
 
 procedure cef_browser_process_handler_on_before_child_process_launch(
-  self: PCefBrowserProcessHandler; command_line: PCefCommandLine); cdecl;
+  self: PCefBrowserProcessHandler; command_line: PCefCommandLine); cconv;
 begin
   TCefBrowserProcessHandlerOwn(CefGetObject(self)).OnBeforeChildProcessLaunch(TCefCommandLineRef.UnWrap(command_line));
 end;
 
 procedure cef_browser_process_handler_on_render_process_thread_created(
-  self: PCefBrowserProcessHandler; extra_info: PCefListValue); cdecl;
+  self: PCefBrowserProcessHandler; extra_info: PCefListValue); cconv;
 begin
   TCefBrowserProcessHandlerOwn(CefGetObject(self)).OnRenderProcessThreadCreated(TCefListValueRef.UnWrap(extra_info));
 end;
@@ -2807,27 +2815,27 @@ end;
 { cef_render_process_handler }
 
 procedure cef_render_process_handler_on_render_thread_created(
-  self: PCefRenderProcessHandler; extra_info: PCefListValue); cdecl;
+  self: PCefRenderProcessHandler; extra_info: PCefListValue); cconv;
 begin
   with TCefRenderProcessHandlerOwn(CefGetObject(Self)) do
     OnRenderThreadCreated(TCefListValueRef.UnWrap(extra_info));
 end;
 
-procedure cef_render_process_handler_on_web_kit_initialized(self: PCefRenderProcessHandler); cdecl;
+procedure cef_render_process_handler_on_web_kit_initialized(self: PCefRenderProcessHandler); cconv;
 begin
   with TCefRenderProcessHandlerOwn(CefGetObject(Self)) do
     OnWebKitInitialized;
 end;
 
 procedure cef_render_process_handler_on_browser_created(self: PCefRenderProcessHandler;
-  browser: PCefBrowser); cdecl;
+  browser: PCefBrowser); cconv;
 begin
   with TCefRenderProcessHandlerOwn(CefGetObject(Self)) do
     OnBrowserCreated(TCefBrowserRef.UnWrap(browser));
 end;
 
 procedure cef_render_process_handler_on_browser_destroyed(self: PCefRenderProcessHandler;
-  browser: PCefBrowser); cdecl;
+  browser: PCefBrowser); cconv;
 begin
   with TCefRenderProcessHandlerOwn(CefGetObject(Self)) do
     OnBrowserDestroyed(TCefBrowserRef.UnWrap(browser));
@@ -2835,7 +2843,7 @@ end;
 
 function cef_render_process_handler_on_before_navigation(self: PCefRenderProcessHandler;
   browser: PCefBrowser; frame: PCefFrame; request: PCefRequest;
-  navigation_type: TCefNavigationType; is_redirect: Integer): Integer; cdecl;
+  navigation_type: TCefNavigationType; is_redirect: Integer): Integer; cconv;
 begin
   with TCefRenderProcessHandlerOwn(CefGetObject(Self)) do
     Result := Ord(OnBeforeNavigation(TCefBrowserRef.UnWrap(browser),
@@ -2844,14 +2852,14 @@ begin
 end;
 
 procedure cef_render_process_handler_on_context_created(self: PCefRenderProcessHandler;
-  browser: PCefBrowser; frame: PCefFrame; context: PCefv8Context); cdecl;
+  browser: PCefBrowser; frame: PCefFrame; context: PCefv8Context); cconv;
 begin
   with TCefRenderProcessHandlerOwn(CefGetObject(Self)) do
     OnContextCreated(TCefBrowserRef.UnWrap(browser), TCefFrameRef.UnWrap(frame), TCefv8ContextRef.UnWrap(context));
 end;
 
 procedure cef_render_process_handler_on_context_released(self: PCefRenderProcessHandler;
-  browser: PCefBrowser; frame: PCefFrame; context: PCefv8Context); cdecl;
+  browser: PCefBrowser; frame: PCefFrame; context: PCefv8Context); cconv;
 begin
   with TCefRenderProcessHandlerOwn(CefGetObject(Self)) do
     OnContextReleased(TCefBrowserRef.UnWrap(browser), TCefFrameRef.UnWrap(frame), TCefv8ContextRef.UnWrap(context));
@@ -2859,7 +2867,7 @@ end;
 
 procedure cef_render_process_handler_on_uncaught_exception(self: PCefRenderProcessHandler;
   browser: PCefBrowser; frame: PCefFrame; context: PCefv8Context;
-  exception: PCefV8Exception; stackTrace: PCefV8StackTrace); cdecl;
+  exception: PCefV8Exception; stackTrace: PCefV8StackTrace); cconv;
 begin
   with TCefRenderProcessHandlerOwn(CefGetObject(Self)) do
     OnUncaughtException(TCefBrowserRef.UnWrap(browser), TCefFrameRef.UnWrap(frame),
@@ -2868,14 +2876,14 @@ begin
 end;
 
 procedure cef_render_process_handler_on_worker_context_created(self: PCefRenderProcessHandler;
-  worker_id: Integer; const url: PCefString; context: PCefv8Context); cdecl;
+  worker_id: Integer; const url: PCefString; context: PCefv8Context); cconv;
 begin
   with TCefRenderProcessHandlerOwn(CefGetObject(Self)) do
     OnWorkerContextCreated(worker_id, CefString(url), TCefv8ContextRef.UnWrap(context));
 end;
 
 procedure cef_render_process_handler_on_worker_context_released(self: PCefRenderProcessHandler;
-  worker_id: Integer; const url: PCefString; context: PCefv8Context); cdecl;
+  worker_id: Integer; const url: PCefString; context: PCefv8Context); cconv;
 begin
   with TCefRenderProcessHandlerOwn(CefGetObject(Self)) do
     OnWorkerContextReleased(worker_id, CefString(url), TCefv8ContextRef.UnWrap(context));
@@ -2883,7 +2891,7 @@ end;
 
 procedure cef_render_process_handler_on_worker_uncaught_exception(self: PCefRenderProcessHandler;
   worker_id: Integer; const url: PCefString; context: PCefv8Context;
-  exception: PCefV8Exception; stackTrace: PCefV8StackTrace); cdecl;
+  exception: PCefV8Exception; stackTrace: PCefV8StackTrace); cconv;
 begin
   with TCefRenderProcessHandlerOwn(CefGetObject(Self)) do
     OnWorkerUncaughtException(worker_id, CefString(url), TCefv8ContextRef.UnWrap(context),
@@ -2891,7 +2899,7 @@ begin
 end;
 
 procedure cef_render_process_handler_on_focused_node_changed(self: PCefRenderProcessHandler;
-  browser: PCefBrowser; frame: PCefFrame; node: PCefDomNode); cdecl;
+  browser: PCefBrowser; frame: PCefFrame; node: PCefDomNode); cconv;
 begin
   with TCefRenderProcessHandlerOwn(CefGetObject(Self)) do
     OnFocusedNodeChanged(TCefBrowserRef.UnWrap(browser), TCefFrameRef.UnWrap(frame),
@@ -2900,7 +2908,7 @@ end;
 
 function cef_render_process_handler_on_process_message_received(self: PCefRenderProcessHandler;
   browser: PCefBrowser; source_process: TCefProcessId;
-  message: PCefProcessMessage): Integer; cdecl;
+  message: PCefProcessMessage): Integer; cconv;
 begin
   with TCefRenderProcessHandlerOwn(CefGetObject(Self)) do
     Result := Ord(OnProcessMessageReceived(TCefBrowserRef.UnWrap(browser), source_process,
@@ -2909,28 +2917,28 @@ end;
 
 { cef_url_request_client }
 
-procedure cef_url_request_client_on_request_complete(self: PCefUrlRequestClient; request: PCefUrlRequest); cdecl;
+procedure cef_url_request_client_on_request_complete(self: PCefUrlRequestClient; request: PCefUrlRequest); cconv;
 begin
   with TCefUrlrequestClientOwn(CefGetObject(self)) do
     OnRequestComplete(TCefUrlRequestRef.UnWrap(request));
 end;
 
 procedure cef_url_request_client_on_upload_progress(self: PCefUrlRequestClient;
-  request: PCefUrlRequest; current, total: UInt64); cdecl;
+  request: PCefUrlRequest; current, total: UInt64); cconv;
 begin
   with TCefUrlrequestClientOwn(CefGetObject(self)) do
     OnUploadProgress(TCefUrlRequestRef.UnWrap(request), current, total);
 end;
 
 procedure cef_url_request_client_on_download_progress(self: PCefUrlRequestClient;
-  request: PCefUrlRequest; current, total: UInt64); cdecl;
+  request: PCefUrlRequest; current, total: UInt64); cconv;
 begin
   with TCefUrlrequestClientOwn(CefGetObject(self)) do
     OnDownloadProgress(TCefUrlRequestRef.UnWrap(request), current, total);
 end;
 
 procedure cef_url_request_client_on_download_data(self: PCefUrlRequestClient;
-  request: PCefUrlRequest; const data: Pointer; data_length: Cardinal); cdecl;
+  request: PCefUrlRequest; const data: Pointer; data_length: Cardinal); cconv;
 begin
   with TCefUrlrequestClientOwn(CefGetObject(self)) do
     OnDownloadData(TCefUrlRequestRef.UnWrap(request), data, data_length);
@@ -2940,7 +2948,7 @@ end;
 
 function cef_scheme_handler_factory_create(self: PCefSchemeHandlerFactory;
   browser: PCefBrowser; frame: PCefFrame; const scheme_name: PCefString;
-  request: PCefRequest): PCefResourceHandler; cdecl;
+  request: PCefRequest): PCefResourceHandler; cconv;
 begin
   with TCefSchemeHandlerFactoryOwn(CefGetObject(self)) do
     Result := CefGetData(New(TCefBrowserRef.UnWrap(browser), TCefFrameRef.UnWrap(frame),
@@ -2950,14 +2958,14 @@ end;
 { cef_resource_handler }
 
 function cef_resource_handler_process_request(self: PCefResourceHandler;
-  request: PCefRequest; callback: PCefCallback): Integer; cdecl;
+  request: PCefRequest; callback: PCefCallback): Integer; cconv;
 begin
   with TCefResourceHandlerOwn(CefGetObject(self)) do
     Result := Ord(ProcessRequest(TCefRequestRef.UnWrap(request), TCefCallbackRef.UnWrap(callback)));
 end;
 
 procedure cef_resource_handler_get_response_headers(self: PCefResourceHandler;
-  response: PCefResponse; response_length: PInt64; redirectUrl: PCefString); cdecl;
+  response: PCefResponse; response_length: PInt64; redirectUrl: PCefString); cconv;
 var
   ru: ustring;
 begin
@@ -2970,27 +2978,27 @@ end;
 
 function cef_resource_handler_read_response(self: PCefResourceHandler;
   data_out: Pointer; bytes_to_read: Integer; bytes_read: PInteger;
-    callback: PCefCallback): Integer; cdecl;
+    callback: PCefCallback): Integer; cconv;
 begin
   with TCefResourceHandlerOwn(CefGetObject(self)) do
     Result := Ord(ReadResponse(data_out, bytes_to_read, bytes_read^, TCefCallbackRef.UnWrap(callback)));
 end;
 
 function cef_resource_handler_can_get_cookie(self: PCefResourceHandler;
-  const cookie: PCefCookie): Integer; cdecl;
+  const cookie: PCefCookie): Integer; cconv;
 begin
   with TCefResourceHandlerOwn(CefGetObject(self)) do
     Result := Ord(CanGetCookie(cookie));
 end;
 
 function cef_resource_handler_can_set_cookie(self: PCefResourceHandler;
-  const cookie: PCefCookie): Integer; cdecl;
+  const cookie: PCefCookie): Integer; cconv;
 begin
   with TCefResourceHandlerOwn(CefGetObject(self)) do
     Result := Ord(CanSetCookie(cookie));
 end;
 
-procedure cef_resource_handler_cancel(self: PCefResourceHandler); cdecl;
+procedure cef_resource_handler_cancel(self: PCefResourceHandler); cconv;
 begin
   with TCefResourceHandlerOwn(CefGetObject(self)) do
     Cancel;
@@ -2999,7 +3007,7 @@ end;
 { cef_web_plugin_info_visitor }
 
 function cef_web_plugin_info_visitor_visit(self: PCefWebPluginInfoVisitor;
-      info: PCefWebPluginInfo; count, total: Integer): Integer; cdecl;
+      info: PCefWebPluginInfo; count, total: Integer): Integer; cconv;
 begin
   with TCefWebPluginInfoVisitorOwn(CefGetObject(self)) do
     Result := Ord(Visit(TCefWebPluginInfoRef.UnWrap(info), count, total));
@@ -3008,7 +3016,7 @@ end;
 { cef_web_plugin_unstable_callback }
 
 procedure cef_web_plugin_unstable_callback_is_unstable(
-  self: PCefWebPluginUnstableCallback; const path: PCefString; unstable: Integer); cdecl;
+  self: PCefWebPluginUnstableCallback; const path: PCefString; unstable: Integer); cconv;
 begin
   with TCefWebPluginUnstableCallbackOwn(CefGetObject(self)) do
     IsUnstable(CefString(path), unstable <> 0);
@@ -3017,7 +3025,7 @@ end;
 { cef_run_file_dialog_callback }
 
 procedure cef_run_file_dialog_callback_cont(self: PCefRunFileDialogCallback;
-  browser_host: PCefBrowserHost; file_paths: TCefStringList); cdecl;
+  browser_host: PCefBrowserHost; file_paths: TCefStringList); cconv;
 var
   list: TStringList;
   i: Integer;
@@ -3042,19 +3050,19 @@ end;
 { cef_trace_client }
 
 procedure cef_trace_client_on_trace_data_collected(self: PCefTraceClient;
-  const fragment: PAnsiChar; fragment_size: Cardinal); cdecl;
+  const fragment: PAnsiChar; fragment_size: Cardinal); cconv;
 begin
   TCefTraceClientOwn(CefGetObject(self)).OnTraceDataCollected(fragment, fragment_size);
 end;
 
 procedure cef_trace_client_on_trace_buffer_percent_full_reply(
-  self: PCefTraceClient; percent_full: Single); cdecl;
+  self: PCefTraceClient; percent_full: Single); cconv;
 begin
   with TCefTraceClientOwn(CefGetObject(self)) do
     OnTraceBufferPercentFullReply(percent_full);
 end;
 
-procedure cef_trace_client_on_end_tracing_complete(self: PCefTraceClient); cdecl;
+procedure cef_trace_client_on_end_tracing_complete(self: PCefTraceClient); cconv;
 begin
   with TCefTraceClientOwn(CefGetObject(self)) do
     OnEndTracingComplete;
@@ -3063,7 +3071,7 @@ end;
 { cef_get_geolocation_callback }
 
 procedure cef_get_geolocation_callback_on_location_update(
-  self: PCefGetGeolocationCallback; const position: PCefGeoposition); cdecl;
+  self: PCefGetGeolocationCallback; const position: PCefGeoposition); cconv;
 begin
   with TCefGetGeolocationCallbackOwn(CefGetObject(self)) do
     OnLocationUpdate(position);
@@ -3073,7 +3081,7 @@ end;
 
 function cef_dialog_handler_on_file_dialog(self: PCefDialogHandler; browser: PCefBrowser;
   mode: TCefFileDialogMode; const title, default_file_name: PCefString;
-  accept_types: TCefStringList; callback: PCefFileDialogCallback): Integer; cdecl;
+  accept_types: TCefStringList; callback: PCefFileDialogCallback): Integer; cconv;
 var
   list: TStringList;
   i: Integer;
@@ -3099,35 +3107,35 @@ end;
 { cef_render_handler }
 
 function cef_render_handler_get_root_screen_rect(self: PCefRenderHandler;
-  browser: PCefBrowser; rect: PCefRect): Integer; cdecl;
+  browser: PCefBrowser; rect: PCefRect): Integer; cconv;
 begin
   with TCefRenderHandlerOwn(CefGetObject(self)) do
     Result := Ord(GetRootScreenRect(TCefBrowserRef.UnWrap(browser), rect));
 end;
 
 function cef_render_handler_get_view_rect(self: PCefRenderHandler;
-  browser: PCefBrowser; rect: PCefRect): Integer; cdecl;
+  browser: PCefBrowser; rect: PCefRect): Integer; cconv;
 begin
   with TCefRenderHandlerOwn(CefGetObject(self)) do
     Result := Ord(GetViewRect(TCefBrowserRef.UnWrap(browser), rect));
 end;
 
 function cef_render_handler_get_screen_point(self: PCefRenderHandler;
-  browser: PCefBrowser; viewX, viewY: Integer; screenX, screenY: PInteger): Integer; cdecl;
+  browser: PCefBrowser; viewX, viewY: Integer; screenX, screenY: PInteger): Integer; cconv;
 begin
   with TCefRenderHandlerOwn(CefGetObject(self)) do
     Result := Ord(GetScreenPoint(TCefBrowserRef.UnWrap(browser), viewX, viewY, screenX, screenY));
 end;
 
 procedure cef_render_handler_on_popup_show(self: PCefRenderProcessHandler;
-  browser: PCefBrowser; show: Integer); cdecl;
+  browser: PCefBrowser; show: Integer); cconv;
 begin
   with TCefRenderHandlerOwn(CefGetObject(self)) do
     OnPopupShow(TCefBrowserRef.UnWrap(browser), show <> 0);
 end;
 
 procedure cef_render_handler_on_popup_size(self: PCefRenderProcessHandler;
-  browser: PCefBrowser; const rect: PCefRect); cdecl;
+  browser: PCefBrowser; const rect: PCefRect); cconv;
 begin
   with TCefRenderHandlerOwn(CefGetObject(self)) do
     OnPopupSize(TCefBrowserRef.UnWrap(browser), rect);
@@ -3135,7 +3143,7 @@ end;
 
 procedure cef_render_handler_on_paint(self: PCefRenderProcessHandler;
   browser: PCefBrowser; kind: TCefPaintElementType; dirtyRectsCount: Cardinal;
-  const dirtyRects: PCefRectArray; const buffer: Pointer; width, height: Integer); cdecl;
+  const dirtyRects: PCefRectArray; const buffer: Pointer; width, height: Integer); cconv;
 begin
   with TCefRenderHandlerOwn(CefGetObject(self)) do
     OnPaint(TCefBrowserRef.UnWrap(browser), kind, dirtyRectsCount, dirtyRects,
@@ -3143,7 +3151,7 @@ begin
 end;
 
 procedure cef_render_handler_on_cursor_change(self: PCefRenderProcessHandler;
-  browser: PCefBrowser; cursor: TCefCursorHandle); cdecl;
+  browser: PCefBrowser; cursor: TCefCursorHandle); cconv;
 begin
   with TCefRenderHandlerOwn(CefGetObject(self)) do
     OnCursorChange(TCefBrowserRef.UnWrap(browser), cursor);
@@ -6610,7 +6618,7 @@ end;
 { TCefSchemeRegistrarRef }
 
 function TCefSchemeRegistrarRef.AddCustomScheme(const schemeName: ustring;
-  IsStandard, IsLocal, IsDisplayIsolated: Boolean): Boolean; cdecl;
+  IsStandard, IsLocal, IsDisplayIsolated: Boolean): Boolean; cconv;
 var
   sn: TCefString;
 begin
@@ -7943,7 +7951,7 @@ begin
   Result := PCefTaskRunner(FData)^.post_delayed_task(FData, CefGetData(task), delayMs) <> 0;
 end;
 
-function TCefTaskRunnerRef.PostTask(const task: ICefTask): Boolean; cdecl;
+function TCefTaskRunnerRef.PostTask(const task: ICefTask): Boolean; cconv;
 begin
   Result := PCefTaskRunner(FData)^.post_task(FData, CefGetData(task)) <> 0;
 end;

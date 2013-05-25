@@ -8,7 +8,7 @@
  * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
  * the specific language governing rights and limitations under the License.
  *
- * Ported to Free Pascal and Linux by d.l.i.w <dev.dliw@gmail.com>
+ * Ported to Free Pascal by d.l.i.w <dev.dliw@gmail.com>
  * based on 'Delphi Chromium Embedded'
  *
  * Repository: http://github.com/dliw/fpCEF3
@@ -610,7 +610,7 @@ Implementation
 Uses Math;
 
 Const
-  CefLibrary: String = {$IFDEF MSWINDOWS}'libcef.dll'{$ELSE}'libcef.so'{$ENDIF};
+  CefLibrary: String = {$IFDEF WINDOWS}'libcef.dll'{$ELSE}'libcef.so'{$ENDIF};
 Var
   LibHandle : THandle = 0;
 
@@ -644,7 +644,7 @@ begin
     Set8087CW(Get8087CW or $3F); // deactivate FPU exception
     SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
 
-    LibHandle := LoadLibrary(CefLibrary);
+    LibHandle := LoadLibrary(PChar(CefLibrary));
     If LibHandle = 0 then RaiseLastOsError;
 
     cef_string_wide_set             := GetProcAddress(LibHandle, 'cef_string_wide_set');

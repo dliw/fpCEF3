@@ -8,7 +8,7 @@
  * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
  * the specific language governing rights and limitations under the License.
  *
- * Ported to Free Pascal and Linux by d.l.i.w <dev.dliw@gmail.com>
+ * Ported to Free Pascal by d.l.i.w <dev.dliw@gmail.com>
  * based on 'Delphi Chromium Embedded'
  *
  * Repository: http://github.com/dliw/fpCEF3
@@ -26,7 +26,9 @@
 
 Unit cef3intf;
 
-{$mode objfpc}{$H+}
+{$MODE objfpc}{$H+}
+
+{$I cef.inc}
 
 Interface
 
@@ -409,7 +411,7 @@ Type
     function IsSame(const that: ICefTaskRunner): Boolean;
     function BelongsToCurrentThread: Boolean;
     function BelongsToThread(threadId: TCefThreadId): Boolean;
-    function PostTask(const task: ICefTask): Boolean; cdecl;
+    function PostTask(const task: ICefTask): Boolean; cconv;
     function PostDelayedTask(const task: ICefTask; delayMs: Int64): Boolean;
   end;
 
@@ -700,7 +702,7 @@ Type
   ICefSchemeRegistrar = interface(ICefBase)
   //['{1832FF6E-100B-4E8B-B996-AD633168BEE7}']
     function AddCustomScheme(const schemeName: ustring; IsStandard, IsLocal,
-      IsDisplayIsolated: Boolean): Boolean; cdecl;
+      IsDisplayIsolated: Boolean): Boolean; cconv;
   end;
 
   ICefRenderProcessHandler = interface(IcefBase)

@@ -8,7 +8,7 @@
  * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
  * the specific language governing rights and limitations under the License.
  *
- * Ported to Free Pascal and Linux by d.l.i.w <dev.dliw@gmail.com>
+ * Ported to Free Pascal by d.l.i.w <dev.dliw@gmail.com>
  * based on 'Delphi Chromium Embedded'
  *
  * Repository: http://github.com/dliw/fpCEF3
@@ -41,7 +41,7 @@ Interface
 Uses
   {$IFDEF CEF_MULTI_THREADED_MESSAGE_LOOP}Messages,{$ENDIF}
   SysUtils, Classes
-  {$IFDEF MSWINDOWS}, Windows{$ENDIF}
+  {$IFDEF WINDOWS}, Windows{$ENDIF}
   ;
 
 Type
@@ -74,9 +74,9 @@ Type
 
 *)
 
-  TCefWindowHandle = {$IFDEF LINUX}Pointer {PGTKWidget}{$ELSE}HWND{$ENDIF};
-  TCefCursorHandle = {$IFDEF LINUX}Pointer{$ELSE}HCURSOR{$ENDIF};
-  TCefEventHandle  = {$IFDEF LINUX}Pointer {PGDKEvent}{$ELSE}PMsg{$ENDIF};
+  TCefWindowHandle = {$IFDEF WINDOWS}HWND{$ELSE}Pointer{$ENDIF};
+  TCefCursorHandle = {$IFDEF WINDOWS}HCURSOR{$ELSE}Pointer{$ENDIF};
+  TCefEventHandle  = {$IFDEF WINDOWS}PMSG{$ELSE}Pointer{$ENDIF};
 
   // CEF provides functions for converting between UTF-8, -16 and -32 strings.
   // CEF string types are safe for reading from multiple threads but not for
@@ -102,21 +102,21 @@ Type
   TCefStringWide = record
     str: PWideChar;
     length: Cardinal;
-    dtor: procedure(str: PWideChar); cdecl;
+    dtor: procedure(str: PWideChar); cconv;
   end;
 
   PCefStringUtf8 = ^TCefStringUtf8;
   TCefStringUtf8 = record
     str: PAnsiChar;
     length: Cardinal;
-    dtor: procedure(str: PAnsiChar); cdecl;
+    dtor: procedure(str: PAnsiChar); cconv;
   end;
 
   PCefStringUtf16 = ^TCefStringUtf16;
   TCefStringUtf16 = record
     str: PChar16;
     length: Cardinal;
-    dtor: procedure(str: PChar16); cdecl;
+    dtor: procedure(str: PChar16); cconv;
   end;
 
 
@@ -185,27 +185,67 @@ Type
   // Structure representing CefExecuteProcess arguments.
   PCefMainArgs = ^TCefMainArgs;
   TCefMainArgs = record
-    {$IFDEF LINUX}
+    {$IFDEF WINDOWS}
+      instance : HINST;
+    {$ELSE}
       argc : Integer;
       argv : PPChar;
-    {$ELSE}
-      instance: HINST;
     {$ENDIF}
   end;
 
   // Structure representing window information.
   PCefWindowInfo = ^TCefWindowInfo;
-
-  {$IFDEF LINUX}
   TCefWindowInfo = record
+    {$IFDEF WINDOWS}
+      // Standard parameters required by CreateWindowEx()
+      ex_style : DWORD;
+      window_name : TCefString;
+      style : DWORD;
+      x, y, width, height : Integer;
+      parent_window : TCefWindowHandle;
+      menu : HMENU;
 
-    // Pointer for the parent GtkBox widget.
-    parent_widget: TCefWindowHandle;
+      // If window rendering is disabled no browser window will be created. Set
+      // |parent_window| to be used for identifying monitor info
+      // (MonitorFromWindow). If |parent_window| is not provided the main screen
+      // monitor will be used.
+      window_rendering_disabled : BOOL;
 
-    // Pointer for the new browser widget.
-    widget: TCefWindowHandle;
+      // Set to true to enable transparent painting.
+      // If window rendering is disabled and |transparent_painting| is set to true
+      // WebKit rendering will draw on a transparent background (RGBA=0x00000000).
+      // When this value is false the background will be white and opaque.
+      transparent_painting : BOOL;
+
+      // Handle for the new browser window.
+      window : TCefWindowHandle;
+    {$ENDIF}
+    {$IFDEF LINUX}
+      // Pointer for the parent GtkBox widget.
+      parent_widget : TCefWindowHandle;
+
+      // Pointer for the new browser widget.
+      widget : TCefWindowHandle;
+    {$ENDIF}
+    {$IFDEF MACOS}
+      window_name : TCefString;
+      x, y, width, height, hidden : Integer;
+
+      // NSView pointer for the parent view.
+      parent_view : TCefWindowHandle;
+
+      // If window rendering is disabled no browser window will be created. Set
+      // |parent_view| to the window that will act as the parent for popup menus,
+      // dialog boxes, etc.
+      window_rendering_disabled : Boolean;
+
+      // Set to true to enable transparent painting.
+      transparent_painting : Boolean;
+
+      // NSView pointer for the new browser view.
+      view : TCefWindowHandle;
+    {$ENDIF}
   end;
-  {$ENDIF}
 
 (*
 
@@ -1357,12 +1397,12 @@ Type
     size: Cardinal;
 
     // Increment the reference count.
-    add_ref: function(self: PCefBase): Integer; cdecl;
+    add_ref: function(self: PCefBase): Integer; cconv;
     // Decrement the reference count.  Delete this object when no references
     // remain.
-    release: function(self: PCefBase): Integer; cdecl;
+    release: function(self: PCefBase): Integer; cconv;
     // Returns the current number of references.
-    get_refct: function(self: PCefBase): Integer; cdecl;
+    get_refct: function(self: PCefBase): Integer; cconv;
   end;
 
   // Structure representing a binary value. Can be used on any process and thread.
@@ -1372,20 +1412,20 @@ Type
 
     // Returns true (1) if this object is valid. Do not call any other functions
     // if this function returns false (0).
-    is_valid: function(self: PCefBinaryValue): Integer; cdecl;
+    is_valid: function(self: PCefBinaryValue): Integer; cconv;
 
     // Returns true (1) if this object is currently owned by another object.
-    is_owned: function(self: PCefBinaryValue): Integer; cdecl;
+    is_owned: function(self: PCefBinaryValue): Integer; cconv;
 
     // Returns a copy of this object. The data in this object will also be copied.
-    copy: function(self: PCefBinaryValue): PCefBinaryValue; cdecl;
+    copy: function(self: PCefBinaryValue): PCefBinaryValue; cconv;
 
     // Returns the data size.
-    get_size: function(self: PCefBinaryValue): Cardinal; cdecl;
+    get_size: function(self: PCefBinaryValue): Cardinal; cconv;
 
     // Read up to |buffer_size| number of bytes into |buffer|. Reading begins at
     // the specified byte |data_offset|. Returns the number of bytes read.
-    get_data: function(self: PCefBinaryValue; buffer: Pointer; buffer_size, data_offset: Cardinal): Cardinal; cdecl;
+    get_data: function(self: PCefBinaryValue; buffer: Pointer; buffer_size, data_offset: Cardinal): Cardinal; cconv;
   end;
 
   // Structure representing a dictionary value. Can be used on any process and
@@ -1396,86 +1436,86 @@ Type
 
     // Returns true (1) if this object is valid. Do not call any other functions
     // if this function returns false (0).
-    is_valid: function(self: PCefDictionaryValue): Integer; cdecl;
+    is_valid: function(self: PCefDictionaryValue): Integer; cconv;
 
     // Returns true (1) if this object is currently owned by another object.
-    is_owned: function(self: PCefDictionaryValue): Integer; cdecl;
+    is_owned: function(self: PCefDictionaryValue): Integer; cconv;
 
     // Returns true (1) if the values of this object are read-only. Some APIs may
     // expose read-only objects.
-    is_read_only: function(self: PCefDictionaryValue): Integer; cdecl;
+    is_read_only: function(self: PCefDictionaryValue): Integer; cconv;
 
     // Returns a writable copy of this object. If |exclude_NULL_children| is true
     // (1) any NULL dictionaries or lists will be excluded from the copy.
-    copy: function(self: PCefDictionaryValue; exclude_empty_children: Integer): PCefDictionaryValue; cdecl;
+    copy: function(self: PCefDictionaryValue; exclude_empty_children: Integer): PCefDictionaryValue; cconv;
 
     // Returns the number of values.
-    get_size: function(self: PCefDictionaryValue): Cardinal; cdecl;
+    get_size: function(self: PCefDictionaryValue): Cardinal; cconv;
 
     // Removes all values. Returns true (1) on success.
-    clear: function(self: PCefDictionaryValue): Integer; cdecl;
+    clear: function(self: PCefDictionaryValue): Integer; cconv;
 
     // Returns true (1) if the current dictionary has a value for the given key.
-    has_key: function(self: PCefDictionaryValue; const key: PCefString): Integer; cdecl;
+    has_key: function(self: PCefDictionaryValue; const key: PCefString): Integer; cconv;
 
     // Reads all keys for this dictionary into the specified vector.
-    get_keys: function(self: PCefDictionaryValue; const keys: TCefStringList): Integer; cdecl;
+    get_keys: function(self: PCefDictionaryValue; const keys: TCefStringList): Integer; cconv;
 
     // Removes the value at the specified key. Returns true (1) is the value was
     // removed successfully.
-    remove: function(self: PCefDictionaryValue; const key: PCefString): Integer; cdecl;
+    remove: function(self: PCefDictionaryValue; const key: PCefString): Integer; cconv;
 
     // Returns the value type for the specified key.
-    get_type: function(self: PCefDictionaryValue; const key: PCefString): TCefValueType; cdecl;
+    get_type: function(self: PCefDictionaryValue; const key: PCefString): TCefValueType; cconv;
 
     // Returns the value at the specified key as type bool.
-    get_bool: function(self: PCefDictionaryValue; const key: PCefString): Integer; cdecl;
+    get_bool: function(self: PCefDictionaryValue; const key: PCefString): Integer; cconv;
 
     // Returns the value at the specified key as type int.
-    get_int: function(self: PCefDictionaryValue; const key: PCefString): Integer; cdecl;
+    get_int: function(self: PCefDictionaryValue; const key: PCefString): Integer; cconv;
 
     // Returns the value at the specified key as type double.
-    get_double: function(self: PCefDictionaryValue; const key: PCefString): Double; cdecl;
+    get_double: function(self: PCefDictionaryValue; const key: PCefString): Double; cconv;
 
     // Returns the value at the specified key as type string.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_string: function(self: PCefDictionaryValue; const key: PCefString): PCefStringUserFree; cdecl;
+    get_string: function(self: PCefDictionaryValue; const key: PCefString): PCefStringUserFree; cconv;
 
     // Returns the value at the specified key as type binary.
-    get_binary: function(self: PCefDictionaryValue; const key: PCefString): PCefBinaryValue; cdecl;
+    get_binary: function(self: PCefDictionaryValue; const key: PCefString): PCefBinaryValue; cconv;
 
     // Returns the value at the specified key as type dictionary.
-    get_dictionary: function(self: PCefDictionaryValue; const key: PCefString): PCefDictionaryValue; cdecl;
+    get_dictionary: function(self: PCefDictionaryValue; const key: PCefString): PCefDictionaryValue; cconv;
 
     // Returns the value at the specified key as type list.
-    get_list: function(self: PCefDictionaryValue; const key: PCefString): PCefListValue; cdecl;
+    get_list: function(self: PCefDictionaryValue; const key: PCefString): PCefListValue; cconv;
 
     // Sets the value at the specified key as type null. Returns true (1) if the
     // value was set successfully.
-    set_null: function(self: PCefDictionaryValue; const key: PCefString): Integer; cdecl;
+    set_null: function(self: PCefDictionaryValue; const key: PCefString): Integer; cconv;
 
     // Sets the value at the specified key as type bool. Returns true (1) if the
     // value was set successfully.
-    set_bool: function(self: PCefDictionaryValue; const key: PCefString; value: Integer): Integer; cdecl;
+    set_bool: function(self: PCefDictionaryValue; const key: PCefString; value: Integer): Integer; cconv;
 
     // Sets the value at the specified key as type int. Returns true (1) if the
     // value was set successfully.
-    set_int: function(self: PCefDictionaryValue; const key: PCefString; value: Integer): Integer; cdecl;
+    set_int: function(self: PCefDictionaryValue; const key: PCefString; value: Integer): Integer; cconv;
 
     // Sets the value at the specified key as type double. Returns true (1) if the
     // value was set successfully.
-    set_double: function(self: PCefDictionaryValue; const key: PCefString; value: Double): Integer; cdecl;
+    set_double: function(self: PCefDictionaryValue; const key: PCefString; value: Double): Integer; cconv;
 
     // Sets the value at the specified key as type string. Returns true (1) if the
     // value was set successfully.
-    set_string: function(self: PCefDictionaryValue; const key: PCefString; value: PCefString): Integer; cdecl;
+    set_string: function(self: PCefDictionaryValue; const key: PCefString; value: PCefString): Integer; cconv;
 
     // Sets the value at the specified key as type binary. Returns true (1) if the
     // value was set successfully. If |value| is currently owned by another object
     // then the value will be copied and the |value| reference will not change.
     // Otherwise, ownership will be transferred to this object and the |value|
     // reference will be invalidated.
-    set_binary: function(self: PCefDictionaryValue; const key: PCefString; value: PCefBinaryValue): Integer; cdecl;
+    set_binary: function(self: PCefDictionaryValue; const key: PCefString; value: PCefBinaryValue): Integer; cconv;
 
     // Sets the value at the specified key as type dict. Returns true (1) if the
     // value was set successfully. After calling this function the |value| object
@@ -1483,7 +1523,7 @@ Type
     // then the value will be copied and the |value| reference will not change.
     // Otherwise, ownership will be transferred to this object and the |value|
     // reference will be invalidated.
-    set_dictionary: function(self: PCefDictionaryValue; const key: PCefString; value: PCefDictionaryValue): Integer; cdecl;
+    set_dictionary: function(self: PCefDictionaryValue; const key: PCefString; value: PCefDictionaryValue): Integer; cconv;
 
     // Sets the value at the specified key as type list. Returns true (1) if the
     // value was set successfully. After calling this function the |value| object
@@ -1491,7 +1531,7 @@ Type
     // then the value will be copied and the |value| reference will not change.
     // Otherwise, ownership will be transferred to this object and the |value|
     // reference will be invalidated.
-    set_list: function(self: PCefDictionaryValue; const key: PCefString; value: PCefListValue): Integer; cdecl;
+    set_list: function(self: PCefDictionaryValue; const key: PCefString; value: PCefListValue): Integer; cconv;
   end;
 
   // Structure representing a list value. Can be used on any process and thread.
@@ -1501,75 +1541,75 @@ Type
 
     // Returns true (1) if this object is valid. Do not call any other functions
     // if this function returns false (0).
-    is_valid: function(self: PCefListValue): Integer; cdecl;
+    is_valid: function(self: PCefListValue): Integer; cconv;
 
     // Returns true (1) if this object is currently owned by another object.
-    is_owned: function(self: PCefListValue): Integer; cdecl;
+    is_owned: function(self: PCefListValue): Integer; cconv;
 
     // Returns true (1) if the values of this object are read-only. Some APIs may
     // expose read-only objects.
-    is_read_only: function(self: PCefListValue): Integer; cdecl;
+    is_read_only: function(self: PCefListValue): Integer; cconv;
 
     // Returns a writable copy of this object.
-    copy: function(self: PCefListValue): PCefListValue; cdecl;
+    copy: function(self: PCefListValue): PCefListValue; cconv;
 
     // Sets the number of values. If the number of values is expanded all new
     // value slots will default to type null. Returns true (1) on success.
-    set_size: function(self: PCefListValue; size: Cardinal): Integer; cdecl;
+    set_size: function(self: PCefListValue; size: Cardinal): Integer; cconv;
 
     // Returns the number of values.
-    get_size: function(self: PCefListValue): Cardinal; cdecl;
+    get_size: function(self: PCefListValue): Cardinal; cconv;
 
     // Removes all values. Returns true (1) on success.
-    clear: function(self: PCefListValue): Integer; cdecl;
+    clear: function(self: PCefListValue): Integer; cconv;
 
     // Removes the value at the specified index.
-    remove: function(self: PCefListValue; index: Integer): Integer; cdecl;
+    remove: function(self: PCefListValue; index: Integer): Integer; cconv;
 
     // Returns the value type at the specified index.
-    get_type: function(self: PCefListValue; index: Integer): TCefValueType; cdecl;
+    get_type: function(self: PCefListValue; index: Integer): TCefValueType; cconv;
 
     // Returns the value at the specified index as type bool.
-    get_bool: function(self: PCefListValue; index: Integer): Integer; cdecl;
+    get_bool: function(self: PCefListValue; index: Integer): Integer; cconv;
 
     // Returns the value at the specified index as type int.
-    get_int: function(self: PCefListValue; index: Integer): Integer; cdecl;
+    get_int: function(self: PCefListValue; index: Integer): Integer; cconv;
 
     // Returns the value at the specified index as type double.
-    get_double: function(self: PCefListValue; index: Integer): Double; cdecl;
+    get_double: function(self: PCefListValue; index: Integer): Double; cconv;
 
     // Returns the value at the specified index as type string.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_string: function(self: PCefListValue; index: Integer): PCefStringUserFree; cdecl;
+    get_string: function(self: PCefListValue; index: Integer): PCefStringUserFree; cconv;
 
     // Returns the value at the specified index as type binary.
-    get_binary: function(self: PCefListValue; index: Integer): PCefBinaryValue; cdecl;
+    get_binary: function(self: PCefListValue; index: Integer): PCefBinaryValue; cconv;
 
     // Returns the value at the specified index as type dictionary.
-    get_dictionary: function(self: PCefListValue; index: Integer): PCefDictionaryValue; cdecl;
+    get_dictionary: function(self: PCefListValue; index: Integer): PCefDictionaryValue; cconv;
 
     // Returns the value at the specified index as type list.
-    get_list: function(self: PCefListValue; index: Integer): PCefListValue; cdecl;
+    get_list: function(self: PCefListValue; index: Integer): PCefListValue; cconv;
 
     // Sets the value at the specified index as type null. Returns true (1) if the
     // value was set successfully.
-    set_null: function(self: PCefListValue; index: Integer): Integer; cdecl;
+    set_null: function(self: PCefListValue; index: Integer): Integer; cconv;
 
     // Sets the value at the specified index as type bool. Returns true (1) if the
     // value was set successfully.
-    set_bool: function(self: PCefListValue; index, value: Integer): Integer; cdecl;
+    set_bool: function(self: PCefListValue; index, value: Integer): Integer; cconv;
 
     // Sets the value at the specified index as type int. Returns true (1) if the
     // value was set successfully.
-    set_int: function(self: PCefListValue; index, value: Integer): Integer; cdecl;
+    set_int: function(self: PCefListValue; index, value: Integer): Integer; cconv;
 
     // Sets the value at the specified index as type double. Returns true (1) if
     // the value was set successfully.
-    set_double: function(self: PCefListValue; index: Integer; value: Double): Integer; cdecl;
+    set_double: function(self: PCefListValue; index: Integer; value: Double): Integer; cconv;
 
     // Sets the value at the specified index as type string. Returns true (1) if
     // the value was set successfully.
-    set_string: function(self: PCefListValue; index: Integer; value: PCefString): Integer; cdecl;
+    set_string: function(self: PCefListValue; index: Integer; value: PCefString): Integer; cconv;
 
     // Sets the value at the specified index as type binary. Returns true (1) if
     // the value was set successfully. After calling this function the |value|
@@ -1577,7 +1617,7 @@ Type
     // object then the value will be copied and the |value| reference will not
     // change. Otherwise, ownership will be transferred to this object and the
     // |value| reference will be invalidated.
-    set_binary: function(self: PCefListValue; index: Integer; value: PCefBinaryValue): Integer; cdecl;
+    set_binary: function(self: PCefListValue; index: Integer; value: PCefBinaryValue): Integer; cconv;
 
     // Sets the value at the specified index as type dict. Returns true (1) if the
     // value was set successfully. After calling this function the |value| object
@@ -1585,7 +1625,7 @@ Type
     // then the value will be copied and the |value| reference will not change.
     // Otherwise, ownership will be transferred to this object and the |value|
     // reference will be invalidated.
-    set_dictionary: function(self: PCefListValue; index: Integer; value: PCefDictionaryValue): Integer; cdecl;
+    set_dictionary: function(self: PCefListValue; index: Integer; value: PCefDictionaryValue): Integer; cconv;
 
     // Sets the value at the specified index as type list. Returns true (1) if the
     // value was set successfully. After calling this function the |value| object
@@ -1593,7 +1633,7 @@ Type
     // then the value will be copied and the |value| reference will not change.
     // Otherwise, ownership will be transferred to this object and the |value|
     // reference will be invalidated.
-    set_list: function(self: PCefListValue; index: Integer; value: PCefListValue): Integer; cdecl;
+    set_list: function(self: PCefListValue; index: Integer; value: PCefListValue): Integer; cconv;
   end;
 
   // Implement this structure for asynchronous task execution. If the task is
@@ -1606,7 +1646,7 @@ Type
     // Base structure.
     base: TCefBase;
     // Method that will be executed on the target thread.
-    execute: procedure(self: PCefTask); cdecl;
+    execute: procedure(self: PCefTask); cconv;
   end;
 
   // Structure that asynchronously executes tasks on the associated thread. It is
@@ -1622,23 +1662,23 @@ Type
 
     // Returns true (1) if this object is pointing to the same task runner as
     // |that| object.
-    is_same: function(self, that: PCefTaskRunner): Integer; cdecl;
+    is_same: function(self, that: PCefTaskRunner): Integer; cconv;
 
     // Returns true (1) if this task runner belongs to the current thread.
-    belongs_to_current_thread: function(self: PCefTaskRunner): Integer; cdecl;
+    belongs_to_current_thread: function(self: PCefTaskRunner): Integer; cconv;
 
     // Returns true (1) if this task runner is for the specified CEF thread.
-    belongs_to_thread: function(self: PCefTaskRunner; threadId: TCefThreadId): Integer; cdecl;
+    belongs_to_thread: function(self: PCefTaskRunner; threadId: TCefThreadId): Integer; cconv;
 
     // Post a task for execution on the thread associated with this task runner.
     // Execution will occur asynchronously.
-    post_task: function(self: PCefTaskRunner; task: PCefTask): Integer; cdecl;
+    post_task: function(self: PCefTaskRunner; task: PCefTask): Integer; cconv;
 
     // Post a task for delayed execution on the thread associated with this task
     // runner. Execution will occur asynchronously. Delayed tasks are not
     // supported on V8 WebWorker threads and will be executed without the
     // specified delay.
-    post_delayed_task: function(self: PCefTaskRunner; task: PCefTask; delay_ms: Int64): Integer; cdecl;
+    post_delayed_task: function(self: PCefTaskRunner; task: PCefTask; delay_ms: Int64): Integer; cconv;
   end;
 
   // Structure representing a message. Can be used on any process and thread.
@@ -1648,21 +1688,21 @@ Type
 
     // Returns true (1) if this object is valid. Do not call any other functions
     // if this function returns false (0).
-    is_valid: function(self: PCefProcessMessage): Integer; cdecl;
+    is_valid: function(self: PCefProcessMessage): Integer; cconv;
 
     // Returns true (1) if the values of this object are read-only. Some APIs may
     // expose read-only objects.
-    is_read_only: function(self: PCefProcessMessage): Integer; cdecl;
+    is_read_only: function(self: PCefProcessMessage): Integer; cconv;
 
     // Returns a writable copy of this object.
-    copy: function(self: PCefProcessMessage): PCefProcessMessage; cdecl;
+    copy: function(self: PCefProcessMessage): PCefProcessMessage; cconv;
 
     // Returns the message name.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_name: function(self: PCefProcessMessage): PCefStringUserFree; cdecl;
+    get_name: function(self: PCefProcessMessage): PCefStringUserFree; cconv;
 
     // Returns the list of arguments.
-    get_argument_list: function(self: PCefProcessMessage): PCefListValue; cdecl;
+    get_argument_list: function(self: PCefProcessMessage): PCefListValue; cconv;
   end;
 
   // Class used to represent a browser window. When used in the browser process
@@ -1675,70 +1715,70 @@ Type
 
     // Returns the browser host object. This function can only be called in the
     // browser process.
-    get_host: function(self: PCefBrowser): PCefBrowserHost; cdecl;
+    get_host: function(self: PCefBrowser): PCefBrowserHost; cconv;
 
     // Returns true (1) if the browser can navigate backwards.
-    can_go_back: function(self: PCefBrowser): Integer; cdecl;
+    can_go_back: function(self: PCefBrowser): Integer; cconv;
 
     // Navigate backwards.
-    go_back: procedure(self: PCefBrowser); cdecl;
+    go_back: procedure(self: PCefBrowser); cconv;
 
     // Returns true (1) if the browser can navigate forwards.
-    can_go_forward: function(self: PCefBrowser): Integer; cdecl;
+    can_go_forward: function(self: PCefBrowser): Integer; cconv;
 
     // Navigate forwards.
-    go_forward: procedure(self: PCefBrowser); cdecl;
+    go_forward: procedure(self: PCefBrowser); cconv;
 
     // Returns true (1) if the browser is currently loading.
-    is_loading: function(self: PCefBrowser): Integer; cdecl;
+    is_loading: function(self: PCefBrowser): Integer; cconv;
 
     // Reload the current page.
-    reload: procedure(self: PCefBrowser); cdecl;
+    reload: procedure(self: PCefBrowser); cconv;
 
     // Reload the current page ignoring any cached data.
-    reload_ignore_cache: procedure(self: PCefBrowser); cdecl;
+    reload_ignore_cache: procedure(self: PCefBrowser); cconv;
 
     // Stop loading the page.
-    stop_load: procedure(self: PCefBrowser); cdecl;
+    stop_load: procedure(self: PCefBrowser); cconv;
 
     // Returns the globally unique identifier for this browser.
-    get_identifier  : function(self: PCefBrowser): Integer; cdecl;
+    get_identifier  : function(self: PCefBrowser): Integer; cconv;
 
     // Returns true (1) if this object is pointing to the same handle as |that|
     // object.
-    is_same: function(self, that: PCefBrowser): Integer; cdecl;
+    is_same: function(self, that: PCefBrowser): Integer; cconv;
 
     // Returns true (1) if the window is a popup window.
-    is_popup: function(self: PCefBrowser): Integer; cdecl;
+    is_popup: function(self: PCefBrowser): Integer; cconv;
 
     // Returns true (1) if a document has been loaded in the browser.
-    has_document: function(self: PCefBrowser): Integer; cdecl;
+    has_document: function(self: PCefBrowser): Integer; cconv;
 
     // Returns the main (top-level) frame for the browser window.
-    get_main_frame: function(self: PCefBrowser): PCefFrame; cdecl;
+    get_main_frame: function(self: PCefBrowser): PCefFrame; cconv;
 
     // Returns the focused frame for the browser window.
-    get_focused_frame: function(self: PCefBrowser): PCefFrame; cdecl;
+    get_focused_frame: function(self: PCefBrowser): PCefFrame; cconv;
 
     // Returns the frame with the specified identifier, or NULL if not found.
-    get_frame_byident: function(self: PCefBrowser; identifier: Int64): PCefFrame; cdecl;
+    get_frame_byident: function(self: PCefBrowser; identifier: Int64): PCefFrame; cconv;
 
     // Returns the frame with the specified name, or NULL if not found.
-    get_frame: function(self: PCefBrowser; const name: PCefString): PCefFrame; cdecl;
+    get_frame: function(self: PCefBrowser; const name: PCefString): PCefFrame; cconv;
 
     // Returns the number of frames that currently exist.
-    get_frame_count: function(self: PCefBrowser): Cardinal; cdecl;
+    get_frame_count: function(self: PCefBrowser): Cardinal; cconv;
 
     // Returns the identifiers of all existing frames.
-    get_frame_identifiers: procedure(self: PCefBrowser; identifiersCount: PCardinal; identifiers: PInt64); cdecl;
+    get_frame_identifiers: procedure(self: PCefBrowser; identifiersCount: PCardinal; identifiers: PInt64); cconv;
 
     // Returns the names of all existing frames.
-    get_frame_names: procedure(self: PCefBrowser; names: TCefStringList); cdecl;
+    get_frame_names: procedure(self: PCefBrowser; names: TCefStringList); cconv;
 
     // Send a message to the specified |target_process|. Returns true (1) if the
     // message was sent successfully.
     send_process_message: function(self: PCefBrowser; target_process: TCefProcessId;
-      message: PCefProcessMessage): Integer; cdecl;
+      message: PCefProcessMessage): Integer; cconv;
   end;
 
   // Callback structure for cef_browser_host_t::RunFileDialog. The functions of
@@ -1752,7 +1792,7 @@ Type
     // depending on the dialog mode. If the selection was cancelled |file_paths|
     // will be NULL.
     cont: procedure(self: PCefRunFileDialogCallback; browser_host: PCefBrowserHost;
-      file_paths: TCefStringList); cdecl;
+      file_paths: TCefStringList); cconv;
   end;
 
   // Structure used to represent the browser process aspects of a browser window.
@@ -1764,30 +1804,30 @@ Type
     base: TCefBase;
 
     // Returns the hosted browser object.
-    get_browser: function(self: PCefBrowserHost): PCefBrowser; cdecl;
+    get_browser: function(self: PCefBrowserHost): PCefBrowser; cconv;
 
     // Call this function before destroying a contained browser window. This
     // function performs any internal cleanup that may be needed before the
     // browser window is destroyed.
-    parent_window_will_close: procedure(self: PCefBrowserHost); cdecl;
+    parent_window_will_close: procedure(self: PCefBrowserHost); cconv;
 
     // Closes this browser window.
-    close_browser: procedure(self: PCefBrowserHost); cdecl;
+    close_browser: procedure(self: PCefBrowserHost); cconv;
 
     // Set focus for the browser window. If |enable| is true (1) focus will be set
     // to the window. Otherwise, focus will be removed.
-    set_focus: procedure(self: PCefBrowserHost; enable: Integer); cdecl;
+    set_focus: procedure(self: PCefBrowserHost; enable: Integer); cconv;
 
     // Retrieve the window handle for this browser.
-    get_window_handle: function(self: PCefBrowserHost): TCefWindowHandle; cdecl;
+    get_window_handle: function(self: PCefBrowserHost): TCefWindowHandle; cconv;
 
     // Retrieve the window handle of the browser that opened this browser. Will
     // return NULL for non-popup windows. This function can be used in combination
     // with custom handling of modal windows.
-    get_opener_window_handle: function(self: PCefBrowserHost): TCefWindowHandle; cdecl;
+    get_opener_window_handle: function(self: PCefBrowserHost): TCefWindowHandle; cconv;
 
     // Returns the client for this browser.
-    get_client: function(self: PCefBrowserHost): PCefClient; cdecl;
+    get_client: function(self: PCefBrowserHost): PCefClient; cconv;
 
     // Returns the DevTools URL for this browser. If |http_scheme| is true (1) the
     // returned URL will use the http scheme instead of the chrome-devtools
@@ -1796,16 +1836,16 @@ Type
     // CefSettings.remote_debugging_port value. If remote debugging is not enabled
     // this function will return an NULL string.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_dev_tools_url: function(self: PCefBrowserHost; http_scheme: Integer): PCefStringUserFree; cdecl;
+    get_dev_tools_url: function(self: PCefBrowserHost; http_scheme: Integer): PCefStringUserFree; cconv;
 
     // Get the current zoom level. The default zoom level is 0.0. This function
     // can only be called on the UI thread.
-    get_zoom_level: function(self: PCefBrowserHost): Double; cdecl;
+    get_zoom_level: function(self: PCefBrowserHost): Double; cconv;
 
     // Change the zoom level to the specified value. Specify 0.0 to reset the zoom
     // level. If called on the UI thread the change will be applied immediately.
     // Otherwise, the change will be applied asynchronously on the UI thread.
-    set_zoom_level: procedure(self: PCefBrowserHost; zoomLevel: Double); cdecl;
+    set_zoom_level: procedure(self: PCefBrowserHost; zoomLevel: Double); cconv;
 
     // Call to run a file chooser dialog. Only a single file chooser dialog may be
     // pending at any given time. |mode| represents the type of dialog to display.
@@ -1819,16 +1859,16 @@ Type
     // the UI thread.
     run_file_dialog: procedure(self: PCefBrowserHost; mode: TCefFileDialogMode;
       const title, default_file_name: PCefString; accept_types: TCefStringList;
-      callback: PCefRunFileDialogCallback); cdecl;
+      callback: PCefRunFileDialogCallback); cconv;
 
     // Returns true (1) if window rendering is disabled.
-    is_window_rendering_disabled: function(self: PCefBrowserHost): Integer; cdecl;
+    is_window_rendering_disabled: function(self: PCefBrowserHost): Integer; cconv;
 
     // Notify the browser that the widget has been resized. The browser will first
     // call cef_render_handler_t::GetViewRect to get the new size and then call
     // cef_render_handler_t::OnPaint asynchronously with the updated regions. This
     // function is only used when window rendering is disabled.
-    was_resized: procedure(self: PCefBrowserHost); cdecl;
+    was_resized: procedure(self: PCefBrowserHost); cconv;
 
     ///
     // Invalidate the |dirtyRect| region of the view. The browser will call
@@ -1836,21 +1876,21 @@ Type
     // function is only used when window rendering is disabled.
     ///
     invalidate: procedure(self: PCefBrowserHost; const dirtyRect: PCefRect;
-      kind: TCefPaintElementType); cdecl;
+      kind: TCefPaintElementType); cconv;
 
     // Send a key event to the browser.
-    send_key_event: procedure(self: PCefBrowserHost; const event: PCefKeyEvent); cdecl;
+    send_key_event: procedure(self: PCefBrowserHost; const event: PCefKeyEvent); cconv;
 
     // Send a mouse click event to the browser. The |x| and |y| coordinates are
     // relative to the upper-left corner of the view.
     send_mouse_click_event: procedure(self: PCefBrowserHost;
       const event: PCefMouseEvent; kind: TCefMouseButtonType;
-      mouseUp, clickCount: Integer); cdecl;
+      mouseUp, clickCount: Integer); cconv;
 
     // Send a mouse move event to the browser. The |x| and |y| coordinates are
     // relative to the upper-left corner of the view.
     send_mouse_move_event: procedure(self: PCefBrowserHost;
-        const event: PCefMouseEvent; mouseLeave: Integer); cdecl;
+        const event: PCefMouseEvent; mouseLeave: Integer); cconv;
 
     // Send a mouse wheel event to the browser. The |x| and |y| coordinates are
     // relative to the upper-left corner of the view. The |deltaX| and |deltaY|
@@ -1858,10 +1898,10 @@ Type
     // In order to scroll inside select popups with window rendering disabled
     // cef_render_handler_t::GetScreenPoint should be implemented properly.
     send_mouse_wheel_event: procedure(self: PCefBrowserHost;
-        const event: PCefMouseEvent; deltaX, deltaY: Integer); cdecl;
+        const event: PCefMouseEvent; deltaX, deltaY: Integer); cconv;
 
     // Send a focus event to the browser.
-    send_focus_event: procedure(self: PCefBrowserHost; setFocus: Integer); cdecl;
+    send_focus_event: procedure(self: PCefBrowserHost; setFocus: Integer); cconv;
 
     // Send a capture lost event to the browser.
     send_capture_lost_event: procedure(self: PCefBrowserHost);
@@ -1873,7 +1913,7 @@ Type
     base: TCefBase;
 
     // Method that will be executed.
-    visit: procedure(self: PCefStringVisitor; const str: PCefString); cdecl;
+    visit: procedure(self: PCefStringVisitor; const str: PCefString); cconv;
   end;
 
   // Structure used to represent a frame in the browser window. When used in the
@@ -1885,50 +1925,50 @@ Type
     base: TCefBase;
 
     // True if this object is currently attached to a valid frame.
-    is_valid: function(self: PCefFrame): Integer; cdecl;
+    is_valid: function(self: PCefFrame): Integer; cconv;
 
     // Execute undo in this frame.
-    undo: procedure(self: PCefFrame); cdecl;
+    undo: procedure(self: PCefFrame); cconv;
 
     // Execute redo in this frame.
-    redo: procedure(self: PCefFrame); cdecl;
+    redo: procedure(self: PCefFrame); cconv;
 
     // Execute cut in this frame.
-    cut: procedure(self: PCefFrame); cdecl;
+    cut: procedure(self: PCefFrame); cconv;
 
     // Execute copy in this frame.
-    copy: procedure(self: PCefFrame); cdecl;
+    copy: procedure(self: PCefFrame); cconv;
 
     // Execute paste in this frame.
-    paste: procedure(self: PCefFrame); cdecl;
+    paste: procedure(self: PCefFrame); cconv;
 
     // Execute delete in this frame.
-    del: procedure(self: PCefFrame); cdecl;
+    del: procedure(self: PCefFrame); cconv;
 
     // Execute select all in this frame.
-    select_all: procedure(self: PCefFrame); cdecl;
+    select_all: procedure(self: PCefFrame); cconv;
 
     // Save this frame's HTML source to a temporary file and open it in the
     // default text viewing application. This function can only be called from the
     // browser process.
-    view_source: procedure(self: PCefFrame); cdecl;
+    view_source: procedure(self: PCefFrame); cconv;
 
     // Retrieve this frame's HTML source as a string sent to the specified
     // visitor.
-    get_source: procedure(self: PCefFrame; visitor: PCefStringVisitor); cdecl;
+    get_source: procedure(self: PCefFrame; visitor: PCefStringVisitor); cconv;
 
     // Retrieve this frame's display text as a string sent to the specified
     // visitor.
-    get_text: procedure(self: PCefFrame; visitor: PCefStringVisitor); cdecl;
+    get_text: procedure(self: PCefFrame; visitor: PCefStringVisitor); cconv;
 
     // Load the request represented by the |request| object.
-    load_request: procedure(self: PCefFrame; request: PCefRequest); cdecl;
+    load_request: procedure(self: PCefFrame; request: PCefRequest); cconv;
 
     // Load the specified |url|.
-    load_url: procedure(self: PCefFrame; const url: PCefString); cdecl;
+    load_url: procedure(self: PCefFrame; const url: PCefString); cconv;
 
     // Load the contents of |stringVal| with the optional dummy target |url|.
-    load_string: procedure(self: PCefFrame; const stringVal, url: PCefString); cdecl;
+    load_string: procedure(self: PCefFrame; const stringVal, url: PCefString); cconv;
 
     // Execute a string of JavaScript code in this frame. The |script_url|
     // parameter is the URL where the script in question can be found, if any. The
@@ -1936,13 +1976,13 @@ Type
     // error.  The |start_line| parameter is the base line number to use for error
     // reporting.
     execute_java_script: procedure(self: PCefFrame; const code,
-      script_url: PCefString; start_line: Integer); cdecl;
+      script_url: PCefString; start_line: Integer); cconv;
 
     // Returns true (1) if this is the main (top-level) frame.
-    is_main: function(self: PCefFrame): Integer; cdecl;
+    is_main: function(self: PCefFrame): Integer; cconv;
 
     // Returns true (1) if this is the focused frame.
-    is_focused: function(self: PCefFrame): Integer; cdecl;
+    is_focused: function(self: PCefFrame): Integer; cconv;
 
     // Returns the name for this frame. If the frame has an assigned name (for
     // example, set via the iframe "name" attribute) then that value will be
@@ -1950,29 +1990,29 @@ Type
     // parent hierarchy. The main (top-level) frame will always have an NULL name
     // value.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_name: function(self: PCefFrame): PCefStringUserFree; cdecl;
+    get_name: function(self: PCefFrame): PCefStringUserFree; cconv;
 
     // Returns the globally unique identifier for this frame.
-    get_identifier: function(self: PCefFrame): Int64; cdecl;
+    get_identifier: function(self: PCefFrame): Int64; cconv;
 
     // Returns the parent of this frame or NULL if this is the main (top-level)
     // frame.
-    get_parent: function(self: PCefFrame): PCefFrame; cdecl;
+    get_parent: function(self: PCefFrame): PCefFrame; cconv;
 
     // Returns the URL currently loaded in this frame.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_url: function(self: PCefFrame): PCefStringUserFree; cdecl;
+    get_url: function(self: PCefFrame): PCefStringUserFree; cconv;
 
     // Returns the browser that this frame belongs to.
-    get_browser: function(self: PCefFrame): PCefBrowser; cdecl;
+    get_browser: function(self: PCefFrame): PCefBrowser; cconv;
 
     // Get the V8 context associated with the frame. This function can only be
     // called from the render process.
-    get_v8context: function(self: PCefFrame): PCefv8Context; cdecl;
+    get_v8context: function(self: PCefFrame): PCefv8Context; cconv;
 
     // Visit the DOM document. This function can only be called from the render
     // process.
-    visit_dom: procedure(self: PCefFrame; visitor: PCefDomVisitor); cdecl;
+    visit_dom: procedure(self: PCefFrame; visitor: PCefDomVisitor); cconv;
   end;
 
   // Structure used to implement a custom resource bundle structure. The functions
@@ -1986,7 +2026,7 @@ Type
     // string and return true (1). To use the default translation return false
     // (0). Supported message IDs are listed in cef_pack_strings.h.
     get_localized_string: function(self: PCefResourceBundleHandler;
-      message_id: Integer; string_val: PCefString): Integer; cdecl;
+      message_id: Integer; string_val: PCefString): Integer; cconv;
 
     // Called to retrieve data for the resource specified by |resource_id|. To
     // provide the resource data set |data| and |data_size| to the data pointer
@@ -1995,7 +2035,7 @@ Type
     // resident in memory. Supported resource IDs are listed in
     // cef_pack_resources.h.
     get_data_resource: function(self: PCefResourceBundleHandler;
-        resource_id: Integer; var data: Pointer; var data_size: Cardinal): Integer; cdecl;
+        resource_id: Integer; var data: Pointer; var data_size: Cardinal): Integer; cconv;
   end;
 
   // Structure used to create and/or parse command line arguments. Arguments with
@@ -2012,78 +2052,78 @@ Type
 
     // Returns true (1) if this object is valid. Do not call any other functions
     // if this function returns false (0).
-    is_valid: function(self: PCefCommandLine): Integer; cdecl;
+    is_valid: function(self: PCefCommandLine): Integer; cconv;
 
     // Returns true (1) if the values of this object are read-only. Some APIs may
     // expose read-only objects.
-    is_read_only: function(self: PCefCommandLine): Integer; cdecl;
+    is_read_only: function(self: PCefCommandLine): Integer; cconv;
 
     // Returns a writable copy of this object.
-    copy: function(self: PCefCommandLine): PCefCommandLine; cdecl;
+    copy: function(self: PCefCommandLine): PCefCommandLine; cconv;
 
     // Initialize the command line with the specified |argc| and |argv| values.
     // The first argument must be the name of the program. This function is only
     // supported on non-Windows platforms.
-    init_from_argv: procedure(self: PCefCommandLine; argc: Integer; const argv: PPAnsiChar); cdecl;
+    init_from_argv: procedure(self: PCefCommandLine; argc: Integer; const argv: PPAnsiChar); cconv;
 
     // Initialize the command line with the string returned by calling
     // GetCommandLineW(). This function is only supported on Windows.
-    init_from_string: procedure(self: PCefCommandLine; command_line: PCefString); cdecl;
+    init_from_string: procedure(self: PCefCommandLine; command_line: PCefString); cconv;
 
     // Reset the command-line switches and arguments but leave the program
     // component unchanged.
-    reset: procedure(self: PCefCommandLine); cdecl;
+    reset: procedure(self: PCefCommandLine); cconv;
 
     // Retrieve the original command line string as a vector of strings. The argv
     // array: { program, [(--|-|/)switch[=value]]*, [--], [argument]* }
-    get_argv: procedure(self: PCefCommandLine; argv: TCefStringList); cdecl;
+    get_argv: procedure(self: PCefCommandLine; argv: TCefStringList); cconv;
 
     // Constructs and returns the represented command line string. Use this
     // function cautiously because quoting behavior is unclear.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_command_line_string: function(self: PCefCommandLine): PCefStringUserFree; cdecl;
+    get_command_line_string: function(self: PCefCommandLine): PCefStringUserFree; cconv;
 
     // Get the program part of the command line string (the first item).
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_program: function(self: PCefCommandLine): PCefStringUserFree; cdecl;
+    get_program: function(self: PCefCommandLine): PCefStringUserFree; cconv;
 
     // Set the program part of the command line string (the first item).
-    set_program: procedure(self: PCefCommandLine; program_: PCefString); cdecl;
+    set_program: procedure(self: PCefCommandLine; program_: PCefString); cconv;
 
     // Returns true (1) if the command line has switches.
-    has_switches: function(self: PCefCommandLine): Integer; cdecl;
+    has_switches: function(self: PCefCommandLine): Integer; cconv;
 
     // Returns true (1) if the command line contains the given switch.
-    has_switch: function(self: PCefCommandLine; const name: PCefString): Integer; cdecl;
+    has_switch: function(self: PCefCommandLine; const name: PCefString): Integer; cconv;
 
     // Returns the value associated with the given switch. If the switch has no
     // value or isn't present this function returns the NULL string.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_switch_value: function(self: PCefCommandLine; const name: PCefString): PCefStringUserFree; cdecl;
+    get_switch_value: function(self: PCefCommandLine; const name: PCefString): PCefStringUserFree; cconv;
 
     // Returns the map of switch names and values. If a switch has no value an
     // NULL string is returned.
-    get_switches: procedure(self: PCefCommandLine; switches: TCefStringMap); cdecl;
+    get_switches: procedure(self: PCefCommandLine; switches: TCefStringMap); cconv;
 
     // Add a switch to the end of the command line. If the switch has no value
     // pass an NULL value string.
-    append_switch: procedure(self: PCefCommandLine; const name: PCefString); cdecl;
+    append_switch: procedure(self: PCefCommandLine; const name: PCefString); cconv;
 
     // Add a switch with the specified value to the end of the command line.
-    append_switch_with_value: procedure(self: PCefCommandLine; const name, value: PCefString); cdecl;
+    append_switch_with_value: procedure(self: PCefCommandLine; const name, value: PCefString); cconv;
 
     // True if there are remaining command line arguments.
-    has_arguments: function(self: PCefCommandLine): Integer; cdecl;
+    has_arguments: function(self: PCefCommandLine): Integer; cconv;
 
     // Get the remaining command line arguments.
-    get_arguments: procedure(self: PCefCommandLine; arguments: TCefStringList); cdecl;
+    get_arguments: procedure(self: PCefCommandLine; arguments: TCefStringList); cconv;
 
     // Add an argument to the end of the command line.
-    append_argument: procedure(self: PCefCommandLine; const argument: PCefString); cdecl;
+    append_argument: procedure(self: PCefCommandLine; const argument: PCefString); cconv;
 
     // Insert a command before the current command. Common for debuggers, like
     // "valgrind" or "gdb --args".
-    prepend_wrapper: procedure(self: PCefCommandLine; const wrapper: PCefString); cdecl;
+    prepend_wrapper: procedure(self: PCefCommandLine; const wrapper: PCefString); cconv;
   end;
 
   // Structure used to implement browser process callbacks. The functions of this
@@ -2095,7 +2135,7 @@ Type
 
     // Called on the browser process UI thread immediately after the CEF context
     // has been initialized.
-    on_context_initialized: procedure(self: PCefBrowserProcessHandler); cdecl;
+    on_context_initialized: procedure(self: PCefBrowserProcessHandler); cconv;
 
     // Called before a child process is launched. Will be called on the browser
     // process UI thread when launching a render process and on the browser
@@ -2103,7 +2143,7 @@ Type
     // opportunity to modify the child process command line. Do not keep a
     // reference to |command_line| outside of this function.
     on_before_child_process_launch: procedure(self: PCefBrowserProcessHandler;
-      command_line: PCefCommandLine); cdecl;
+      command_line: PCefCommandLine); cconv;
 
     // Called on the browser process IO thread after the main thread has been
     // created for a new render process. Provides an opportunity to specify extra
@@ -2111,7 +2151,7 @@ Type
     // cef_render_process_handler_t::on_render_thread_created() in the render
     // process. Do not keep a reference to |extra_info| outside of this function.
     on_render_process_thread_created: procedure(self: PCefBrowserProcessHandler;
-        extra_info: PCefListValue); cdecl;
+        extra_info: PCefListValue); cconv;
   end;
 
   // Structure used to implement render process callbacks. The functions of this
@@ -2126,27 +2166,27 @@ Type
     // cef_browser_process_handler_t::on_render_process_thread_created(). Do not
     // keep a reference to |extra_info| outside of this function.
     on_render_thread_created: procedure(self: PCefRenderProcessHandler;
-      extra_info: PCefListValue); cdecl;
+      extra_info: PCefListValue); cconv;
 
     // Called after WebKit has been initialized.
-    on_web_kit_initialized: procedure(self: PCefRenderProcessHandler); cdecl;
+    on_web_kit_initialized: procedure(self: PCefRenderProcessHandler); cconv;
 
     // Called after a browser has been created. When browsing cross-origin a new
     // browser will be created before the old browser with the same identifier is
     // destroyed.
     on_browser_created: procedure(self: PCefRenderProcessHandler;
-      browser: PCefBrowser); cdecl;
+      browser: PCefBrowser); cconv;
 
     // Called before a browser is destroyed.
     on_browser_destroyed: procedure(self: PCefRenderProcessHandler;
-      browser: PCefBrowser); cdecl;
+      browser: PCefBrowser); cconv;
 
     // Called before browser navigation. Return true (1) to cancel the navigation
     // or false (0) to allow the navigation to proceed. The |request| object
     // cannot be modified in this callback.
     on_before_navigation: function(self: PCefRenderProcessHandler;
       browser: PCefBrowser; frame: PCefFrame; request: PCefRequest;
-      navigation_type: TCefNavigationType; is_redirect: Integer): Integer; cdecl;
+      navigation_type: TCefNavigationType; is_redirect: Integer): Integer; cconv;
 
     // Called immediately after the V8 context for a frame has been created. To
     // retrieve the JavaScript 'window' object use the
@@ -2155,19 +2195,19 @@ Type
     // on the associated thread can be retrieved via the
     // cef_v8context_t::get_task_runner() function.
     on_context_created: procedure(self: PCefRenderProcessHandler;
-      browser: PCefBrowser; frame: PCefFrame; context: PCefv8Context); cdecl;
+      browser: PCefBrowser; frame: PCefFrame; context: PCefv8Context); cconv;
 
     // Called immediately before the V8 context for a frame is released. No
     // references to the context should be kept after this function is called.
     on_context_released: procedure(self: PCefRenderProcessHandler;
-      browser: PCefBrowser; frame: PCefFrame; context: PCefv8Context); cdecl;
+      browser: PCefBrowser; frame: PCefFrame; context: PCefv8Context); cconv;
 
     // Called for global uncaught exceptions in a frame. Execution of this
     // callback is disabled by default. To enable set
     // CefSettings.uncaught_exception_stack_size > 0.
     on_uncaught_exception: procedure(self: PCefRenderProcessHandler;
       browser: PCefBrowser; frame: PCefFrame; context: PCefv8Context;
-      exception: PCefV8Exception; stackTrace: PCefV8StackTrace); cdecl;
+      exception: PCefV8Exception; stackTrace: PCefV8StackTrace); cconv;
 
     // Called on the WebWorker thread immediately after the V8 context for a new
     // WebWorker has been created. To retrieve the JavaScript 'self' object use
@@ -2176,21 +2216,21 @@ Type
     // on the associated thread can be retrieved via the
     // cef_v8context_t::get_task_runner() function.
     on_worker_context_created: procedure(self: PCefRenderProcessHandler;
-      worker_id: Integer; const url: PCefString; context: PCefv8Context); cdecl;
+      worker_id: Integer; const url: PCefString; context: PCefv8Context); cconv;
 
     // Called on the WebWorker thread immediately before the V8 context for a
     // WebWorker is released. No references to the context should be kept after
     // this function is called. Any tasks posted or pending on the WebWorker
     // thread after this function is called may not be executed.
     on_worker_context_released: procedure(self: PCefRenderProcessHandler;
-      worker_id: Integer; const url: PCefString; context: PCefv8Context); cdecl;
+      worker_id: Integer; const url: PCefString; context: PCefv8Context); cconv;
 
     // Called on the WebWorker thread for global uncaught exceptions in a
     // WebWorker. Execution of this callback is disabled by default. To enable set
     // CefSettings.uncaught_exception_stack_size > 0.
     on_worker_uncaught_exception: procedure(self: PCefRenderProcessHandler;
       worker_id: Integer; const url: PCefString; context: PCefv8Context;
-        exception: PCefV8Exception; stackTrace: PCefV8StackTrace); cdecl;
+        exception: PCefV8Exception; stackTrace: PCefV8StackTrace); cconv;
 
     // Called when a new node in the the browser gets focus. The |node| value may
     // be NULL if no specific node has gained focus. The node object passed to
@@ -2199,14 +2239,14 @@ Type
     // keep references to or attempt to access any DOM objects outside the scope
     // of this function.
     on_focused_node_changed: procedure(self: PCefRenderProcessHandler;
-      browser: PCefBrowser; frame: PCefFrame; node: PCefDomNode); cdecl;
+      browser: PCefBrowser; frame: PCefFrame; node: PCefDomNode); cconv;
 
     // Called when a new message is received from a different process. Return true
     // (1) if the message was handled or false (0) otherwise. Do not keep a
     // reference to or attempt to access the message outside of this callback.
     on_process_message_received: function(self: PCefRenderProcessHandler;
       browser: PCefBrowser; source_process: TCefProcessId;
-      message: PCefProcessMessage): Integer; cdecl;
+      message: PCefProcessMessage): Integer; cconv;
   end;
 
   // Implement this structure to provide handler implementations. Methods will be
@@ -2225,27 +2265,27 @@ Type
     // modify command-line arguments for non-browser processes as this may result
     // in undefined behavior including crashes.
     on_before_command_line_processing: procedure(self: PCefApp; const process_type: PCefString;
-      command_line: PCefCommandLine); cdecl;
+      command_line: PCefCommandLine); cconv;
 
     // Provides an opportunity to register custom schemes. Do not keep a reference
     // to the |registrar| object. This function is called on the main thread for
     // each process and the registered schemes should be the same across all
     // processes.
-    on_register_custom_schemes: procedure(self: PCefApp; registrar: PCefSchemeRegistrar); cdecl;
+    on_register_custom_schemes: procedure(self: PCefApp; registrar: PCefSchemeRegistrar); cconv;
 
     // Return the handler for resource bundle events. If
     // CefSettings.pack_loading_disabled is true (1) a handler must be returned.
     // If no handler is returned resources will be loaded from pack files. This
     // function is called by the browser and render processes on multiple threads.
-    get_resource_bundle_handler: function(self: PCefApp): PCefResourceBundleHandler; cdecl;
+    get_resource_bundle_handler: function(self: PCefApp): PCefResourceBundleHandler; cconv;
 
     // Return the handler for functionality specific to the browser process. This
     // function is called on multiple threads in the browser process.
-    get_browser_process_handler: function(self: PCefApp): PCefBrowserProcessHandler; cdecl;
+    get_browser_process_handler: function(self: PCefApp): PCefBrowserProcessHandler; cconv;
 
     // Return the handler for functionality specific to the render process. This
     // function is called on the render process main thread.
-    get_render_process_handler: function(self: PCefApp): PCefRenderProcessHandler; cdecl;
+    get_render_process_handler: function(self: PCefApp): PCefRenderProcessHandler; cconv;
   end;
 
   // Implement this structure to handle events related to browser life span. The
@@ -2272,27 +2312,27 @@ Type
       const target_url, target_frame_name: PCefString;
       const popupFeatures: PCefPopupFeatures;
       windowInfo: PCefWindowInfo; var client: PCefClient;
-      settings: PCefBrowserSettings; no_javascript_access: PInteger): Integer; cdecl;
+      settings: PCefBrowserSettings; no_javascript_access: PInteger): Integer; cconv;
 
     // Called after a new window is created.
-    on_after_created: procedure(self: PCefLifeSpanHandler; browser: PCefBrowser); cdecl;
+    on_after_created: procedure(self: PCefLifeSpanHandler; browser: PCefBrowser); cconv;
 
     // Called when a modal window is about to display and the modal loop should
     // begin running. Return false (0) to use the default modal loop
     // implementation or true (1) to use a custom implementation.
-    run_modal: function(self: PCefLifeSpanHandler; browser: PCefBrowser): Integer; cdecl;
+    run_modal: function(self: PCefLifeSpanHandler; browser: PCefBrowser): Integer; cconv;
 
     // Called when a window has recieved a request to close. Return false (0) to
     // proceed with the window close or true (1) to cancel the window close. If
     // this is a modal window and a custom modal loop implementation was provided
     // in run_modal() this callback should be used to restore the opener window to
     // a usable state.
-    do_close: function(self: PCefLifeSpanHandler; browser: PCefBrowser): Integer; cdecl;
+    do_close: function(self: PCefLifeSpanHandler; browser: PCefBrowser): Integer; cconv;
 
     // Called just before a window is closed. If this is a modal window and a
     // custom modal loop implementation was provided in run_modal() this callback
     // should be used to exit the custom modal loop.
-    on_before_close: procedure(self: PCefLifeSpanHandler; browser: PCefBrowser); cdecl;
+    on_before_close: procedure(self: PCefLifeSpanHandler; browser: PCefBrowser); cconv;
   end;
 
   // Implement this structure to handle events related to browser load status. The
@@ -2308,7 +2348,7 @@ Type
     // function may not be called for a particular frame if the load request for
     // that frame fails.
     on_load_start: procedure(self: PCefLoadHandler;
-      browser: PCefBrowser; frame: PCefFrame); cdecl;
+      browser: PCefBrowser; frame: PCefFrame); cconv;
 
     // Called when the browser is done loading a frame. The |frame| value will
     // never be NULL -- call the is_main() function to check if this frame is the
@@ -2317,24 +2357,24 @@ Type
     // function will always be called for all frames irrespective of whether the
     // request completes successfully.
     on_load_end: procedure(self: PCefLoadHandler; browser: PCefBrowser;
-      frame: PCefFrame; httpStatusCode: Integer); cdecl;
+      frame: PCefFrame; httpStatusCode: Integer); cconv;
 
     // Called when the browser fails to load a resource. |errorCode| is the error
     // code number, |errorText| is the error text and and |failedUrl| is the URL
     // that failed to load. See net\base\net_error_list.h for complete
     // descriptions of the error codes.
     on_load_error: procedure(self: PCefLoadHandler; browser: PCefBrowser;
-      frame: PCefFrame; errorCode: Integer; const errorText, failedUrl: PCefString); cdecl;
+      frame: PCefFrame; errorCode: Integer; const errorText, failedUrl: PCefString); cconv;
 
     // Called when the render process terminates unexpectedly. |status| indicates
     // how the process terminated.
     on_render_process_terminated: procedure(self: PCefLoadHandler; browser: PCefBrowser;
-      status: TCefTerminationStatus); cdecl;
+      status: TCefTerminationStatus); cconv;
 
     // Called when a plugin has crashed. |plugin_path| is the path of the plugin
     // that crashed.
     on_plugin_crashed: procedure(self: PCefLoadHandler; browser: PCefBrowser;
-      const plugin_path: PCefString); cdecl;
+      const plugin_path: PCefString); cconv;
   end;
 
   // Generic callback structure used for asynchronous continuation.
@@ -2343,10 +2383,10 @@ Type
     base: TCefBase;
 
     // Continue processing.
-    cont: procedure(self: PCefCallback); cdecl;
+    cont: procedure(self: PCefCallback); cconv;
 
     // Cancel processing.
-    cancel: procedure(self: PCefCallback); cdecl;
+    cancel: procedure(self: PCefCallback); cconv;
   end;
 
   // Structure used to implement a custom request handler structure. The functions
@@ -2361,7 +2401,7 @@ Type
     // function if header information is available immediately). To cancel the
     // request return false (0).
     process_request: function(self: PCefResourceHandler;
-      request: PCefRequest; callback: PCefCallback): Integer; cdecl;
+      request: PCefRequest; callback: PCefCallback): Integer; cconv;
 
     // Retrieve response header information. If the response length is not known
     // set |response_length| to -1 and read_response() will be called until it
@@ -2372,7 +2412,7 @@ Type
     // values. To redirect the request to a new URL set |redirectUrl| to the new
     // URL.
     get_response_headers: procedure(self: PCefResourceHandler;
-      response: PCefResponse; response_length: PInt64; redirectUrl: PCefString); cdecl;
+      response: PCefResponse; response_length: PInt64; redirectUrl: PCefString); cconv;
 
     // Read response data. If data is available immediately copy up to
     // |bytes_to_read| bytes into |data_out|, set |bytes_read| to the number of
@@ -2381,21 +2421,21 @@ Type
     // data is available. To indicate response completion return false (0).
     read_response: function(self: PCefResourceHandler;
       data_out: Pointer; bytes_to_read: Integer; bytes_read: PInteger;
-        callback: PCefCallback): Integer; cdecl;
+        callback: PCefCallback): Integer; cconv;
 
     // Return true (1) if the specified cookie can be sent with the request or
     // false (0) otherwise. If false (0) is returned for any cookie then no
     // cookies will be sent with the request.
     can_get_cookie: function(self: PCefResourceHandler;
-      const cookie: PCefCookie): Integer; cdecl;
+      const cookie: PCefCookie): Integer; cconv;
 
     // Return true (1) if the specified cookie returned with the response can be
     // set or false (0) otherwise.
     can_set_cookie: function(self: PCefResourceHandler;
-      const cookie: PCefCookie): Integer; cdecl;
+      const cookie: PCefCookie): Integer; cconv;
 
     // Request processing has been canceled.
-    cancel: procedure(self: PCefResourceHandler); cdecl;
+    cancel: procedure(self: PCefResourceHandler); cconv;
   end;
 
   // Callback structure used for asynchronous continuation of authentication
@@ -2406,10 +2446,10 @@ Type
 
     // Continue the authentication request.
     cont: procedure(self: PCefAuthCallback;
-        const username, password: PCefString); cdecl;
+        const username, password: PCefString); cconv;
 
     // Cancel the authentication request.
-    cancel: procedure(self: PCefAuthCallback); cdecl;
+    cancel: procedure(self: PCefAuthCallback); cconv;
   end;
 
   // Callback structure used for asynchronous continuation of quota requests.
@@ -2419,9 +2459,9 @@ Type
 
     // Continue the quota request. If |allow| is true (1) the request will be
     // allowed. Otherwise, the request will be denied.
-    cont: procedure(self: PCefQuotaCallback; allow: Integer); cdecl;
+    cont: procedure(self: PCefQuotaCallback; allow: Integer); cconv;
     // Cancel the quota request.
-    cancel: procedure(self: PCefQuotaCallback); cdecl;
+    cancel: procedure(self: PCefQuotaCallback); cconv;
   end;
 
   // Implement this structure to handle events related to browser requests. The
@@ -2434,21 +2474,21 @@ Type
     // object may be modified. To cancel the request return true (1) otherwise
     // return false (0).
     on_before_resource_load: function(self: PCefRequestHandler;
-      browser: PCefBrowser; frame: PCefFrame; request: PCefRequest): Integer; cdecl;
+      browser: PCefBrowser; frame: PCefFrame; request: PCefRequest): Integer; cconv;
 
     // Called on the IO thread before a resource is loaded. To allow the resource
     // to load normally return NULL. To specify a handler for the resource return
     // a cef_resource_handler_t object. The |request| object should not be
     // modified in this callback.
     get_resource_handler: function(self: PCefRequestHandler;
-      browser: PCefBrowser; frame: PCefFrame; request: PCefRequest): PCefResourceHandler; cdecl;
+      browser: PCefBrowser; frame: PCefFrame; request: PCefRequest): PCefResourceHandler; cconv;
 
     // Called on the IO thread when a resource load is redirected. The |old_url|
     // parameter will contain the old URL. The |new_url| parameter will contain
     // the new URL and can be changed if desired.
     on_resource_redirect: procedure(self: PCefRequestHandler;
       browser: PCefBrowser; frame: PCefFrame; const old_url: PCefString;
-      new_url: PCefString); cdecl;
+      new_url: PCefString); cconv;
 
     // Called on the IO thread when the browser needs credentials from the user.
     // |isProxy| indicates whether the host is a proxy server. |host| contains the
@@ -2457,7 +2497,7 @@ Type
     // information is available. Return false (0) to cancel the request.
     get_auth_credentials: function(self: PCefRequestHandler;
       browser: PCefBrowser; frame: PCefFrame; isProxy: Integer; const host: PCefString;
-      port: Integer; const realm, scheme: PCefString; callback: PCefAuthCallback): Integer; cdecl;
+      port: Integer; const realm, scheme: PCefString; callback: PCefAuthCallback): Integer; cconv;
 
     // Called on the IO thread when JavaScript requests a specific storage quota
     // size via the webkitStorageInfo.requestQuota function. |origin_url| is the
@@ -2466,14 +2506,14 @@ Type
     // in this function or at a later time to grant or deny the request. Return
     // false (0) to cancel the request.
     on_quota_request: function(self: PCefRequestHandler; browser: PCefBrowser;
-      const origin_url: PCefString; new_size: Int64; callback: PCefQuotaCallback): Integer; cdecl;
+      const origin_url: PCefString; new_size: Int64; callback: PCefQuotaCallback): Integer; cconv;
 
     // Called on the IO thread to retrieve the cookie manager. |main_url| is the
     // URL of the top-level frame. Cookies managers can be unique per browser or
     // shared across multiple browsers. The global cookie manager will be used if
     // this function returns NULL.
     get_cookie_manager: function(self: PCefRequestHandler;
-      browser: PCefBrowser; const main_url: PCefString): PCefCookieManager; cdecl;
+      browser: PCefBrowser; const main_url: PCefString): PCefCookieManager; cconv;
 
     // Called on the UI thread to handle requests for URLs with an unknown
     // protocol component. Set |allow_os_execution| to true (1) to attempt
@@ -2481,12 +2521,12 @@ Type
     // YOU SHOULD USE THIS METHOD TO ENFORCE RESTRICTIONS BASED ON SCHEME, HOST OR
     // OTHER URL ANALYSIS BEFORE ALLOWING OS EXECUTION.
     on_protocol_execution: procedure(self: PCefRequestHandler;
-      browser: PCefBrowser; const url: PCefString; allow_os_execution: PInteger); cdecl;
+      browser: PCefBrowser; const url: PCefString; allow_os_execution: PInteger); cconv;
 
     // Called on the browser process IO thread before a plugin is loaded. Return
     // true (1) to block loading of the plugin.
     on_before_plugin_load: function(self: PCefRequestHandler; browser: PCefBrowser;
-      const url, policy_url: PCefString; info: PCefWebPluginInfo): Integer; cdecl;
+      const url, policy_url: PCefString; info: PCefWebPluginInfo): Integer; cconv;
   end;
 
 
@@ -2498,15 +2538,15 @@ Type
 
     // Called when the loading state has changed.
     on_loading_state_change: procedure(self: PCefDisplayHandler;
-      browser: PCefBrowser; isLoading, canGoBack, canGoForward: Integer); cdecl;
+      browser: PCefBrowser; isLoading, canGoBack, canGoForward: Integer); cconv;
 
     // Called when a frame's address has changed.
     on_address_change: procedure(self: PCefDisplayHandler;
-      browser: PCefBrowser; frame: PCefFrame; const url: PCefString); cdecl;
+      browser: PCefBrowser; frame: PCefFrame; const url: PCefString); cconv;
 
     // Called when the page title changes.
     on_title_change: procedure(self: PCefDisplayHandler;
-        browser: PCefBrowser; const title: PCefString); cdecl;
+        browser: PCefBrowser; const title: PCefString); cconv;
 
     // Called when the browser is about to display a tooltip. |text| contains the
     // text that will be displayed in the tooltip. To handle the display of the
@@ -2515,18 +2555,18 @@ Type
     // tooltip. When window rendering is disabled the application is responsible
     // for drawing tooltips and the return value is ignored.
     on_tooltip: function(self: PCefDisplayHandler;
-        browser: PCefBrowser; text: PCefString): Integer; cdecl;
+        browser: PCefBrowser; text: PCefString): Integer; cconv;
 
     // Called when the browser receives a status message. |text| contains the text
     // that will be displayed in the status message.
     on_status_message: procedure(self: PCefDisplayHandler;
-        browser: PCefBrowser; const value: PCefString); cdecl;
+        browser: PCefBrowser; const value: PCefString); cconv;
 
     // Called to display a console message. Return true (1) to stop the message
     // from being output to the console.
     on_console_message: function(self: PCefDisplayHandler;
         browser: PCefBrowser; const message: PCefString;
-        const source: PCefString; line: Integer): Integer; cdecl;
+        const source: PCefString; line: Integer): Integer; cconv;
   end;
 
   // Implement this structure to handle events related to focus. The functions of
@@ -2540,16 +2580,16 @@ Type
     // will be true (1) if the browser is giving focus to the next component and
     // false (0) if the browser is giving focus to the previous component.
     on_take_focus: procedure(self: PCefFocusHandler;
-        browser: PCefBrowser; next: Integer); cdecl;
+        browser: PCefBrowser; next: Integer); cconv;
 
     // Called when the browser component is requesting focus. |source| indicates
     // where the focus request is originating from. Return false (0) to allow the
     // focus to be set or true (1) to cancel setting the focus.
     on_set_focus: function(self: PCefFocusHandler;
-        browser: PCefBrowser; source: TCefFocusSource): Integer; cdecl;
+        browser: PCefBrowser; source: TCefFocusSource): Integer; cconv;
 
     // Called when the browser component has received focus.
-    on_got_focus: procedure(self: PCefFocusHandler; browser: PCefBrowser); cdecl;
+    on_got_focus: procedure(self: PCefFocusHandler; browser: PCefBrowser); cconv;
   end;
 
   // Implement this structure to handle events related to keyboard input. The
@@ -2565,7 +2605,7 @@ Type
     // shortcut set |is_keyboard_shortcut| to true (1) and return false (0).
     on_pre_key_event: function(self: PCefKeyboardHandler;
       browser: PCefBrowser; const event: PCefKeyEvent;
-      os_event: TCefEventHandle; is_keyboard_shortcut: PInteger): Integer; cdecl;
+      os_event: TCefEventHandle; is_keyboard_shortcut: PInteger): Integer; cconv;
 
     // Called after the renderer and JavaScript in the page has had a chance to
     // handle the event. |event| contains information about the keyboard event.
@@ -2573,7 +2613,7 @@ Type
     // if the keyboard event was handled or false (0) otherwise.
     on_key_event: function(self: PCefKeyboardHandler;
         browser: PCefBrowser; const event: PCefKeyEvent;
-        os_event: TCefEventHandle): Integer; cdecl;
+        os_event: TCefEventHandle): Integer; cconv;
   end;
 
   // Callback structure used for asynchronous continuation of JavaScript dialog
@@ -2584,7 +2624,7 @@ Type
 
     // Continue the JS dialog request. Set |success| to true (1) if the OK button
     // was pressed. The |user_input| value should be specified for prompt dialogs.
-    cont: procedure(self: PCefJsDialogCallback; success: Integer; const user_input: PCefString); cdecl;
+    cont: procedure(self: PCefJsDialogCallback; success: Integer; const user_input: PCefString); cconv;
   end;
 
   // Implement this structure to handle events related to JavaScript dialogs. The
@@ -2609,7 +2649,7 @@ Type
     on_jsdialog: function(self: PCefJsDialogHandler;
       browser: PCefBrowser; const origin_url, accept_lang: PCefString;
       dialog_type: TCefJsDialogType; const message_text, default_prompt_text: PCefString;
-      callback: PCefJsDialogCallback; suppress_message: PInteger): Integer; cdecl;
+      callback: PCefJsDialogCallback; suppress_message: PInteger): Integer; cconv;
 
     // Called to run a dialog asking the user if they want to leave a page. Return
     // false (0) to use the default dialog implementation. Return true (1) if the
@@ -2619,12 +2659,12 @@ Type
     // dialog is dismissed.
     on_before_unload_dialog: function(self: PCefJsDialogHandler;
       browser: PCefBrowser; const message_text: PCefString; is_reload: Integer;
-      callback: PCefJsDialogCallback): Integer; cdecl;
+      callback: PCefJsDialogCallback): Integer; cconv;
 
     // Called to cancel any pending dialogs and reset any saved dialog state. Will
     // be called due to events like page navigation irregardless of whether any
     // dialogs are currently pending.
-    on_reset_dialog_state: procedure(self: PCefJsDialogHandler; browser: PCefBrowser); cdecl;
+    on_reset_dialog_state: procedure(self: PCefJsDialogHandler; browser: PCefBrowser); cconv;
   end;
 
   // Supports creation and modification of menus. See cef_menu_id_t for the
@@ -2636,195 +2676,195 @@ Type
     base: TCefBase;
 
     // Clears the menu. Returns true (1) on success.
-    clear: function(self: PCefMenuModel): Integer; cdecl;
+    clear: function(self: PCefMenuModel): Integer; cconv;
 
     // Returns the number of items in this menu.
-    get_count: function(self: PCefMenuModel): Integer; cdecl;
+    get_count: function(self: PCefMenuModel): Integer; cconv;
 
     // Add a separator to the menu. Returns true (1) on success.
-    add_separator: function(self: PCefMenuModel): Integer; cdecl;
+    add_separator: function(self: PCefMenuModel): Integer; cconv;
 
     // Add an item to the menu. Returns true (1) on success.
     add_item: function(self: PCefMenuModel; command_id: Integer;
-      const text: PCefString): Integer; cdecl;
+      const text: PCefString): Integer; cconv;
 
     // Add a check item to the menu. Returns true (1) on success.
     add_check_item: function(self: PCefMenuModel; command_id: Integer;
-      const text: PCefString): Integer; cdecl;
+      const text: PCefString): Integer; cconv;
 
     // Add a radio item to the menu. Only a single item with the specified
     // |group_id| can be checked at a time. Returns true (1) on success.
     add_radio_item: function(self: PCefMenuModel; command_id: Integer;
-      const text: PCefString; group_id: Integer): Integer; cdecl;
+      const text: PCefString; group_id: Integer): Integer; cconv;
 
     // Add a sub-menu to the menu. The new sub-menu is returned.
     add_sub_menu: function(self: PCefMenuModel; command_id: Integer;
-      const text: PCefString): PCefMenuModel; cdecl;
+      const text: PCefString): PCefMenuModel; cconv;
 
     // Insert a separator in the menu at the specified |index|. Returns true (1)
     // on success.
-    insert_separator_at: function(self: PCefMenuModel; index: Integer): Integer; cdecl;
+    insert_separator_at: function(self: PCefMenuModel; index: Integer): Integer; cconv;
 
     // Insert an item in the menu at the specified |index|. Returns true (1) on
     // success.
     insert_item_at: function(self: PCefMenuModel; index, command_id: Integer;
-      const text: PCefString): Integer; cdecl;
+      const text: PCefString): Integer; cconv;
 
     // Insert a check item in the menu at the specified |index|. Returns true (1)
     // on success.
     insert_check_item_at: function(self: PCefMenuModel; index, command_id: Integer;
-      const text: PCefString): Integer; cdecl;
+      const text: PCefString): Integer; cconv;
 
     // Insert a radio item in the menu at the specified |index|. Only a single
     // item with the specified |group_id| can be checked at a time. Returns true
     // (1) on success.
     insert_radio_item_at: function(self: PCefMenuModel; index, command_id: Integer;
-      const text: PCefString; group_id: Integer): Integer; cdecl;
+      const text: PCefString; group_id: Integer): Integer; cconv;
 
     // Insert a sub-menu in the menu at the specified |index|. The new sub-menu is
     // returned.
     insert_sub_menu_at: function(self: PCefMenuModel; index, command_id: Integer;
-      const text: PCefString): PCefMenuModel; cdecl;
+      const text: PCefString): PCefMenuModel; cconv;
 
     // Removes the item with the specified |command_id|. Returns true (1) on
     // success.
-    remove: function(self: PCefMenuModel; command_id: Integer): Integer; cdecl;
+    remove: function(self: PCefMenuModel; command_id: Integer): Integer; cconv;
 
     // Removes the item at the specified |index|. Returns true (1) on success.
-    remove_at: function(self: PCefMenuModel; index: Integer): Integer; cdecl;
+    remove_at: function(self: PCefMenuModel; index: Integer): Integer; cconv;
 
     // Returns the index associated with the specified |command_id| or -1 if not
     // found due to the command id not existing in the menu.
-    get_index_of: function(self: PCefMenuModel; command_id: Integer): Integer; cdecl;
+    get_index_of: function(self: PCefMenuModel; command_id: Integer): Integer; cconv;
 
     // Returns the command id at the specified |index| or -1 if not found due to
     // invalid range or the index being a separator.
-    get_command_id_at: function(self: PCefMenuModel; index: Integer): Integer; cdecl;
+    get_command_id_at: function(self: PCefMenuModel; index: Integer): Integer; cconv;
 
     // Sets the command id at the specified |index|. Returns true (1) on success.
-    set_command_id_at: function(self: PCefMenuModel; index, command_id: Integer): Integer; cdecl;
+    set_command_id_at: function(self: PCefMenuModel; index, command_id: Integer): Integer; cconv;
 
     // Returns the label for the specified |command_id| or NULL if not found.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_label: function(self: PCefMenuModel; command_id: Integer): PCefStringUserFree; cdecl;
+    get_label: function(self: PCefMenuModel; command_id: Integer): PCefStringUserFree; cconv;
 
     // Returns the label at the specified |index| or NULL if not found due to
     // invalid range or the index being a separator.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_label_at: function(self: PCefMenuModel; index: Integer): PCefStringUserFree; cdecl;
+    get_label_at: function(self: PCefMenuModel; index: Integer): PCefStringUserFree; cconv;
 
     // Sets the label for the specified |command_id|. Returns true (1) on success.
     set_label: function(self: PCefMenuModel; command_id: Integer;
-      const text: PCefString): Integer; cdecl;
+      const text: PCefString): Integer; cconv;
 
     // Set the label at the specified |index|. Returns true (1) on success.
     set_label_at: function(self: PCefMenuModel; index: Integer;
-      const text: PCefString): Integer; cdecl;
+      const text: PCefString): Integer; cconv;
 
     // Returns the item type for the specified |command_id|.
-    get_type: function(self: PCefMenuModel; command_id: Integer): TCefMenuItemType; cdecl;
+    get_type: function(self: PCefMenuModel; command_id: Integer): TCefMenuItemType; cconv;
 
     // Returns the item type at the specified |index|.
-    get_type_at: function(self: PCefMenuModel; index: Integer): TCefMenuItemType; cdecl;
+    get_type_at: function(self: PCefMenuModel; index: Integer): TCefMenuItemType; cconv;
 
     // Returns the group id for the specified |command_id| or -1 if invalid.
-    get_group_id: function(self: PCefMenuModel; command_id: Integer): Integer; cdecl;
+    get_group_id: function(self: PCefMenuModel; command_id: Integer): Integer; cconv;
 
     // Returns the group id at the specified |index| or -1 if invalid.
-    get_group_id_at: function(self: PCefMenuModel; index: Integer): Integer; cdecl;
+    get_group_id_at: function(self: PCefMenuModel; index: Integer): Integer; cconv;
 
     // Sets the group id for the specified |command_id|. Returns true (1) on
     // success.
-    set_group_id: function(self: PCefMenuModel; command_id, group_id: Integer): Integer; cdecl;
+    set_group_id: function(self: PCefMenuModel; command_id, group_id: Integer): Integer; cconv;
 
     // Sets the group id at the specified |index|. Returns true (1) on success.
-    set_group_id_at: function(self: PCefMenuModel; index, group_id: Integer): Integer; cdecl;
+    set_group_id_at: function(self: PCefMenuModel; index, group_id: Integer): Integer; cconv;
 
     // Returns the submenu for the specified |command_id| or NULL if invalid.
-    get_sub_menu: function(self: PCefMenuModel; command_id: Integer): PCefMenuModel; cdecl;
+    get_sub_menu: function(self: PCefMenuModel; command_id: Integer): PCefMenuModel; cconv;
 
     // Returns the submenu at the specified |index| or NULL if invalid.
-    get_sub_menu_at: function(self: PCefMenuModel; index: Integer): PCefMenuModel; cdecl;
+    get_sub_menu_at: function(self: PCefMenuModel; index: Integer): PCefMenuModel; cconv;
 
     // Returns true (1) if the specified |command_id| is visible.
-    is_visible: function(self: PCefMenuModel; command_id: Integer): Integer; cdecl;
+    is_visible: function(self: PCefMenuModel; command_id: Integer): Integer; cconv;
 
     // Returns true (1) if the specified |index| is visible.
-    is_visible_at: function(self: PCefMenuModel; index: Integer): Integer; cdecl;
+    is_visible_at: function(self: PCefMenuModel; index: Integer): Integer; cconv;
 
     // Change the visibility of the specified |command_id|. Returns true (1) on
     // success.
-    set_visible: function(self: PCefMenuModel; command_id, visible: Integer): Integer; cdecl;
+    set_visible: function(self: PCefMenuModel; command_id, visible: Integer): Integer; cconv;
 
     // Change the visibility at the specified |index|. Returns true (1) on
     // success.
-    set_visible_at: function(self: PCefMenuModel; index, visible: Integer): Integer; cdecl;
+    set_visible_at: function(self: PCefMenuModel; index, visible: Integer): Integer; cconv;
 
     // Returns true (1) if the specified |command_id| is enabled.
-    is_enabled: function(self: PCefMenuModel; command_id: Integer): Integer; cdecl;
+    is_enabled: function(self: PCefMenuModel; command_id: Integer): Integer; cconv;
 
     // Returns true (1) if the specified |index| is enabled.
-    is_enabled_at: function(self: PCefMenuModel; index: Integer): Integer; cdecl;
+    is_enabled_at: function(self: PCefMenuModel; index: Integer): Integer; cconv;
 
     // Change the enabled status of the specified |command_id|. Returns true (1)
     // on success.
-    set_enabled: function(self: PCefMenuModel; command_id, enabled: Integer): Integer; cdecl;
+    set_enabled: function(self: PCefMenuModel; command_id, enabled: Integer): Integer; cconv;
 
     // Change the enabled status at the specified |index|. Returns true (1) on
     // success.
-    set_enabled_at: function(self: PCefMenuModel; index, enabled: Integer): Integer; cdecl;
+    set_enabled_at: function(self: PCefMenuModel; index, enabled: Integer): Integer; cconv;
 
     // Returns true (1) if the specified |command_id| is checked. Only applies to
     // check and radio items.
-    is_checked: function(self: PCefMenuModel; command_id: Integer): Integer; cdecl;
+    is_checked: function(self: PCefMenuModel; command_id: Integer): Integer; cconv;
 
     // Returns true (1) if the specified |index| is checked. Only applies to check
     // and radio items.
-    is_checked_at: function(self: PCefMenuModel; index: Integer): Integer; cdecl;
+    is_checked_at: function(self: PCefMenuModel; index: Integer): Integer; cconv;
 
     // Check the specified |command_id|. Only applies to check and radio items.
     // Returns true (1) on success.
-    set_checked: function(self: PCefMenuModel; command_id, checked: Integer): Integer; cdecl;
+    set_checked: function(self: PCefMenuModel; command_id, checked: Integer): Integer; cconv;
 
     // Check the specified |index|. Only applies to check and radio items. Returns
     // true (1) on success.
-    set_checked_at: function(self: PCefMenuModel; index, checked: Integer): Integer; cdecl;
+    set_checked_at: function(self: PCefMenuModel; index, checked: Integer): Integer; cconv;
 
     // Returns true (1) if the specified |command_id| has a keyboard accelerator
     // assigned.
-    has_accelerator: function(self: PCefMenuModel; command_id: Integer): Integer; cdecl;
+    has_accelerator: function(self: PCefMenuModel; command_id: Integer): Integer; cconv;
 
     // Returns true (1) if the specified |index| has a keyboard accelerator
     // assigned.
-    has_accelerator_at: function(self: PCefMenuModel; index: Integer): Integer; cdecl;
+    has_accelerator_at: function(self: PCefMenuModel; index: Integer): Integer; cconv;
 
     // Set the keyboard accelerator for the specified |command_id|. |key_code| can
     // be any virtual key or character value. Returns true (1) on success.
     set_accelerator: function(self: PCefMenuModel; command_id, key_code,
-      shift_pressed, ctrl_pressed, alt_pressed: Integer): Integer; cdecl;
+      shift_pressed, ctrl_pressed, alt_pressed: Integer): Integer; cconv;
 
     // Set the keyboard accelerator at the specified |index|. |key_code| can be
     // any virtual key or character value. Returns true (1) on success.
     set_accelerator_at: function(self: PCefMenuModel; index, key_code,
-      shift_pressed, ctrl_pressed, alt_pressed: Integer): Integer; cdecl;
+      shift_pressed, ctrl_pressed, alt_pressed: Integer): Integer; cconv;
 
     // Remove the keyboard accelerator for the specified |command_id|. Returns
     // true (1) on success.
-    remove_accelerator: function(self: PCefMenuModel; command_id: Integer): Integer; cdecl;
+    remove_accelerator: function(self: PCefMenuModel; command_id: Integer): Integer; cconv;
 
     // Remove the keyboard accelerator at the specified |index|. Returns true (1)
     // on success.
-    remove_accelerator_at: function(self: PCefMenuModel; index: Integer): Integer; cdecl;
+    remove_accelerator_at: function(self: PCefMenuModel; index: Integer): Integer; cconv;
 
     // Retrieves the keyboard accelerator for the specified |command_id|. Returns
     // true (1) on success.
     get_accelerator: function(self: PCefMenuModel; command_id: Integer; key_code,
-      shift_pressed, ctrl_pressed, alt_pressed: PInteger): Integer; cdecl;
+      shift_pressed, ctrl_pressed, alt_pressed: PInteger): Integer; cconv;
 
     // Retrieves the keyboard accelerator for the specified |index|. Returns true
     // (1) on success.
     get_accelerator_at: function(self: PCefMenuModel; index: Integer; key_code,
-      shift_pressed, ctrl_pressed, alt_pressed: PInteger): Integer; cdecl;
+      shift_pressed, ctrl_pressed, alt_pressed: PInteger): Integer; cconv;
   end;
 
   // Implement this structure to handle context menu events. The functions of this
@@ -2840,7 +2880,7 @@ Type
     // |model| outside of this callback.
     on_before_context_menu: procedure(self: PCefContextMenuHandler;
       browser: PCefBrowser; frame: PCefFrame; params: PCefContextMenuParams;
-      model: PCefMenuModel); cdecl;
+      model: PCefMenuModel); cconv;
 
     // Called to execute a command selected from the context menu. Return true (1)
     // if the command was handled or false (0) for the default implementation. See
@@ -2851,12 +2891,12 @@ Type
     // this callback.
     on_context_menu_command: function(self: PCefContextMenuHandler;
       browser: PCefBrowser; frame: PCefFrame; params: PCefContextMenuParams;
-      command_id: Integer; event_flags: Integer): Integer; cdecl;
+      command_id: Integer; event_flags: Integer): Integer; cconv;
 
     // Called when the context menu is dismissed irregardless of whether the menu
     // was NULL or a command was selected.
     on_context_menu_dismissed: procedure(self: PCefContextMenuHandler;
-      browser: PCefBrowser; frame: PCefFrame); cdecl;
+      browser: PCefBrowser; frame: PCefFrame); cconv;
   end;
 
 
@@ -2868,69 +2908,69 @@ Type
 
     // Returns the X coordinate of the mouse where the context menu was invoked.
     // Coords are relative to the associated RenderView's origin.
-    get_xcoord: function(self: PCefContextMenuParams): Integer; cdecl;
+    get_xcoord: function(self: PCefContextMenuParams): Integer; cconv;
 
     // Returns the Y coordinate of the mouse where the context menu was invoked.
     // Coords are relative to the associated RenderView's origin.
-    get_ycoord: function(self: PCefContextMenuParams): Integer; cdecl;
+    get_ycoord: function(self: PCefContextMenuParams): Integer; cconv;
 
     // Returns flags representing the type of node that the context menu was
     // invoked on.
-    get_type_flags: function(self: PCefContextMenuParams): Integer; cdecl;
+    get_type_flags: function(self: PCefContextMenuParams): Integer; cconv;
 
     // Returns the URL of the link, if any, that encloses the node that the
     // context menu was invoked on.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_link_url: function(self: PCefContextMenuParams): PCefStringUserFree; cdecl;
+    get_link_url: function(self: PCefContextMenuParams): PCefStringUserFree; cconv;
 
     // Returns the link URL, if any, to be used ONLY for "copy link address". We
     // don't validate this field in the frontend process.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_unfiltered_link_url: function(self: PCefContextMenuParams): PCefStringUserFree; cdecl;
+    get_unfiltered_link_url: function(self: PCefContextMenuParams): PCefStringUserFree; cconv;
 
     // Returns the source URL, if any, for the element that the context menu was
     // invoked on. Example of elements with source URLs are img, audio, and video.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_source_url: function(self: PCefContextMenuParams): PCefStringUserFree; cdecl;
+    get_source_url: function(self: PCefContextMenuParams): PCefStringUserFree; cconv;
 
     // Returns true (1) if the context menu was invoked on a blocked image.
-    is_image_blocked: function(self: PCefContextMenuParams): Integer; cdecl;
+    is_image_blocked: function(self: PCefContextMenuParams): Integer; cconv;
 
     // Returns the URL of the top level page that the context menu was invoked on.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_page_url: function(self: PCefContextMenuParams): PCefStringUserFree; cdecl;
+    get_page_url: function(self: PCefContextMenuParams): PCefStringUserFree; cconv;
 
     // Returns the URL of the subframe that the context menu was invoked on.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_frame_url: function(self: PCefContextMenuParams): PCefStringUserFree; cdecl;
+    get_frame_url: function(self: PCefContextMenuParams): PCefStringUserFree; cconv;
 
     // Returns the character encoding of the subframe that the context menu was
     // invoked on.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_frame_charset: function(self: PCefContextMenuParams): PCefStringUserFree; cdecl;
+    get_frame_charset: function(self: PCefContextMenuParams): PCefStringUserFree; cconv;
 
     // Returns the type of context node that the context menu was invoked on.
-    get_media_type: function(self: PCefContextMenuParams): TCefContextMenuMediaType; cdecl;
+    get_media_type: function(self: PCefContextMenuParams): TCefContextMenuMediaType; cconv;
 
     // Returns flags representing the actions supported by the media element, if
     // any, that the context menu was invoked on.
-    get_media_state_flags: function(self: PCefContextMenuParams): Integer; cdecl;
+    get_media_state_flags: function(self: PCefContextMenuParams): Integer; cconv;
 
     // Returns the text of the selection, if any, that the context menu was
     // invoked on.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_selection_text: function(self: PCefContextMenuParams): PCefStringUserFree; cdecl;
+    get_selection_text: function(self: PCefContextMenuParams): PCefStringUserFree; cconv;
 
     // Returns true (1) if the context menu was invoked on an editable node.
-    is_editable: function(self: PCefContextMenuParams): Integer; cdecl;
+    is_editable: function(self: PCefContextMenuParams): Integer; cconv;
 
     // Returns true (1) if the context menu was invoked on an editable node where
     // speech-input is enabled.
-    is_speech_input_enabled: function(self: PCefContextMenuParams): Integer; cdecl;
+    is_speech_input_enabled: function(self: PCefContextMenuParams): Integer; cconv;
 
     // Returns flags representing the actions supported by the editable node, if
     // any, that the context menu was invoked on.
-    get_edit_state_flags: function(self: PCefContextMenuParams): Integer; cdecl;
+    get_edit_state_flags: function(self: PCefContextMenuParams): Integer; cconv;
   end;
 
   // Callback structure used for asynchronous continuation of geolocation
@@ -2940,7 +2980,7 @@ Type
     base: TCefBase;
 
     // Call to allow or deny geolocation access.
-    cont: procedure(self: PCefGeolocationCallback; allow: Integer); cdecl;
+    cont: procedure(self: PCefGeolocationCallback; allow: Integer); cconv;
   end;
 
 
@@ -2958,13 +2998,13 @@ Type
     // request.
     on_request_geolocation_permission: procedure(self: PCefGeolocationHandler;
         browser: PCefBrowser; const requesting_url: PCefString; request_id: Integer;
-        callback: PCefGeolocationCallback); cdecl;
+        callback: PCefGeolocationCallback); cconv;
 
     // Called when a geolocation access request is canceled. |requesting_url| is
     // the URL that originally requested permission and |request_id| is the unique
     // ID for the permission request.
     on_cancel_geolocation_permission: procedure(self: PCefGeolocationHandler;
-        browser: PCefBrowser; const requesting_url: PCefString; request_id: Integer); cdecl;
+        browser: PCefBrowser; const requesting_url: PCefString; request_id: Integer); cconv;
   end;
 
   // Implement this structure to provide handler implementations.
@@ -2974,49 +3014,49 @@ Type
 
     // Return the handler for context menus. If no handler is provided the default
     // implementation will be used.
-    get_context_menu_handler: function(self: PCefClient): PCefContextMenuHandler; cdecl;
+    get_context_menu_handler: function(self: PCefClient): PCefContextMenuHandler; cconv;
 
     // Return the handler for dialogs. If no handler is provided the default
     // implementation will be used.
-    get_dialog_handler: function(self: PCefClient): PCefDialogHandler; cdecl;
+    get_dialog_handler: function(self: PCefClient): PCefDialogHandler; cconv;
 
     // Return the handler for browser display state events.
-    get_display_handler: function(self: PCefClient): PCefDisplayHandler; cdecl;
+    get_display_handler: function(self: PCefClient): PCefDisplayHandler; cconv;
 
     // Return the handler for download events. If no handler is returned downloads
     // will not be allowed.
-    get_download_handler: function(self: PCefClient): PCefDownloadHandler; cdecl;
+    get_download_handler: function(self: PCefClient): PCefDownloadHandler; cconv;
 
     // Return the handler for focus events.
-    get_focus_handler: function(self: PCefClient): PCefFocusHandler; cdecl;
+    get_focus_handler: function(self: PCefClient): PCefFocusHandler; cconv;
 
     // Return the handler for geolocation permissions requests. If no handler is
     // provided geolocation access will be denied by default.
-    get_geolocation_handler: function(self: PCefClient): PCefGeolocationHandler; cdecl;
+    get_geolocation_handler: function(self: PCefClient): PCefGeolocationHandler; cconv;
 
     // Return the handler for JavaScript dialog events.
-    get_jsdialog_handler: function(self: PCefClient): PCefJsDialogHandler; cdecl;
+    get_jsdialog_handler: function(self: PCefClient): PCefJsDialogHandler; cconv;
 
     // Return the handler for keyboard events.
-    get_keyboard_handler: function(self: PCefClient): PCefKeyboardHandler; cdecl;
+    get_keyboard_handler: function(self: PCefClient): PCefKeyboardHandler; cconv;
 
     // Return the handler for browser life span events.
-    get_life_span_handler: function(self: PCefClient): PCefLifeSpanHandler; cdecl;
+    get_life_span_handler: function(self: PCefClient): PCefLifeSpanHandler; cconv;
 
     // Return the handler for browser load status events.
-    get_load_handler: function(self: PCefClient): PCefLoadHandler; cdecl;
+    get_load_handler: function(self: PCefClient): PCefLoadHandler; cconv;
 
     // Return the handler for off-screen rendering events.
-    get_render_handler: function(self: PCefClient): PCefRenderHandler; cdecl;
+    get_render_handler: function(self: PCefClient): PCefRenderHandler; cconv;
 
     // Return the handler for browser request events.
-    get_request_handler: function(self: PCefClient): PCefRequestHandler; cdecl;
+    get_request_handler: function(self: PCefClient): PCefRequestHandler; cconv;
 
     // Called when a new message is received from a different process. Return true
     // (1) if the message was handled or false (0) otherwise. Do not keep a
     // reference to or attempt to access the message outside of this callback.
     on_process_message_received: function(self: PCefClient; browser: PCefBrowser;
-      source_process: TCefProcessId; message: PCefProcessMessage): Integer; cdecl;
+      source_process: TCefProcessId; message: PCefProcessMessage): Integer; cconv;
   end;
 
   // Structure used to represent a web request. The functions of this structure
@@ -3026,49 +3066,49 @@ Type
     base: TCefBase;
 
     // Returns true (1) if this object is read-only.
-    is_read_only: function(self: PCefRequest): Integer; cdecl;
+    is_read_only: function(self: PCefRequest): Integer; cconv;
 
     // Get the fully qualified URL.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_url: function(self: PCefRequest): PCefStringUserFree; cdecl;
+    get_url: function(self: PCefRequest): PCefStringUserFree; cconv;
     // Set the fully qualified URL.
-    set_url: procedure(self: PCefRequest; const url: PCefString); cdecl;
+    set_url: procedure(self: PCefRequest; const url: PCefString); cconv;
 
     // Get the request function type. The value will default to POST if post data
     // is provided and GET otherwise.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_method: function(self: PCefRequest): PCefStringUserFree; cdecl;
+    get_method: function(self: PCefRequest): PCefStringUserFree; cconv;
     // Set the request function type.
-    set_method: procedure(self: PCefRequest; const method: PCefString); cdecl;
+    set_method: procedure(self: PCefRequest; const method: PCefString); cconv;
 
     // Get the post data.
-    get_post_data: function(self: PCefRequest): PCefPostData; cdecl;
+    get_post_data: function(self: PCefRequest): PCefPostData; cconv;
     // Set the post data.
-    set_post_data: procedure(self: PCefRequest; postData: PCefPostData); cdecl;
+    set_post_data: procedure(self: PCefRequest; postData: PCefPostData); cconv;
 
     // Get the header values.
-    get_header_map: procedure(self: PCefRequest; headerMap: TCefStringMultimap); cdecl;
+    get_header_map: procedure(self: PCefRequest; headerMap: TCefStringMultimap); cconv;
     // Set the header values.
-    set_header_map: procedure(self: PCefRequest; headerMap: TCefStringMultimap); cdecl;
+    set_header_map: procedure(self: PCefRequest; headerMap: TCefStringMultimap); cconv;
 
     // Set all values at one time.
     set_: procedure(self: PCefRequest; const url, method: PCefString;
-      postData: PCefPostData; headerMap: TCefStringMultimap); cdecl;
+      postData: PCefPostData; headerMap: TCefStringMultimap); cconv;
 
     // Get the flags used in combination with cef_urlrequest_t. See
     // cef_urlrequest_flags_t for supported values.
-    get_flags: function(self: PCefRequest): Integer; cdecl;
+    get_flags: function(self: PCefRequest): Integer; cconv;
     // Set the flags used in combination with cef_urlrequest_t.  See
     // cef_urlrequest_flags_t for supported values.
-    set_flags: procedure(self: PCefRequest; flags: Integer); cdecl;
+    set_flags: procedure(self: PCefRequest; flags: Integer); cconv;
 
     // Get the URL to the first party for cookies used in combination with
     // cef_urlrequest_t.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_first_party_for_cookies: function(self: PCefRequest): PCefStringUserFree; cdecl;
+    get_first_party_for_cookies: function(self: PCefRequest): PCefStringUserFree; cconv;
     // Set the URL to the first party for cookies used in combination with
     // cef_urlrequest_t.
-    set_first_party_for_cookies: procedure(self: PCefRequest; const url: PCefString); cdecl;
+    set_first_party_for_cookies: procedure(self: PCefRequest; const url: PCefString); cconv;
   end;
 
 
@@ -3082,26 +3122,26 @@ Type
     base: TCefBase;
 
     // Returns true (1) if this object is read-only.
-    is_read_only: function(self: PCefPostData):Integer; cdecl;
+    is_read_only: function(self: PCefPostData):Integer; cconv;
 
     // Returns the number of existing post data elements.
-    get_element_count: function(self: PCefPostData): Cardinal; cdecl;
+    get_element_count: function(self: PCefPostData): Cardinal; cconv;
 
     // Retrieve the post data elements.
     get_elements: procedure(self: PCefPostData; elementsCount: PCardinal;
-      elements: PCefPostDataElementArray); cdecl;
+      elements: PCefPostDataElementArray); cconv;
 
     // Remove the specified post data element.  Returns true (1) if the removal
     // succeeds.
     remove_element: function(self: PCefPostData;
-      element: PCefPostDataElement): Integer; cdecl;
+      element: PCefPostDataElement): Integer; cconv;
 
     // Add the specified post data element.  Returns true (1) if the add succeeds.
     add_element: function(self: PCefPostData;
-        element: PCefPostDataElement): Integer; cdecl;
+        element: PCefPostDataElement): Integer; cconv;
 
     // Remove all existing post data elements.
-    remove_elements: procedure(self: PCefPostData); cdecl;
+    remove_elements: procedure(self: PCefPostData); cconv;
 
   end;
 
@@ -3112,34 +3152,34 @@ Type
     base: TCefBase;
 
     // Returns true (1) if this object is read-only.
-    is_read_only: function(self: PCefPostDataElement): Integer; cdecl;
+    is_read_only: function(self: PCefPostDataElement): Integer; cconv;
 
     // Remove all contents from the post data element.
-    set_to_empty: procedure(self: PCefPostDataElement); cdecl;
+    set_to_empty: procedure(self: PCefPostDataElement); cconv;
 
     // The post data element will represent a file.
     set_to_file: procedure(self: PCefPostDataElement;
-        const fileName: PCefString); cdecl;
+        const fileName: PCefString); cconv;
 
     // The post data element will represent bytes.  The bytes passed in will be
     // copied.
     set_to_bytes: procedure(self: PCefPostDataElement;
-        size: Cardinal; const bytes: Pointer); cdecl;
+        size: Cardinal; const bytes: Pointer); cconv;
 
     // Return the type of this post data element.
-    get_type: function(self: PCefPostDataElement): TCefPostDataElementType; cdecl;
+    get_type: function(self: PCefPostDataElement): TCefPostDataElementType; cconv;
 
     // Return the file name.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_file: function(self: PCefPostDataElement): PCefStringUserFree; cdecl;
+    get_file: function(self: PCefPostDataElement): PCefStringUserFree; cconv;
 
     // Return the number of bytes.
-    get_bytes_count: function(self: PCefPostDataElement): Cardinal; cdecl;
+    get_bytes_count: function(self: PCefPostDataElement): Cardinal; cconv;
 
     // Read up to |size| bytes into |bytes| and return the number of bytes
     // actually read.
     get_bytes: function(self: PCefPostDataElement;
-        size: Cardinal; bytes: Pointer): Cardinal; cdecl;
+        size: Cardinal; bytes: Pointer): Cardinal; cconv;
   end;
 
   // Structure used to represent a web response. The functions of this structure
@@ -3149,33 +3189,33 @@ Type
     base: TCefBase;
 
     // Returns true (1) if this object is read-only.
-    is_read_only: function(self: PCefResponse): Integer; cdecl;
+    is_read_only: function(self: PCefResponse): Integer; cconv;
 
     // Get the response status code.
-    get_status: function(self: PCefResponse): Integer; cdecl;
+    get_status: function(self: PCefResponse): Integer; cconv;
     // Set the response status code.
-    set_status: procedure(self: PCefResponse; status: Integer); cdecl;
+    set_status: procedure(self: PCefResponse; status: Integer); cconv;
 
     // Get the response status text.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_status_text: function(self: PCefResponse): PCefStringUserFree; cdecl;
+    get_status_text: function(self: PCefResponse): PCefStringUserFree; cconv;
     // Set the response status text.
-    set_status_text: procedure(self: PCefResponse; const statusText: PCefString); cdecl;
+    set_status_text: procedure(self: PCefResponse; const statusText: PCefString); cconv;
 
     // Get the response mime type.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_mime_type: function(self: PCefResponse): PCefStringUserFree; cdecl;
+    get_mime_type: function(self: PCefResponse): PCefStringUserFree; cconv;
     // Set the response mime type.
-    set_mime_type: procedure(self: PCefResponse; const mimeType: PCefString); cdecl;
+    set_mime_type: procedure(self: PCefResponse; const mimeType: PCefString); cconv;
 
     // Get the value for the specified response header field.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_header: function(self: PCefResponse; const name: PCefString): PCefStringUserFree; cdecl;
+    get_header: function(self: PCefResponse; const name: PCefString): PCefStringUserFree; cconv;
 
     // Get all response header fields.
-    get_header_map: procedure(self: PCefResponse; headerMap: TCefStringMultimap); cdecl;
+    get_header_map: procedure(self: PCefResponse; headerMap: TCefStringMultimap); cconv;
     // Set all response header fields.
-    set_header_map: procedure(self: PCefResponse; headerMap: TCefStringMultimap); cdecl;
+    set_header_map: procedure(self: PCefResponse; headerMap: TCefStringMultimap); cconv;
   end;
 
   // Structure the client can implement to provide a custom stream reader. The
@@ -3186,18 +3226,18 @@ Type
 
     // Read raw binary data.
     read: function(self: PCefReadHandler; ptr: Pointer;
-      size, n: Cardinal): Cardinal; cdecl;
+      size, n: Cardinal): Cardinal; cconv;
 
     // Seek to the specified offset position. |whence| may be any one of SEEK_CUR,
     // SEEK_END or SEEK_SET. Return zero on success and non-zero on failure.
     seek: function(self: PCefReadHandler; offset: Int64;
-      whence: Integer): Integer; cdecl;
+      whence: Integer): Integer; cconv;
 
     // Return the current offset position.
-    tell: function(self: PCefReadHandler): Int64; cdecl;
+    tell: function(self: PCefReadHandler): Int64; cconv;
 
     // Return non-zero if at end of file.
-    eof: function(self: PCefReadHandler): Integer; cdecl;
+    eof: function(self: PCefReadHandler): Integer; cconv;
   end;
 
   // Structure used to read data from a stream. The functions of this structure
@@ -3208,18 +3248,18 @@ Type
 
     // Read raw binary data.
     read: function(self: PCefStreamReader; ptr: Pointer;
-        size, n: Cardinal): Cardinal; cdecl;
+        size, n: Cardinal): Cardinal; cconv;
 
     // Seek to the specified offset position. |whence| may be any one of SEEK_CUR,
     // SEEK_END or SEEK_SET. Returns zero on success and non-zero on failure.
     seek: function(self: PCefStreamReader; offset: Int64;
-        whence: Integer): Integer; cdecl;
+        whence: Integer): Integer; cconv;
 
     // Return the current offset position.
-    tell: function(self: PCefStreamReader): Int64; cdecl;
+    tell: function(self: PCefStreamReader): Int64; cconv;
 
     // Return non-zero if at end of file.
-    eof: function(self: PCefStreamReader): Integer; cdecl;
+    eof: function(self: PCefStreamReader): Integer; cconv;
   end;
 
   // Structure the client can implement to provide a custom stream writer. The
@@ -3230,18 +3270,18 @@ Type
 
     // Write raw binary data.
     write: function(self: PCefWriteHandler;
-        const ptr: Pointer; size, n: Cardinal): Cardinal; cdecl;
+        const ptr: Pointer; size, n: Cardinal): Cardinal; cconv;
 
     // Seek to the specified offset position. |whence| may be any one of SEEK_CUR,
     // SEEK_END or SEEK_SET.
     seek: function(self: PCefWriteHandler; offset: Int64;
-        whence: Integer): Integer; cdecl;
+        whence: Integer): Integer; cconv;
 
     // Return the current offset position.
-    tell: function(self: PCefWriteHandler): Int64; cdecl;
+    tell: function(self: PCefWriteHandler): Int64; cconv;
 
     // Flush the stream.
-    flush: function(self: PCefWriteHandler): Integer; cdecl;
+    flush: function(self: PCefWriteHandler): Integer; cconv;
   end;
 
   // Structure used to write data to a stream. The functions of this structure may
@@ -3252,18 +3292,18 @@ Type
 
     // Write raw binary data.
     write: function(self: PCefStreamWriter;
-        const ptr: Pointer; size, n: Cardinal): Cardinal; cdecl;
+        const ptr: Pointer; size, n: Cardinal): Cardinal; cconv;
 
     // Seek to the specified offset position. |whence| may be any one of SEEK_CUR,
     // SEEK_END or SEEK_SET.
     seek: function(self: PCefStreamWriter; offset: Int64;
-        whence: Integer): Integer; cdecl;
+        whence: Integer): Integer; cconv;
 
     // Return the current offset position.
-    tell: function(self: PCefStreamWriter): Int64; cdecl;
+    tell: function(self: PCefStreamWriter): Int64; cconv;
 
     // Flush the stream.
-    flush: function(self: PCefStreamWriter): Integer; cdecl;
+    flush: function(self: PCefStreamWriter): Integer; cconv;
   end;
 
   // Structure representing a V8 context handle. V8 handles can only be accessed
@@ -3278,46 +3318,46 @@ Type
     // Returns the task runner associated with this context. V8 handles can only
     // be accessed from the thread on which they are created. This function can be
     // called on any render process thread.
-    get_task_runner: function(self: PCefv8Context): PCefTask; cdecl;
+    get_task_runner: function(self: PCefv8Context): PCefTask; cconv;
 
     // Returns true (1) if the underlying handle is valid and it can be accessed
     // on the current thread. Do not call any other functions if this function
     // returns false (0).
-    is_valid: function(self: PCefv8Context): Integer; cdecl;
+    is_valid: function(self: PCefv8Context): Integer; cconv;
 
     // Returns the browser for this context. This function will return an NULL
     // reference for WebWorker contexts.
-    get_browser: function(self: PCefv8Context): PCefBrowser; cdecl;
+    get_browser: function(self: PCefv8Context): PCefBrowser; cconv;
 
     // Returns the frame for this context. This function will return an NULL
     // reference for WebWorker contexts.
-    get_frame: function(self: PCefv8Context): PCefFrame; cdecl;
+    get_frame: function(self: PCefv8Context): PCefFrame; cconv;
 
     // Returns the global object for this context. The context must be entered
     // before calling this function.
-    get_global: function(self: PCefv8Context): PCefv8Value; cdecl;
+    get_global: function(self: PCefv8Context): PCefv8Value; cconv;
 
     // Enter this context. A context must be explicitly entered before creating a
     // V8 Object, Array, Function or Date asynchronously. exit() must be called
     // the same number of times as enter() before releasing this context. V8
     // objects belong to the context in which they are created. Returns true (1)
     // if the scope was entered successfully.
-    enter: function(self: PCefv8Context): Integer; cdecl;
+    enter: function(self: PCefv8Context): Integer; cconv;
 
     // Exit this context. Call this function only after calling enter(). Returns
     // true (1) if the scope was exited successfully.
-    exit: function(self: PCefv8Context): Integer; cdecl;
+    exit: function(self: PCefv8Context): Integer; cconv;
 
     // Returns true (1) if this object is pointing to the same handle as |that|
     // object.
-    is_same: function(self, that: PCefv8Context): Integer; cdecl;
+    is_same: function(self, that: PCefv8Context): Integer; cconv;
 
     // Evaluates the specified JavaScript code using this context's global object.
     // On success |retval| will be set to the return value, if any, and the
     // function will return true (1). On failure |exception| will be set to the
     // exception, if any, and the function will return false (0).
     eval: function(self: PCefv8Context; const code: PCefString;
-      var retval: PCefv8Value; var exception: PCefV8Exception): Integer; cdecl;
+      var retval: PCefv8Value; var exception: PCefV8Exception): Integer; cconv;
   end;
 
   // Structure that should be implemented to handle V8 function calls. The
@@ -3335,7 +3375,7 @@ Type
     execute: function(self: PCefv8Handler;
         const name: PCefString; obj: PCefv8Value; argumentsCount: Cardinal;
         const arguments: PPCefV8Value; var retval: PCefV8Value;
-        var exception: TCefString): Integer; cdecl;
+        var exception: TCefString): Integer; cconv;
   end;
 
   // Structure that should be implemented to handle V8 accessor calls. Accessor
@@ -3352,7 +3392,7 @@ Type
     // exception that will be thrown. Return true (1) if accessor retrieval was
     // handled.
     get: function(self: PCefV8Accessor; const name: PCefString;
-      obj: PCefv8Value; out retval: PCefv8Value; exception: PCefString): Integer; cdecl;
+      obj: PCefv8Value; out retval: PCefv8Value; exception: PCefString): Integer; cconv;
 
     // Handle assignment of the accessor value identified by |name|. |object| is
     // the receiver ('this' object) of the accessor. |value| is the new value
@@ -3360,7 +3400,7 @@ Type
     // exception that will be thrown. Return true (1) if accessor assignment was
     // handled.
     put: function(self: PCefV8Accessor; const name: PCefString;
-      obj: PCefv8Value; value: PCefv8Value; exception: PCefString): Integer; cdecl;
+      obj: PCefv8Value; value: PCefv8Value; exception: PCefString): Integer; cconv;
   end;
 
   // Structure representing a V8 exception. The functions of this structure may be
@@ -3371,36 +3411,36 @@ Type
 
     // Returns the exception message.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_message: function(self: PCefV8Exception): PCefStringUserFree; cdecl;
+    get_message: function(self: PCefV8Exception): PCefStringUserFree; cconv;
 
     // Returns the line of source code that the exception occurred within.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_source_line: function(self: PCefV8Exception): PCefStringUserFree; cdecl;
+    get_source_line: function(self: PCefV8Exception): PCefStringUserFree; cconv;
 
     // Returns the resource name for the script from where the function causing
     // the error originates.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_script_resource_name: function(self: PCefV8Exception): PCefStringUserFree; cdecl;
+    get_script_resource_name: function(self: PCefV8Exception): PCefStringUserFree; cconv;
 
     // Returns the 1-based number of the line where the error occurred or 0 if the
     // line number is unknown.
-    get_line_number: function(self: PCefV8Exception): Integer; cdecl;
+    get_line_number: function(self: PCefV8Exception): Integer; cconv;
 
     // Returns the index within the script of the first character where the error
     // occurred.
-    get_start_position: function(self: PCefV8Exception): Integer; cdecl;
+    get_start_position: function(self: PCefV8Exception): Integer; cconv;
 
     // Returns the index within the script of the last character where the error
     // occurred.
-    get_end_position: function(self: PCefV8Exception): Integer; cdecl;
+    get_end_position: function(self: PCefV8Exception): Integer; cconv;
 
     // Returns the index within the line of the first character where the error
     // occurred.
-    get_start_column: function(self: PCefV8Exception): Integer; cdecl;
+    get_start_column: function(self: PCefV8Exception): Integer; cconv;
 
     // Returns the index within the line of the last character where the error
     // occurred.
-    get_end_column: function(self: PCefV8Exception): Integer; cdecl;
+    get_end_column: function(self: PCefV8Exception): Integer; cconv;
   end;
 
   // Structure representing a V8 value handle. V8 handles can only be accessed
@@ -3415,53 +3455,53 @@ Type
     // Returns true (1) if the underlying handle is valid and it can be accessed
     // on the current thread. Do not call any other functions if this function
     // returns false (0).
-    is_valid: function(self: PCefv8Value): Integer; cdecl;
+    is_valid: function(self: PCefv8Value): Integer; cconv;
     // True if the value type is undefined.
-    is_undefined: function(self: PCefv8Value): Integer; cdecl;
+    is_undefined: function(self: PCefv8Value): Integer; cconv;
     // True if the value type is null.
-    is_null: function(self: PCefv8Value): Integer; cdecl;
+    is_null: function(self: PCefv8Value): Integer; cconv;
     // True if the value type is bool.
-    is_bool: function(self: PCefv8Value): Integer; cdecl;
+    is_bool: function(self: PCefv8Value): Integer; cconv;
     // True if the value type is int.
-    is_int: function(self: PCefv8Value): Integer; cdecl;
+    is_int: function(self: PCefv8Value): Integer; cconv;
     // True if the value type is unsigned int.
-    is_uint: function(self: PCefv8Value): Integer; cdecl;
+    is_uint: function(self: PCefv8Value): Integer; cconv;
     // True if the value type is double.
-    is_double: function(self: PCefv8Value): Integer; cdecl;
+    is_double: function(self: PCefv8Value): Integer; cconv;
     // True if the value type is Date.
-    is_date: function(self: PCefv8Value): Integer; cdecl;
+    is_date: function(self: PCefv8Value): Integer; cconv;
     // True if the value type is string.
-    is_string: function(self: PCefv8Value): Integer; cdecl;
+    is_string: function(self: PCefv8Value): Integer; cconv;
     // True if the value type is object.
-    is_object: function(self: PCefv8Value): Integer; cdecl;
+    is_object: function(self: PCefv8Value): Integer; cconv;
     // True if the value type is array.
-    is_array: function(self: PCefv8Value): Integer; cdecl;
+    is_array: function(self: PCefv8Value): Integer; cconv;
     // True if the value type is function.
-    is_function: function(self: PCefv8Value): Integer; cdecl;
+    is_function: function(self: PCefv8Value): Integer; cconv;
 
     // Returns true (1) if this object is pointing to the same handle as |that|
     // object.
-    is_same: function(self, that: PCefv8Value): Integer; cdecl;
+    is_same: function(self, that: PCefv8Value): Integer; cconv;
 
     // Return a bool value.  The underlying data will be converted to if
     // necessary.
-    get_bool_value: function(self: PCefv8Value): Integer; cdecl;
+    get_bool_value: function(self: PCefv8Value): Integer; cconv;
     // Return an int value.  The underlying data will be converted to if
     // necessary.
-    get_int_value: function(self: PCefv8Value): Integer; cdecl;
+    get_int_value: function(self: PCefv8Value): Integer; cconv;
     // Return an unisgned int value.  The underlying data will be converted to if
     // necessary.
-    get_uint_value: function(self: PCefv8Value): Cardinal; cdecl;
+    get_uint_value: function(self: PCefv8Value): Cardinal; cconv;
     // Return a double value.  The underlying data will be converted to if
     // necessary.
-    get_double_value: function(self: PCefv8Value): double; cdecl;
+    get_double_value: function(self: PCefv8Value): double; cconv;
     // Return a Date value.  The underlying data will be converted to if
     // necessary.
-    get_date_value: function(self: PCefv8Value): TCefTime; cdecl;
+    get_date_value: function(self: PCefv8Value): TCefTime; cconv;
     // Return a string value.  The underlying data will be converted to if
     // necessary.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_string_value: function(self: PCefv8Value): PCefStringUserFree; cdecl;
+    get_string_value: function(self: PCefv8Value): PCefStringUserFree; cconv;
 
 
     // OBJECT METHODS - These functions are only available on objects. Arrays and
@@ -3469,66 +3509,66 @@ Type
     // interchangably with the framework converting between them as necessary.
 
     // Returns true (1) if this is a user created object.
-    is_user_created: function(self: PCefv8Value): Integer; cdecl;
+    is_user_created: function(self: PCefv8Value): Integer; cconv;
 
     // Returns true (1) if the last function call resulted in an exception. This
     // attribute exists only in the scope of the current CEF value object.
-    has_exception: function(self: PCefv8Value): Integer; cdecl;
+    has_exception: function(self: PCefv8Value): Integer; cconv;
 
     // Returns the exception resulting from the last function call. This attribute
     // exists only in the scope of the current CEF value object.
-    get_exception: function(self: PCefv8Value): PCefV8Exception; cdecl;
+    get_exception: function(self: PCefv8Value): PCefV8Exception; cconv;
 
     // Clears the last exception and returns true (1) on success.
-    clear_exception: function(self: PCefv8Value): Integer; cdecl;
+    clear_exception: function(self: PCefv8Value): Integer; cconv;
 
     // Returns true (1) if this object will re-throw future exceptions. This
     // attribute exists only in the scope of the current CEF value object.
-    will_rethrow_exceptions: function(self: PCefv8Value): Integer; cdecl;
+    will_rethrow_exceptions: function(self: PCefv8Value): Integer; cconv;
 
     // Set whether this object will re-throw future exceptions. By default
     // exceptions are not re-thrown. If a exception is re-thrown the current
     // context should not be accessed again until after the exception has been
     // caught and not re-thrown. Returns true (1) on success. This attribute
     // exists only in the scope of the current CEF value object.
-    set_rethrow_exceptions: function(self: PCefv8Value; rethrow: Integer): Integer; cdecl;
+    set_rethrow_exceptions: function(self: PCefv8Value; rethrow: Integer): Integer; cconv;
 
 
     // Returns true (1) if the object has a value with the specified identifier.
-    has_value_bykey: function(self: PCefv8Value; const key: PCefString): Integer; cdecl;
+    has_value_bykey: function(self: PCefv8Value; const key: PCefString): Integer; cconv;
     // Returns true (1) if the object has a value with the specified identifier.
-    has_value_byindex: function(self: PCefv8Value; index: Integer): Integer; cdecl;
+    has_value_byindex: function(self: PCefv8Value; index: Integer): Integer; cconv;
 
     // Deletes the value with the specified identifier and returns true (1) on
     // success. Returns false (0) if this function is called incorrectly or an
     // exception is thrown. For read-only and don't-delete values this function
     // will return true (1) even though deletion failed.
-    delete_value_bykey: function(self: PCefv8Value; const key: PCefString): Integer; cdecl;
+    delete_value_bykey: function(self: PCefv8Value; const key: PCefString): Integer; cconv;
     // Deletes the value with the specified identifier and returns true (1) on
     // success. Returns false (0) if this function is called incorrectly, deletion
     // fails or an exception is thrown. For read-only and don't-delete values this
     // function will return true (1) even though deletion failed.
-    delete_value_byindex: function(self: PCefv8Value; index: Integer): Integer; cdecl;
+    delete_value_byindex: function(self: PCefv8Value; index: Integer): Integer; cconv;
 
     // Returns the value with the specified identifier on success. Returns NULL if
     // this function is called incorrectly or an exception is thrown.
-    get_value_bykey: function(self: PCefv8Value; const key: PCefString): PCefv8Value; cdecl;
+    get_value_bykey: function(self: PCefv8Value; const key: PCefString): PCefv8Value; cconv;
     // Returns the value with the specified identifier on success. Returns NULL if
     // this function is called incorrectly or an exception is thrown.
-    get_value_byindex: function(self: PCefv8Value; index: Integer): PCefv8Value; cdecl;
+    get_value_byindex: function(self: PCefv8Value; index: Integer): PCefv8Value; cconv;
 
     // Associates a value with the specified identifier and returns true (1) on
     // success. Returns false (0) if this function is called incorrectly or an
     // exception is thrown. For read-only values this function will return true
     // (1) even though assignment failed.
     set_value_bykey: function(self: PCefv8Value; const key: PCefString;
-      value: PCefv8Value; attribute: Integer): Integer; cdecl;
+      value: PCefv8Value; attribute: Integer): Integer; cconv;
     // Associates a value with the specified identifier and returns true (1) on
     // success. Returns false (0) if this function is called incorrectly or an
     // exception is thrown. For read-only values this function will return true
     // (1) even though assignment failed.
     set_value_byindex: function(self: PCefv8Value; index: Integer;
-       value: PCefv8Value): Integer; cdecl;
+       value: PCefv8Value): Integer; cconv;
 
     // Registers an identifier and returns true (1) on success. Access to the
     // identifier will be forwarded to the cef_v8accessor_t instance passed to
@@ -3536,23 +3576,23 @@ Type
     // function is called incorrectly or an exception is thrown. For read-only
     // values this function will return true (1) even though assignment failed.
     set_value_byaccessor: function(self: PCefv8Value; const key: PCefString;
-      settings: Integer; attribute: Integer): Integer; cdecl;
+      settings: Integer; attribute: Integer): Integer; cconv;
 
     // Read the keys for the object's values into the specified vector. Integer-
     // based keys will also be returned as strings.
-    get_keys: function(self: PCefv8Value; keys: TCefStringList): Integer; cdecl;
+    get_keys: function(self: PCefv8Value; keys: TCefStringList): Integer; cconv;
 
     // Sets the user data for this object and returns true (1) on success. Returns
     // false (0) if this function is called incorrectly. This function can only be
     // called on user created objects.
-    set_user_data: function(self: PCefv8Value; user_data: PCefBase): Integer; cdecl;
+    set_user_data: function(self: PCefv8Value; user_data: PCefBase): Integer; cconv;
 
     // Returns the user data, if any, assigned to this object.
-    get_user_data: function(self: PCefv8Value): PCefBase; cdecl;
+    get_user_data: function(self: PCefv8Value): PCefBase; cconv;
 
     // Returns the amount of externally allocated memory registered for the
     // object.
-    get_externally_allocated_memory: function(self: PCefv8Value): Integer; cdecl;
+    get_externally_allocated_memory: function(self: PCefv8Value): Integer; cconv;
 
     // Adjusts the amount of registered external memory for the object. Used to
     // give V8 an indication of the amount of externally allocated memory that is
@@ -3563,23 +3603,23 @@ Type
     // |change_in_bytes| specifies the number of bytes to adjust by. This function
     // returns the number of bytes associated with the object after the
     // adjustment. This function can only be called on user created objects.
-    adjust_externally_allocated_memory: function(self: PCefv8Value; change_in_bytes: Integer): Integer; cdecl;
+    adjust_externally_allocated_memory: function(self: PCefv8Value; change_in_bytes: Integer): Integer; cconv;
 
     // ARRAY METHODS - These functions are only available on arrays.
 
     // Returns the number of elements in the array.
-    get_array_length: function(self: PCefv8Value): Integer; cdecl;
+    get_array_length: function(self: PCefv8Value): Integer; cconv;
 
 
     // FUNCTION METHODS - These functions are only available on functions.
 
     // Returns the function name.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_function_name: function(self: PCefv8Value): PCefStringUserFree; cdecl;
+    get_function_name: function(self: PCefv8Value): PCefStringUserFree; cconv;
 
     // Returns the function handler or NULL if not a CEF-created function.
     get_function_handler: function(
-        self: PCefv8Value): PCefv8Handler; cdecl;
+        self: PCefv8Value): PCefv8Handler; cconv;
 
     // Execute the function using the current V8 context. This function should
     // only be called from within the scope of a cef_v8handler_t or
@@ -3591,7 +3631,7 @@ Type
     // Returns NULL if this function is called incorrectly or an exception is
     // thrown.
     execute_function: function(self: PCefv8Value; obj: PCefv8Value;
-      argumentsCount: Cardinal; const arguments: PPCefV8Value): PCefv8Value; cdecl;
+      argumentsCount: Cardinal; const arguments: PPCefV8Value): PCefv8Value; cconv;
 
     // Execute the function using the specified V8 context. |object| is the
     // receiver ('this' object) of the function. If |object| is NULL the specified
@@ -3600,7 +3640,7 @@ Type
     // success. Returns NULL if this function is called incorrectly or an
     // exception is thrown.
     execute_function_with_context: function(self: PCefv8Value; context: PCefv8Context;
-      obj: PCefv8Value; argumentsCount: Cardinal; const arguments: PPCefV8Value): PCefv8Value; cdecl;
+      obj: PCefv8Value; argumentsCount: Cardinal; const arguments: PPCefV8Value): PCefv8Value; cconv;
   end;
 
   // Structure representing a V8 stack trace handle. V8 handles can only be
@@ -3615,13 +3655,13 @@ Type
     // Returns true (1) if the underlying handle is valid and it can be accessed
     // on the current thread. Do not call any other functions if this function
     // returns false (0).
-    is_valid: function(self: PCefV8StackTrace): Integer; cdecl;
+    is_valid: function(self: PCefV8StackTrace): Integer; cconv;
 
     // Returns the number of stack frames.
-    get_frame_count: function(self: PCefV8StackTrace): Integer; cdecl;
+    get_frame_count: function(self: PCefV8StackTrace): Integer; cconv;
 
     // Returns the stack frame at the specified 0-based index.
-    get_frame: function(self: PCefV8StackTrace; index: Integer): PCefV8StackFrame; cdecl;
+    get_frame: function(self: PCefV8StackTrace; index: Integer): PCefV8StackFrame; cconv;
   end;
 
   // Structure representing a V8 stack frame handle. V8 handles can only be
@@ -3636,34 +3676,34 @@ Type
     // Returns true (1) if the underlying handle is valid and it can be accessed
     // on the current thread. Do not call any other functions if this function
     // returns false (0).
-    is_valid: function(self: PCefV8StackFrame): Integer; cdecl;
+    is_valid: function(self: PCefV8StackFrame): Integer; cconv;
 
     // Returns the name of the resource script that contains the function.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_script_name: function(self: PCefV8StackFrame): PCefStringUserFree; cdecl;
+    get_script_name: function(self: PCefV8StackFrame): PCefStringUserFree; cconv;
 
     // Returns the name of the resource script that contains the function or the
     // sourceURL value if the script name is undefined and its source ends with a
     // "//@ sourceURL=..." string.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_script_name_or_source_url: function(self: PCefV8StackFrame): PCefStringUserFree; cdecl;
+    get_script_name_or_source_url: function(self: PCefV8StackFrame): PCefStringUserFree; cconv;
 
     // Returns the name of the function.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_function_name: function(self: PCefV8StackFrame): PCefStringUserFree; cdecl;
+    get_function_name: function(self: PCefV8StackFrame): PCefStringUserFree; cconv;
 
     // Returns the 1-based line number for the function call or 0 if unknown.
-    get_line_number: function(self: PCefV8StackFrame): Integer; cdecl;
+    get_line_number: function(self: PCefV8StackFrame): Integer; cconv;
 
     // Returns the 1-based column offset on the line for the function call or 0 if
     // unknown.
-    get_column: function(self: PCefV8StackFrame): Integer; cdecl;
+    get_column: function(self: PCefV8StackFrame): Integer; cconv;
 
     // Returns true (1) if the function was compiled using eval().
-    is_eval: function(self: PCefV8StackFrame): Integer; cdecl;
+    is_eval: function(self: PCefV8StackFrame): Integer; cconv;
 
     // Returns true (1) if the function was called as a constructor via "new".
-    is_constructor: function(self: PCefV8StackFrame): Integer; cdecl;
+    is_constructor: function(self: PCefV8StackFrame): Integer; cconv;
   end;
 
   // Structure that manages custom scheme registrations.
@@ -3717,7 +3757,7 @@ Type
     // if an error occurs this function will return false (0).
     add_custom_scheme: function(self: PCefSchemeRegistrar;
       const scheme_name: PCefString; is_standard, is_local,
-      is_display_isolated: Integer): Integer; cdecl;
+      is_display_isolated: Integer): Integer; cconv;
   end;
 
   // Structure that creates cef_scheme_handler_t instances. The functions of this
@@ -3733,7 +3773,7 @@ Type
     // object passed to this function will not contain cookie data.
     create: function(self: PCefSchemeHandlerFactory;
         browser: PCefBrowser; frame: PCefFrame; const scheme_name: PCefString;
-        request: PCefRequest): PCefResourceHandler; cdecl;
+        request: PCefRequest): PCefResourceHandler; cconv;
   end;
 
   // Structure used to represent a download item.
@@ -3743,58 +3783,58 @@ Type
 
     // Returns true (1) if this object is valid. Do not call any other functions
     // if this function returns false (0).
-    is_valid: function(self: PCefDownloadItem): Integer; cdecl;
+    is_valid: function(self: PCefDownloadItem): Integer; cconv;
 
     // Returns true (1) if the download is in progress.
-    is_in_progress: function(self: PCefDownloadItem): Integer; cdecl;
+    is_in_progress: function(self: PCefDownloadItem): Integer; cconv;
 
     // Returns true (1) if the download is complete.
-    is_complete: function(self: PCefDownloadItem): Integer; cdecl;
+    is_complete: function(self: PCefDownloadItem): Integer; cconv;
 
     // Returns true (1) if the download has been canceled or interrupted.
-    is_canceled: function(self: PCefDownloadItem): Integer; cdecl;
+    is_canceled: function(self: PCefDownloadItem): Integer; cconv;
 
     // Returns a simple speed estimate in bytes/s.
-    get_current_speed: function(self: PCefDownloadItem): Int64; cdecl;
+    get_current_speed: function(self: PCefDownloadItem): Int64; cconv;
 
     // Returns the rough percent complete or -1 if the receive total size is
     // unknown.
-    get_percent_complete: function(self: PCefDownloadItem): Integer; cdecl;
+    get_percent_complete: function(self: PCefDownloadItem): Integer; cconv;
 
     // Returns the total number of bytes.
-    get_total_bytes: function(self: PCefDownloadItem): Int64; cdecl;
+    get_total_bytes: function(self: PCefDownloadItem): Int64; cconv;
 
     // Returns the number of received bytes.
-    get_received_bytes: function(self: PCefDownloadItem): Int64; cdecl;
+    get_received_bytes: function(self: PCefDownloadItem): Int64; cconv;
 
     // Returns the time that the download started.
-    get_start_time: function(self: PCefDownloadItem): TCefTime; cdecl;
+    get_start_time: function(self: PCefDownloadItem): TCefTime; cconv;
 
     // Returns the time that the download ended.
-    get_end_time: function(self: PCefDownloadItem): TCefTime; cdecl;
+    get_end_time: function(self: PCefDownloadItem): TCefTime; cconv;
 
     // Returns the full path to the downloaded or downloading file.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_full_path: function(self: PCefDownloadItem): PCefStringUserFree; cdecl;
+    get_full_path: function(self: PCefDownloadItem): PCefStringUserFree; cconv;
 
     // Returns the unique identifier for this download.
-    get_id: function(self: PCefDownloadItem): Integer; cdecl;
+    get_id: function(self: PCefDownloadItem): Integer; cconv;
 
     // Returns the URL.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_url: function(self: PCefDownloadItem): PCefStringUserFree; cdecl;
+    get_url: function(self: PCefDownloadItem): PCefStringUserFree; cconv;
 
     // Returns the suggested file name.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_suggested_file_name: function(self: PCefDownloadItem): PCefStringUserFree; cdecl;
+    get_suggested_file_name: function(self: PCefDownloadItem): PCefStringUserFree; cconv;
 
     // Returns the content disposition.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_content_disposition: function(self: PCefDownloadItem): PCefStringUserFree; cdecl;
+    get_content_disposition: function(self: PCefDownloadItem): PCefStringUserFree; cconv;
 
     // Returns the mime type.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_mime_type: function(self: PCefDownloadItem): PCefStringUserFree; cdecl;
+    get_mime_type: function(self: PCefDownloadItem): PCefStringUserFree; cconv;
   end;
 
   // Callback structure used to asynchronously continue a download.
@@ -3807,7 +3847,7 @@ Type
     // suggested name and the default temp directory. Set |show_dialog| to true
     // (1) if you do wish to show the default "Save As" dialog.
     cont: procedure(self: PCefBeforeDownloadCallback;
-      const download_path: PCefString; show_dialog: Integer); cdecl;
+      const download_path: PCefString; show_dialog: Integer); cconv;
   end;
 
   // Callback structure used to asynchronously cancel a download.
@@ -3816,7 +3856,7 @@ Type
     base: TCefBase;
 
     // Call to cancel the download.
-    cancel: procedure(self: PCefDownloadItemCallback); cdecl;
+    cancel: procedure(self: PCefDownloadItemCallback); cconv;
   end;
 
   // Structure used to handle file downloads. The functions of this structure will
@@ -3832,7 +3872,7 @@ Type
     // this function.
     on_before_download: procedure(self: PCefDownloadHandler;
       browser: PCefBrowser; download_item: PCefDownloadItem;
-      const suggested_name: PCefString; callback: PCefBeforeDownloadCallback); cdecl;
+      const suggested_name: PCefString; callback: PCefBeforeDownloadCallback); cconv;
 
     // Called when a download's status or progress information has been updated.
     // Execute |callback| either asynchronously or in this function to cancel the
@@ -3840,7 +3880,7 @@ Type
     // this function.
     on_download_updated: procedure(self: PCefDownloadHandler;
         browser: PCefBrowser; download_item: PCefDownloadItem;
-        callback: PCefDownloadItemCallback); cdecl;
+        callback: PCefDownloadItemCallback); cconv;
   end;
 
   // Structure that supports the reading of XML data via the libxml streaming API.
@@ -3853,99 +3893,99 @@ Type
     // Moves the cursor to the next node in the document. This function must be
     // called at least once to set the current cursor position. Returns true (1)
     // if the cursor position was set successfully.
-    move_to_next_node: function(self: PCefXmlReader): Integer; cdecl;
+    move_to_next_node: function(self: PCefXmlReader): Integer; cconv;
 
     // Close the document. This should be called directly to ensure that cleanup
     // occurs on the correct thread.
-    close: function(self: PCefXmlReader): Integer; cdecl;
+    close: function(self: PCefXmlReader): Integer; cconv;
 
     // Returns true (1) if an error has been reported by the XML parser.
-    has_error: function(self: PCefXmlReader): Integer; cdecl;
+    has_error: function(self: PCefXmlReader): Integer; cconv;
 
     // Returns the error string.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_error: function(self: PCefXmlReader): PCefStringUserFree; cdecl;
+    get_error: function(self: PCefXmlReader): PCefStringUserFree; cconv;
 
 
     // The below functions retrieve data for the node at the current cursor
     // position.
 
     // Returns the node type.
-    get_type: function(self: PCefXmlReader): TCefXmlNodeType; cdecl;
+    get_type: function(self: PCefXmlReader): TCefXmlNodeType; cconv;
 
     // Returns the node depth. Depth starts at 0 for the root node.
-    get_depth: function(self: PCefXmlReader): Integer; cdecl;
+    get_depth: function(self: PCefXmlReader): Integer; cconv;
 
     // Returns the local name. See http://www.w3.org/TR/REC-xml-names/#NT-
     // LocalPart for additional details.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_local_name: function(self: PCefXmlReader): PCefStringUserFree; cdecl;
+    get_local_name: function(self: PCefXmlReader): PCefStringUserFree; cconv;
 
     // Returns the namespace prefix. See http://www.w3.org/TR/REC-xml-names/ for
     // additional details.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_prefix: function(self: PCefXmlReader): PCefStringUserFree; cdecl;
+    get_prefix: function(self: PCefXmlReader): PCefStringUserFree; cconv;
 
     // Returns the qualified name, equal to (Prefix:)LocalName. See
     // http://www.w3.org/TR/REC-xml-names/#ns-qualnames for additional details.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_qualified_name: function(self: PCefXmlReader): PCefStringUserFree; cdecl;
+    get_qualified_name: function(self: PCefXmlReader): PCefStringUserFree; cconv;
 
     // Returns the URI defining the namespace associated with the node. See
     // http://www.w3.org/TR/REC-xml-names/ for additional details.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_namespace_uri: function(self: PCefXmlReader): PCefStringUserFree; cdecl;
+    get_namespace_uri: function(self: PCefXmlReader): PCefStringUserFree; cconv;
 
     // Returns the base URI of the node. See http://www.w3.org/TR/xmlbase/ for
     // additional details.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_base_uri: function(self: PCefXmlReader): PCefStringUserFree; cdecl;
+    get_base_uri: function(self: PCefXmlReader): PCefStringUserFree; cconv;
 
     // Returns the xml:lang scope within which the node resides. See
     // http://www.w3.org/TR/REC-xml/#sec-lang-tag for additional details.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_xml_lang: function(self: PCefXmlReader): PCefStringUserFree; cdecl;
+    get_xml_lang: function(self: PCefXmlReader): PCefStringUserFree; cconv;
 
     // Returns true (1) if the node represents an NULL element. <a/> is considered
     // NULL but <a></a> is not.
-    is_empty_element: function(self: PCefXmlReader): Integer; cdecl;
+    is_empty_element: function(self: PCefXmlReader): Integer; cconv;
 
     // Returns true (1) if the node has a text value.
-    has_value: function(self: PCefXmlReader): Integer; cdecl;
+    has_value: function(self: PCefXmlReader): Integer; cconv;
 
     // Returns the text value.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_value: function(self: PCefXmlReader): PCefStringUserFree; cdecl;
+    get_value: function(self: PCefXmlReader): PCefStringUserFree; cconv;
 
     // Returns true (1) if the node has attributes.
-    has_attributes: function(self: PCefXmlReader): Integer; cdecl;
+    has_attributes: function(self: PCefXmlReader): Integer; cconv;
 
     // Returns the number of attributes.
-    get_attribute_count: function(self: PCefXmlReader): Cardinal; cdecl;
+    get_attribute_count: function(self: PCefXmlReader): Cardinal; cconv;
 
     // Returns the value of the attribute at the specified 0-based index.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_attribute_byindex: function(self: PCefXmlReader; index: Integer): PCefStringUserFree; cdecl;
+    get_attribute_byindex: function(self: PCefXmlReader; index: Integer): PCefStringUserFree; cconv;
 
     // Returns the value of the attribute with the specified qualified name.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_attribute_byqname: function(self: PCefXmlReader; const qualifiedName: PCefString): PCefStringUserFree; cdecl;
+    get_attribute_byqname: function(self: PCefXmlReader; const qualifiedName: PCefString): PCefStringUserFree; cconv;
 
     // Returns the value of the attribute with the specified local name and
     // namespace URI.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_attribute_bylname: function(self: PCefXmlReader; const localName, namespaceURI: PCefString): PCefStringUserFree; cdecl;
+    get_attribute_bylname: function(self: PCefXmlReader; const localName, namespaceURI: PCefString): PCefStringUserFree; cconv;
 
     // Returns an XML representation of the current node's children.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_inner_xml: function(self: PCefXmlReader): PCefStringUserFree; cdecl;
+    get_inner_xml: function(self: PCefXmlReader): PCefStringUserFree; cconv;
 
     // Returns an XML representation of the current node including its children.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_outer_xml: function(self: PCefXmlReader): PCefStringUserFree; cdecl;
+    get_outer_xml: function(self: PCefXmlReader): PCefStringUserFree; cconv;
 
     // Returns the line number for the current node.
-    get_line_number: function(self: PCefXmlReader): Integer; cdecl;
+    get_line_number: function(self: PCefXmlReader): Integer; cconv;
 
 
     // Attribute nodes are not traversed by default. The below functions can be
@@ -3955,28 +3995,28 @@ Type
 
     // Moves the cursor to the attribute at the specified 0-based index. Returns
     // true (1) if the cursor position was set successfully.
-    move_to_attribute_byindex: function(self: PCefXmlReader; index: Integer): Integer; cdecl;
+    move_to_attribute_byindex: function(self: PCefXmlReader; index: Integer): Integer; cconv;
 
     // Moves the cursor to the attribute with the specified qualified name.
     // Returns true (1) if the cursor position was set successfully.
-    move_to_attribute_byqname: function(self: PCefXmlReader; const qualifiedName: PCefString): Integer; cdecl;
+    move_to_attribute_byqname: function(self: PCefXmlReader; const qualifiedName: PCefString): Integer; cconv;
 
     // Moves the cursor to the attribute with the specified local name and
     // namespace URI. Returns true (1) if the cursor position was set
     // successfully.
-    move_to_attribute_bylname: function(self: PCefXmlReader; const localName, namespaceURI: PCefString): Integer; cdecl;
+    move_to_attribute_bylname: function(self: PCefXmlReader; const localName, namespaceURI: PCefString): Integer; cconv;
 
     // Moves the cursor to the first attribute in the current element. Returns
     // true (1) if the cursor position was set successfully.
-    move_to_first_attribute: function(self: PCefXmlReader): Integer; cdecl;
+    move_to_first_attribute: function(self: PCefXmlReader): Integer; cconv;
 
     // Moves the cursor to the next attribute in the current element. Returns true
     // (1) if the cursor position was set successfully.
-    move_to_next_attribute: function(self: PCefXmlReader): Integer; cdecl;
+    move_to_next_attribute: function(self: PCefXmlReader): Integer; cconv;
 
     // Moves the cursor back to the carrying element. Returns true (1) if the
     // cursor position was set successfully.
-    move_to_carrying_element: function(self: PCefXmlReader): Integer; cdecl;
+    move_to_carrying_element: function(self: PCefXmlReader): Integer; cconv;
   end;
 
   // Structure that supports the reading of zip archives via the zlib unzip API.
@@ -3988,50 +4028,50 @@ Type
 
     // Moves the cursor to the first file in the archive. Returns true (1) if the
     // cursor position was set successfully.
-    move_to_first_file: function(self: PCefZipReader): Integer; cdecl;
+    move_to_first_file: function(self: PCefZipReader): Integer; cconv;
 
     // Moves the cursor to the next file in the archive. Returns true (1) if the
     // cursor position was set successfully.
-    move_to_next_file: function(self: PCefZipReader): Integer; cdecl;
+    move_to_next_file: function(self: PCefZipReader): Integer; cconv;
 
     // Moves the cursor to the specified file in the archive. If |caseSensitive|
     // is true (1) then the search will be case sensitive. Returns true (1) if the
     // cursor position was set successfully.
-    move_to_file: function(self: PCefZipReader; const fileName: PCefString; caseSensitive: Integer): Integer; cdecl;
+    move_to_file: function(self: PCefZipReader; const fileName: PCefString; caseSensitive: Integer): Integer; cconv;
 
     // Closes the archive. This should be called directly to ensure that cleanup
     // occurs on the correct thread.
-    close: function(Self: PCefZipReader): Integer; cdecl;
+    close: function(Self: PCefZipReader): Integer; cconv;
 
 
     // The below functions act on the file at the current cursor position.
 
     // Returns the name of the file.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_file_name: function(Self: PCefZipReader): PCefStringUserFree; cdecl;
+    get_file_name: function(Self: PCefZipReader): PCefStringUserFree; cconv;
 
     // Returns the uncompressed size of the file.
-    get_file_size: function(Self: PCefZipReader): Int64; cdecl;
+    get_file_size: function(Self: PCefZipReader): Int64; cconv;
 
     // Returns the last modified timestamp for the file.
-    get_file_last_modified: function(Self: PCefZipReader): LongInt; cdecl;
+    get_file_last_modified: function(Self: PCefZipReader): LongInt; cconv;
 
     // Opens the file for reading of uncompressed data. A read password may
     // optionally be specified.
-    open_file: function(Self: PCefZipReader; const password: PCefString): Integer; cdecl;
+    open_file: function(Self: PCefZipReader; const password: PCefString): Integer; cconv;
 
     // Closes the file.
-    close_file: function(Self: PCefZipReader): Integer; cdecl;
+    close_file: function(Self: PCefZipReader): Integer; cconv;
 
     // Read uncompressed file contents into the specified buffer. Returns < 0 if
     // an error occurred, 0 if at the end of file, or the number of bytes read.
-    read_file: function(Self: PCefZipReader; buffer: Pointer; bufferSize: Cardinal): Integer; cdecl;
+    read_file: function(Self: PCefZipReader; buffer: Pointer; bufferSize: Cardinal): Integer; cconv;
 
     // Returns the current offset in the uncompressed file contents.
-    tell: function(Self: PCefZipReader): Int64; cdecl;
+    tell: function(Self: PCefZipReader): Int64; cconv;
 
     // Returns true (1) if at end of the file contents.
-    eof: function(Self: PCefZipReader): Integer; cdecl;
+    eof: function(Self: PCefZipReader): Integer; cconv;
   end;
 
   // Structure to implement for visiting the DOM. The functions of this structure
@@ -4045,7 +4085,7 @@ Type
     // executed. DOM objects are only valid for the scope of this function. Do not
     // keep references to or attempt to access any DOM objects outside the scope
     // of this function.
-    visit: procedure(self: PCefDomVisitor; document: PCefDomDocument); cdecl;
+    visit: procedure(self: PCefDomVisitor; document: PCefDomDocument); cconv;
   end;
 
   // Structure used to represent a DOM document. The functions of this structure
@@ -4055,58 +4095,58 @@ Type
     base: TCefBase;
 
     // Returns the document type.
-    get_type: function(self: PCefDomDocument): TCefDomDocumentType; cdecl;
+    get_type: function(self: PCefDomDocument): TCefDomDocumentType; cconv;
 
     // Returns the root document node.
-    get_document: function(self: PCefDomDocument): PCefDomNode; cdecl;
+    get_document: function(self: PCefDomDocument): PCefDomNode; cconv;
 
     // Returns the BODY node of an HTML document.
-    get_body: function(self: PCefDomDocument): PCefDomNode; cdecl;
+    get_body: function(self: PCefDomDocument): PCefDomNode; cconv;
 
     // Returns the HEAD node of an HTML document.
-    get_head: function(self: PCefDomDocument): PCefDomNode; cdecl;
+    get_head: function(self: PCefDomDocument): PCefDomNode; cconv;
 
     // Returns the title of an HTML document.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_title: function(self: PCefDomDocument): PCefStringUserFree; cdecl;
+    get_title: function(self: PCefDomDocument): PCefStringUserFree; cconv;
 
     // Returns the document element with the specified ID value.
-    get_element_by_id: function(self: PCefDomDocument; const id: PCefString): PCefDomNode; cdecl;
+    get_element_by_id: function(self: PCefDomDocument; const id: PCefString): PCefDomNode; cconv;
 
     // Returns the node that currently has keyboard focus.
-    get_focused_node: function(self: PCefDomDocument): PCefDomNode; cdecl;
+    get_focused_node: function(self: PCefDomDocument): PCefDomNode; cconv;
 
     // Returns true (1) if a portion of the document is selected.
-    has_selection: function(self: PCefDomDocument): Integer; cdecl;
+    has_selection: function(self: PCefDomDocument): Integer; cconv;
 
     // Returns the selection start node.
-    get_selection_start_node: function(self: PCefDomDocument): PCefDomNode; cdecl;
+    get_selection_start_node: function(self: PCefDomDocument): PCefDomNode; cconv;
 
     // Returns the selection offset within the start node.
-    get_selection_start_offset: function(self: PCefDomDocument): Integer; cdecl;
+    get_selection_start_offset: function(self: PCefDomDocument): Integer; cconv;
 
     // Returns the selection end node.
-    get_selection_end_node: function(self: PCefDomDocument): PCefDomNode; cdecl;
+    get_selection_end_node: function(self: PCefDomDocument): PCefDomNode; cconv;
 
     // Returns the selection offset within the end node.
-    get_selection_end_offset: function(self: PCefDomDocument): Integer; cdecl;
+    get_selection_end_offset: function(self: PCefDomDocument): Integer; cconv;
 
     // Returns the contents of this selection as markup.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_selection_as_markup: function(self: PCefDomDocument): PCefStringUserFree; cdecl;
+    get_selection_as_markup: function(self: PCefDomDocument): PCefStringUserFree; cconv;
 
     // Returns the contents of this selection as text.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_selection_as_text: function(self: PCefDomDocument): PCefStringUserFree; cdecl;
+    get_selection_as_text: function(self: PCefDomDocument): PCefStringUserFree; cconv;
 
     // Returns the base URL for the document.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_base_url: function(self: PCefDomDocument): PCefStringUserFree; cdecl;
+    get_base_url: function(self: PCefDomDocument): PCefStringUserFree; cconv;
 
     // Returns a complete URL based on the document base URL and the specified
     // partial URL.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_complete_url: function(self: PCefDomDocument; const partialURL: PCefString): PCefStringUserFree; cdecl;
+    get_complete_url: function(self: PCefDomDocument; const partialURL: PCefString): PCefStringUserFree; cconv;
   end;
 
   // Structure used to represent a DOM node. The functions of this structure
@@ -4116,63 +4156,63 @@ Type
     base: TCefBase;
 
     // Returns the type for this node.
-    get_type: function(self: PCefDomNode): TCefDomNodeType; cdecl;
+    get_type: function(self: PCefDomNode): TCefDomNodeType; cconv;
 
     // Returns true (1) if this is a text node.
-    is_text: function(self: PCefDomNode): Integer; cdecl;
+    is_text: function(self: PCefDomNode): Integer; cconv;
 
     // Returns true (1) if this is an element node.
-    is_element: function(self: PCefDomNode): Integer; cdecl;
+    is_element: function(self: PCefDomNode): Integer; cconv;
 
     // Returns true (1) if this is an editable node.
-    is_editable: function(self: PCefDomNode): Integer; cdecl;
+    is_editable: function(self: PCefDomNode): Integer; cconv;
 
     // Returns true (1) if this is a form control element node.
-    is_form_control_element: function(self: PCefDomNode): Integer; cdecl;
+    is_form_control_element: function(self: PCefDomNode): Integer; cconv;
 
     // Returns the type of this form control element node.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_form_control_element_type: function(self: PCefDomNode): PCefStringUserFree; cdecl;
+    get_form_control_element_type: function(self: PCefDomNode): PCefStringUserFree; cconv;
 
     // Returns true (1) if this object is pointing to the same handle as |that|
     // object.
-    is_same: function(self, that: PCefDomNode): Integer; cdecl;
+    is_same: function(self, that: PCefDomNode): Integer; cconv;
 
     // Returns the name of this node.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_name: function(self: PCefDomNode): PCefStringUserFree; cdecl;
+    get_name: function(self: PCefDomNode): PCefStringUserFree; cconv;
 
     // Returns the value of this node.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_value: function(self: PCefDomNode): PCefStringUserFree; cdecl;
+    get_value: function(self: PCefDomNode): PCefStringUserFree; cconv;
 
     // Set the value of this node. Returns true (1) on success.
-    set_value: function(self: PCefDomNode; const value: PCefString): Integer; cdecl;
+    set_value: function(self: PCefDomNode; const value: PCefString): Integer; cconv;
 
     // Returns the contents of this node as markup.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_as_markup: function(self: PCefDomNode): PCefStringUserFree; cdecl;
+    get_as_markup: function(self: PCefDomNode): PCefStringUserFree; cconv;
 
     // Returns the document associated with this node.
-    get_document: function(self: PCefDomNode): PCefDomDocument; cdecl;
+    get_document: function(self: PCefDomNode): PCefDomDocument; cconv;
 
     // Returns the parent node.
-    get_parent: function(self: PCefDomNode): PCefDomNode; cdecl;
+    get_parent: function(self: PCefDomNode): PCefDomNode; cconv;
 
     // Returns the previous sibling node.
-    get_previous_sibling: function(self: PCefDomNode): PCefDomNode; cdecl;
+    get_previous_sibling: function(self: PCefDomNode): PCefDomNode; cconv;
 
     // Returns the next sibling node.
-    get_next_sibling: function(self: PCefDomNode): PCefDomNode; cdecl;
+    get_next_sibling: function(self: PCefDomNode): PCefDomNode; cconv;
 
     // Returns true (1) if this node has child nodes.
-    has_children: function(self: PCefDomNode): Integer; cdecl;
+    has_children: function(self: PCefDomNode): Integer; cconv;
 
     // Return the first child node.
-    get_first_child: function(self: PCefDomNode): PCefDomNode; cdecl;
+    get_first_child: function(self: PCefDomNode): PCefDomNode; cconv;
 
     // Returns the last child node.
-    get_last_child: function(self: PCefDomNode): PCefDomNode; cdecl;
+    get_last_child: function(self: PCefDomNode): PCefDomNode; cconv;
 
     // Add an event listener to this node for the specified event type. If
     // |useCapture| is true (1) then this listener will be considered a capturing
@@ -4183,34 +4223,34 @@ Type
     // can be used to register the same listener with and without capture. See
     // WebCore/dom/EventNames.h for the list of supported event types.
     add_event_listener: procedure(self: PCefDomNode; const eventType: PCefString;
-      listener: PCefDomEventListener; useCapture: Integer); cdecl;
+      listener: PCefDomEventListener; useCapture: Integer); cconv;
 
     // The following functions are valid only for element nodes.
 
     // Returns the tag name of this element.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_element_tag_name: function(self: PCefDomNode): PCefStringUserFree; cdecl;
+    get_element_tag_name: function(self: PCefDomNode): PCefStringUserFree; cconv;
 
     // Returns true (1) if this element has attributes.
-    has_element_attributes: function(self: PCefDomNode): Integer; cdecl;
+    has_element_attributes: function(self: PCefDomNode): Integer; cconv;
 
     // Returns true (1) if this element has an attribute named |attrName|.
-    has_element_attribute: function(self: PCefDomNode; const attrName: PCefString): Integer; cdecl;
+    has_element_attribute: function(self: PCefDomNode; const attrName: PCefString): Integer; cconv;
 
     // Returns the element attribute named |attrName|.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_element_attribute: function(self: PCefDomNode; const attrName: PCefString): PCefStringUserFree; cdecl;
+    get_element_attribute: function(self: PCefDomNode; const attrName: PCefString): PCefStringUserFree; cconv;
 
     // Returns a map of all element attributes.
-    get_element_attributes: procedure(self: PCefDomNode; attrMap: TCefStringMap); cdecl;
+    get_element_attributes: procedure(self: PCefDomNode; attrMap: TCefStringMap); cconv;
 
     // Set the value for the element attribute named |attrName|. Returns true (1)
     // on success.
-    set_element_attribute: function(self: PCefDomNode; const attrName, value: PCefString): Integer; cdecl;
+    set_element_attribute: function(self: PCefDomNode; const attrName, value: PCefString): Integer; cconv;
 
     // Returns the inner text of the element.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_element_inner_text: function(self: PCefDomNode): PCefStringUserFree; cdecl;
+    get_element_inner_text: function(self: PCefDomNode): PCefStringUserFree; cconv;
   end;
 
   // Structure used to represent a DOM event. The functions of this structure
@@ -4221,28 +4261,28 @@ Type
 
     // Returns the event type.
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_type: function(self: PCefDomEvent): PCefStringUserFree; cdecl;
+    get_type: function(self: PCefDomEvent): PCefStringUserFree; cconv;
 
     // Returns the event category.
-    get_category: function(self: PCefDomEvent): TCefDomEventCategory; cdecl;
+    get_category: function(self: PCefDomEvent): TCefDomEventCategory; cconv;
 
     // Returns the event processing phase.
-    get_phase: function(self: PCefDomEvent): TCefDomEventPhase; cdecl;
+    get_phase: function(self: PCefDomEvent): TCefDomEventPhase; cconv;
 
     // Returns true (1) if the event can bubble up the tree.
-    can_bubble: function(self: PCefDomEvent): Integer; cdecl;
+    can_bubble: function(self: PCefDomEvent): Integer; cconv;
 
     // Returns true (1) if the event can be canceled.
-    can_cancel: function(self: PCefDomEvent): Integer; cdecl;
+    can_cancel: function(self: PCefDomEvent): Integer; cconv;
 
     // Returns the document associated with this event.
-    get_document: function(self: PCefDomEvent): PCefDomDocument; cdecl;
+    get_document: function(self: PCefDomEvent): PCefDomDocument; cconv;
 
     // Returns the target of the event.
-    get_target: function(self: PCefDomEvent): PCefDomNode; cdecl;
+    get_target: function(self: PCefDomEvent): PCefDomNode; cconv;
 
     // Returns the current target of the event.
-    get_current_target: function(self: PCefDomEvent): PCefDomNode; cdecl;
+    get_current_target: function(self: PCefDomEvent): PCefDomNode; cconv;
   end;
 
   // Structure to implement for handling DOM events. The functions of this
@@ -4256,7 +4296,7 @@ Type
     // objects are only valid for the scope of this function. Do not keep
     // references to or attempt to access any DOM objects outside the scope of
     // this function.
-    handle_event: procedure(self: PCefDomEventListener; event: PCefDomEvent); cdecl;
+    handle_event: procedure(self: PCefDomEventListener; event: PCefDomEvent); cconv;
   end;
 
   // Structure to implement for visiting cookie values. The functions of this
@@ -4272,7 +4312,7 @@ Type
     // called if no cookies are found.
 
     visit: function(self: PCefCookieVisitor; const cookie: PCefCookie;
-      count, total: Integer; deleteCookie: PInteger): Integer; cdecl;
+      count, total: Integer; deleteCookie: PInteger): Integer; cconv;
   end;
 
   // Structure used for managing cookies. The functions of this structure may be
@@ -4284,11 +4324,11 @@ Type
     // Set the schemes supported by this manager. By default only "http" and
     // "https" schemes are supported. Must be called before any cookies are
     // accessed.
-    set_supported_schemes: procedure(self: PCefCookieManager; schemes: TCefStringList); cdecl;
+    set_supported_schemes: procedure(self: PCefCookieManager; schemes: TCefStringList); cconv;
 
     // Visit all cookies. The returned cookies are ordered by longest path, then
     // by earliest creation date. Returns false (0) if cookies cannot be accessed.
-    visit_all_cookies: function(self: PCefCookieManager; visitor: PCefCookieVisitor): Integer; cdecl;
+    visit_all_cookies: function(self: PCefCookieManager; visitor: PCefCookieVisitor): Integer; cconv;
 
     // Visit a subset of cookies. The results are filtered by the given url
     // scheme, host, domain and path. If |includeHttpOnly| is true (1) HTTP-only
@@ -4296,7 +4336,7 @@ Type
     // ordered by longest path, then by earliest creation date. Returns false (0)
     // if cookies cannot be accessed.
     visit_url_cookies: function(self: PCefCookieManager; const url: PCefString;
-      includeHttpOnly: Integer; visitor: PCefCookieVisitor): Integer; cdecl;
+      includeHttpOnly: Integer; visitor: PCefCookieVisitor): Integer; cconv;
 
     // Sets a cookie given a valid URL and explicit user-provided cookie
     // attributes. This function expects each attribute to be well-formed. It will
@@ -4305,7 +4345,7 @@ Type
     // setting the cookie if such characters are found. This function must be
     // called on the IO thread.
     set_cookie: function(self: PCefCookieManager; const url: PCefString;
-      const cookie: PCefCookie): Integer; cdecl;
+      const cookie: PCefCookie): Integer; cconv;
 
     // Delete all cookies that match the specified parameters. If both |url| and
     // values |cookie_name| are specified all host and domain cookies matching
@@ -4315,13 +4355,13 @@ Type
     // non- NULL invalid URL is specified or if cookies cannot be accessed. This
     // function must be called on the IO thread.
     delete_cookies: function(self: PCefCookieManager;
-        const url, cookie_name: PCefString): Integer; cdecl;
+        const url, cookie_name: PCefString): Integer; cconv;
 
     // Sets the directory path that will be used for storing cookie data. If
     // |path| is NULL data will be stored in memory only. Returns false (0) if
     // cookies cannot be accessed.
     set_storage_path: function(self: PCefCookieManager;
-      const path: PCefString): Integer; cdecl;
+      const path: PCefString): Integer; cconv;
   end;
 
   // Information about a specific web plugin.
@@ -4330,16 +4370,16 @@ Type
     base: TCefBase;
 
     // Returns the plugin name (i.e. Flash).
-    get_name: function(self: PCefWebPluginInfo): PCefStringUserFree; cdecl;
+    get_name: function(self: PCefWebPluginInfo): PCefStringUserFree; cconv;
 
     // Returns the plugin file path (DLL/bundle/library).
-    get_path: function(self: PCefWebPluginInfo): PCefStringUserFree; cdecl;
+    get_path: function(self: PCefWebPluginInfo): PCefStringUserFree; cconv;
 
     // Returns the version of the plugin (may be OS-specific).
-    get_version: function(self: PCefWebPluginInfo): PCefStringUserFree; cdecl;
+    get_version: function(self: PCefWebPluginInfo): PCefStringUserFree; cconv;
 
     // Returns a description of the plugin from the version information.
-    get_description: function(self: PCefWebPluginInfo): PCefStringUserFree; cdecl;
+    get_description: function(self: PCefWebPluginInfo): PCefStringUserFree; cconv;
   end;
 
   // Structure to implement for visiting web plugin information. The functions of
@@ -4353,7 +4393,7 @@ Type
     // Return false (0) to stop visiting plugins. This function may never be
     // called if no plugins are found.
     visit: function(self: PCefWebPluginInfoVisitor;
-      info: PCefWebPluginInfo; count, total: Integer): Integer; cdecl;
+      info: PCefWebPluginInfo; count, total: Integer): Integer; cconv;
   end;
 
   // Structure to implement for receiving unstable plugin information. The
@@ -4366,7 +4406,7 @@ Type
     // true (1) if the plugin has reached the crash count threshold of 3 times in
     // 120 seconds.
     is_unstable: procedure(self: PCefWebPluginUnstableCallback;
-        const path: PCefString; unstable: Integer); cdecl;
+        const path: PCefString; unstable: Integer); cconv;
   end;
 
   // Structure used to make a URL request. URL requests are not associated with a
@@ -4380,25 +4420,25 @@ Type
 
     // Returns the request object used to create this URL request. The returned
     // object is read-only and should not be modified.
-    get_request: function(self: PCefUrlRequest): PCefRequest; cdecl;
+    get_request: function(self: PCefUrlRequest): PCefRequest; cconv;
 
     // Returns the client.
-    get_client: function(self: PCefUrlRequest): PCefUrlRequestClient; cdecl;
+    get_client: function(self: PCefUrlRequest): PCefUrlRequestClient; cconv;
 
     // Returns the request status.
-    get_request_status: function(self: PCefUrlRequest): TCefUrlRequestStatus; cdecl;
+    get_request_status: function(self: PCefUrlRequest): TCefUrlRequestStatus; cconv;
 
     // Returns the request error if status is UR_CANCELED or UR_FAILED, or 0
     // otherwise.
-    get_request_error: function(self: PCefUrlRequest): Integer; cdecl;
+    get_request_error: function(self: PCefUrlRequest): Integer; cconv;
 
     // Returns the response, or NULL if no response information is available.
     // Response information will only be available after the upload has completed.
     // The returned object is read-only and should not be modified.
-    get_response: function(self: PCefUrlRequest): PCefResponse; cdecl;
+    get_response: function(self: PCefUrlRequest): PCefResponse; cconv;
 
     // Cancel the request.
-    cancel: procedure(self: PCefUrlRequest); cdecl;
+    cancel: procedure(self: PCefUrlRequest); cconv;
   end;
 
   // Structure that should be implemented by the cef_urlrequest_t client. The
@@ -4411,26 +4451,26 @@ Type
     // Notifies the client that the request has completed. Use the
     // cef_urlrequest_t::GetRequestStatus function to determine if the request was
     // successful or not.
-    on_request_complete: procedure(self: PCefUrlRequestClient; request: PCefUrlRequest); cdecl;
+    on_request_complete: procedure(self: PCefUrlRequestClient; request: PCefUrlRequest); cconv;
 
     // Notifies the client of upload progress. |current| denotes the number of
     // bytes sent so far and |total| is the total size of uploading data (or -1 if
     // chunked upload is enabled). This function will only be called if the
     // UR_FLAG_REPORT_UPLOAD_PROGRESS flag is set on the request.
     on_upload_progress: procedure(self: PCefUrlRequestClient;
-      request: PCefUrlRequest; current, total: UInt64); cdecl;
+      request: PCefUrlRequest; current, total: UInt64); cconv;
 
     // Notifies the client of download progress. |current| denotes the number of
     // bytes received up to the call and |total| is the expected total size of the
     // response (or -1 if not determined).
     on_download_progress: procedure(self: PCefUrlRequestClient;
-      request: PCefUrlRequest; current, total: UInt64); cdecl;
+      request: PCefUrlRequest; current, total: UInt64); cconv;
 
     // Called when some part of the response is read. |data| contains the current
     // bytes received since the last call. This function will not be called if the
     // UR_FLAG_NO_DOWNLOAD_DATA flag is set on the request.
     on_download_data: procedure(self: PCefUrlRequestClient;
-      request: PCefUrlRequest; const data: Pointer; data_length: Cardinal); cdecl;
+      request: PCefUrlRequest; const data: Pointer; data_length: Cardinal); cconv;
   end;
 
   // Callback structure for asynchronous continuation of file dialog requests.
@@ -4441,10 +4481,10 @@ Type
     // Continue the file selection with the specified |file_paths|. This may be a
     // single value or a list of values depending on the dialog mode. An NULL
     // value is treated the same as calling cancel().
-    cont: procedure(self: PCefFileDialogCallback; file_paths: TCefStringList); cdecl;
+    cont: procedure(self: PCefFileDialogCallback; file_paths: TCefStringList); cconv;
 
     // Cancel the file selection.
-    cancel: procedure(self: PCefFileDialogCallback); cdecl;
+    cancel: procedure(self: PCefFileDialogCallback); cconv;
   end;
 
   // Implement this structure to handle dialog events. The functions of this
@@ -4464,7 +4504,7 @@ Type
     // return false (0).
     on_file_dialog: function(self: PCefDialogHandler; browser: PCefBrowser;
       mode: TCefFileDialogMode; const title, default_file_name: PCefString;
-      accept_types: TCefStringList; callback: PCefFileDialogCallback): Integer; cdecl;
+      accept_types: TCefStringList; callback: PCefFileDialogCallback): Integer; cconv;
   end;
 
   // Implement this structure to handle events when window rendering is disabled.
@@ -4476,27 +4516,27 @@ Type
     // Called to retrieve the root window rectangle in screen coordinates. Return
     // true (1) if the rectangle was provided.
     get_root_screen_rect: function(self: PCefRenderHandler; browser: PCefBrowser;
-      rect: PCefRect): Integer; cdecl;
+      rect: PCefRect): Integer; cconv;
 
     // Called to retrieve the view rectangle which is relative to screen
     // coordinates. Return true (1) if the rectangle was provided.
     get_view_rect: function(self: PCefRenderHandler; browser: PCefBrowser;
-      rect: PCefRect): Integer; cdecl;
+      rect: PCefRect): Integer; cconv;
 
     // Called to retrieve the translation from view coordinates to actual screen
     // coordinates. Return true (1) if the screen coordinates were provided.
     get_screen_point: function(self: PCefRenderHandler; browser: PCefBrowser;
-      viewX, viewY: Integer; screenX, screenY: PInteger): Integer; cdecl;
+      viewX, viewY: Integer; screenX, screenY: PInteger): Integer; cconv;
 
     // Called when the browser wants to show or hide the popup widget. The popup
     // should be shown if |show| is true (1) and hidden if |show| is false (0).
     on_popup_show: procedure(self: PCefRenderProcessHandler; browser: PCefBrowser;
-      show: Integer); cdecl;
+      show: Integer); cconv;
 
     // Called when the browser wants to move or resize the popup widget. |rect|
     // contains the new location and size.
     on_popup_size: procedure(self: PCefRenderProcessHandler; browser: PCefBrowser;
-      const rect: PCefRect); cdecl;
+      const rect: PCefRect); cconv;
 
     // Called when an element should be painted. |type| indicates whether the
     // element is the view or the popup widget. |buffer| contains the pixel data
@@ -4505,11 +4545,11 @@ Type
     // size and represents a BGRA image with an upper-left origin.
     on_paint: procedure(self: PCefRenderProcessHandler; browser: PCefBrowser;
       kind: TCefPaintElementType; dirtyRectsCount: Cardinal;
-      const dirtyRects: PCefRectArray; const buffer: Pointer; width, height: Integer); cdecl;
+      const dirtyRects: PCefRectArray; const buffer: Pointer; width, height: Integer); cconv;
 
     // Called when the browser window's cursor has changed.
     on_cursor_change: procedure(self: PCefRenderProcessHandler; browser: PCefBrowser;
-      cursor: TCefCursorHandle); cdecl;
+      cursor: TCefCursorHandle); cconv;
   end;
 
   // Implement this structure to receive geolocation updates. The functions of
@@ -4521,7 +4561,7 @@ Type
     // Called with the 'best available' location information or, if the location
     // update failed, with error information.
     on_location_update: procedure(self: PCefGetGeolocationCallback;
-        const position: Pcefgeoposition); cdecl;
+        const position: Pcefgeoposition); cconv;
   end;
 
   // Implement this structure to receive trace notifications. The functions of
@@ -4536,15 +4576,15 @@ Type
     // reference to |fragment|.
 
     on_trace_data_collected: procedure(self: PCefTraceClient;
-        const fragment: PAnsiChar; fragment_size: Cardinal); cdecl;
+        const fragment: PAnsiChar; fragment_size: Cardinal); cconv;
 
     // Called in response to CefGetTraceBufferPercentFullAsync.
-    on_trace_buffer_percent_full_reply: procedure(self: PCefTraceClient; percent_full: Single); cdecl;
+    on_trace_buffer_percent_full_reply: procedure(self: PCefTraceClient; percent_full: Single); cconv;
 
     // Called after all processes have sent their trace data.
-    on_end_tracing_complete: procedure(self: PCefTraceClient); cdecl;
+    on_end_tracing_complete: procedure(self: PCefTraceClient); cconv;
   end;
 
 Implementation
 
-end.
+end.

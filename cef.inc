@@ -35,10 +35,18 @@
 {.$DEFINE CEF_MULTI_THREADED_MESSAGE_LOOP}
 {$DEFINE SUPPORTS_INLINE}
 
+// calling convention
+{$MACRO ON}
+{$IFDEF WINDOWS}
+  {$DEFINE cconv:=stdcall}
+{$ELSE}
+  {$DEFINE cconv:=cdecl}
+{$ENDIF}
+
 
 // Sanity check
 {$IFDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
   {$IFNDEF WINDOWS}
     {$ERROR CEF doesn't support the mulithreaded message loop on systems other than Windows}
   {$ENDIF}
-{$ENDIF}
+{$ENDIF}
