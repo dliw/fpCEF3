@@ -36,7 +36,8 @@ Interface
 Uses
   {$IFDEF WINDOWS}Windows,{$ENDIF}
   {$IFDEF LINUX}Dynlibs,{$ENDIF}
-  sysutils, cef3lib;
+  sysutils, LCLProc,
+  cef3lib;
 
 Var
   // These functions set string values. If |copy| is true (1) the value will be
@@ -637,7 +638,7 @@ end;
 
 procedure CefLoadLibrary;
 begin
-  Write('CefLoadLibrary');
+  Debugln('CefLoadLibrary');
 
   If LibHandle = 0 then
   begin
@@ -947,22 +948,22 @@ begin
     ) then raise Exception.Create('Invalid CEF Library version');
     //) then raise ECefException.Create('Invalid CEF Library version');
 
-    WriteLn(': Loaded');
+    Debugln('   : Loaded');
   end
-  Else WriteLn(': already loaded');
+  Else Debugln('   : already loaded');
 end;
 
 procedure CefCloseLibrary;
 begin
-  Write('CefCloseLibrary');
+  Debugln('CefCloseLibrary');
   If LibHandle <> 0 then
   begin
-    Writeln(': Freed');
+    Debugln('   : Freed');
 
     FreeLibrary(LibHandle);
     LibHandle := 0;
   end
-  Else WriteLn('already freed.');
+  Else Debugln('   already freed.');
 end;
 
 Finalization

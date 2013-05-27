@@ -424,19 +424,19 @@ begin
     Timer.Enabled := false;
     Timer.OnTimer := @OnTimer;
 
-    WriteLn('Timer created.');
+    Debugln('Timer created.');
   end;
 
   InterLockedIncrement(CefInstances);
   {$ENDIF}
 
-  WriteLn('ClientHandler instances: ', CefInstances);
+  Debugln('ClientHandler instances: ', IntToStr(CefInstances));
 end;
 
 procedure TLCLClientHandler.Cleanup;
 begin
   { TODO : Check, why Destroy; override never gets called }
-  WriteLn('LCLClientHandler.Cleanup');
+  Debugln('LCLClientHandler.Cleanup');
 
   {$IFNDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
   InterLockedDecrement(CefInstances);
@@ -447,7 +447,7 @@ begin
 
     FreeAndNil(Timer);
 
-    WriteLn('Timer cleaned.');
+    Debugln('Timer cleaned.');
   end;
   {$ENDIF}
 
@@ -658,7 +658,7 @@ end;
 
 destructor TCustomChromium.Destroy;
 begin
-  WriteLn('CustomChromium.Destroy');
+  Debugln('CustomChromium.Destroy');
 
   FreeAndNil(FCanvas);
 
@@ -1052,7 +1052,7 @@ end;
 
 class procedure TWSChromiumControl.DestroyHandle(const AWinControl: TWinControl);
 begin
-  WriteLn('DestroyHandle');
+  Debugln('DestroyHandle');
 
   // do not use "inherited DestroyHandle", because the LCL changes the hierarchy at run time
   TWSWinControlClass(ClassParent).DestroyHandle(AWinControl);

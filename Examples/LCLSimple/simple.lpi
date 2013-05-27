@@ -44,6 +44,13 @@
             <TargetCPU Value="i386"/>
             <TargetOS Value="win32"/>
           </CodeGeneration>
+          <Linking>
+            <Options>
+              <Win32>
+                <GraphicApplication Value="True"/>
+              </Win32>
+            </Options>
+          </Linking>
           <Other>
             <CompilerMessages>
               <UseMsgFile Value="True"/>

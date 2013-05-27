@@ -1,7 +1,7 @@
 Program minimal;
 
 Uses
-  Windows, Messages,
+  Windows, Messages, LCLProc,
   cef3lib, cef3api, cef3class, cef3intf;
 
 Type
@@ -133,7 +133,7 @@ begin
   CefSingleProcess := False;
   If not CefInitDefault then
   begin
-    WriteLn('CefInitDefault failed.');
+    Debugln('CefInitDefault failed.');
     Exit;
   end;
   try

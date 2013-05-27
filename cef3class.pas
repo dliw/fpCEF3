@@ -34,7 +34,8 @@ Interface
 
 Uses
   Classes, SysUtils, Math,
-  cef3lib, cef3api, cef3intf;
+  cef3lib, cef3api, cef3intf,
+  LCLProc;
 
 Type
 
@@ -1554,7 +1555,7 @@ Var
 
 function CefInitDefault: Boolean;
 begin
-  WriteLn('CefInitDefault');
+  Debugln('CefInitDefault');
 
   Result := CefInitialize(CefCache, CefUserAgent, CefProductVersion, CefLocale, CefLogFile,
     CefBrowserSubprocessPath, CefLogSeverity,
@@ -1574,11 +1575,11 @@ Var
 
   Args : TCefMainArgs;
 begin
-  WriteLn('CefInitialize');
+  Debugln('CefInitialize');
 
   If CefIsMainProcess then
   begin
-    WriteLn('Already loaded.');
+    Debugln('Already loaded.');
     Exit;
   end;
   CefLoadLibrary;
@@ -2089,13 +2090,13 @@ end;
 
 function cef_base_add_ref(self: PCefBase): Integer; cconv;
 begin
-  //WriteLn('AddRef');
+  //Debugln('AddRef');
   Result := TCefBaseOwn(CefGetObject(self))._AddRef;
 end;
 
 function cef_base_release(self: PCefBase): Integer; cconv;
 begin
-  //WriteLn('Release');
+  //Debugln('Release');
   Result := TCefBaseOwn(CefGetObject(self))._Release;
 end;
 
