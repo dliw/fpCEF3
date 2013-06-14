@@ -24,7 +24,7 @@
     </CompilerOptions>
     <Description Value="Chromium component for Lazarus"/>
     <Version Minor="1"/>
-    <Files Count="7">
+    <Files Count="6">
       <Item1>
         <Filename Value="cef3lcl.pas"/>
         <HasRegisterProc Value="True"/>
@@ -39,21 +39,17 @@
         <UnitName Value="cef3api"/>
       </Item3>
       <Item4>
-        <Filename Value="../cef3api_static.pas"/>
-        <UnitName Value="cef3api_static"/>
-      </Item4>
-      <Item5>
         <Filename Value="../cef3class.pas"/>
         <UnitName Value="cef3class"/>
-      </Item5>
-      <Item6>
+      </Item4>
+      <Item5>
         <Filename Value="../cef3gui.pas"/>
         <UnitName Value="cef3gui"/>
-      </Item6>
-      <Item7>
+      </Item5>
+      <Item6>
         <Filename Value="../cef3intf.pas"/>
         <UnitName Value="cef3intf"/>
-      </Item7>
+      </Item6>
     </Files>
     <Type Value="RunAndDesignTime"/>
     <RequiredPkgs Count="3">

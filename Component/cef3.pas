@@ -7,8 +7,7 @@ unit CEF3;
 interface
 
 uses
-  cef3lcl, cef3api, cef3api_static, cef3class, cef3gui, cef3intf, 
-  LazarusPackageIntf;
+  cef3lcl, cef3api, cef3class, cef3gui, cef3intf, LazarusPackageIntf;
 
 implementation
 
