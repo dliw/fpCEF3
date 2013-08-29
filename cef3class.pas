@@ -1405,9 +1405,9 @@ function CefInitialize(const Cache: ustring = ''; const UserAgent: ustring = '';
 
 function CefGetObject(ptr: Pointer): TObject;
 function CefStringAlloc(const str: ustring): TCefString;
-
 function CefString(const str: String) : TCefString; overload;
 //function CefString(const str: ustring) : TCefString; overload;
+
 function CefString(const str: PCefString) : ustring; overload;
 function CefUserFreeString(const str: ustring): PCefStringUserFree;
 
@@ -1508,7 +1508,6 @@ Type
     function GetBrowserProcessHandler: ICefBrowserProcessHandler; override;
     function GetRenderProcessHandler: ICefRenderProcessHandler; override;
   end;
-
 
 procedure TInternalApp.OnBeforeCommandLineProcessing(const processType: ustring;
     const commandLine: ICefCommandLine);

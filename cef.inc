@@ -30,8 +30,6 @@
  {.$DEFINE CEF_STRING_TYPE_UTF8}
  {.$DEFINE CEF_STRING_TYPE_WIDE}
 
-//original comment: force multithreading message loop on FPC, still not work
-//seems to be wrong, works perfectly without on fpc
 {.$DEFINE CEF_MULTI_THREADED_MESSAGE_LOOP}
 {$DEFINE SUPPORTS_INLINE}
 
@@ -49,4 +47,4 @@
   {$IFNDEF WINDOWS}
     {$ERROR CEF doesn't support the mulithreaded message loop on systems other than Windows}
   {$ENDIF}
-{$ENDIF}
+{$ENDIF}

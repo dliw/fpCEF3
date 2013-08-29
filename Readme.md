@@ -34,9 +34,7 @@ Also libcef.so needs the resources (folder `locales` and `cef.pak`, you can find
 ### Which versions of CEF are supported?
 
 fpCEF3 only supports CEF3, *no* support for CEF1.  
-Version 3.1453.1255 (and newer) should work.
-
-Older releases lack some symbols on Windows; I didn't test on Linux.
+Version 3.1547.1412 (and newer) should work.
 
 ### Which platforms are supported?
 
@@ -72,6 +70,7 @@ To a certain amount - yes, but don't expect too much.
 ## Links:
  *  [Chromium Embedded Framework](http://code.google.com/p/chromiumembedded)
  *  [Delphi CEF](http://code.google.com/p/dcef3)
+ *  [WACEF](https://bitbucket.org/WaspAce/wacef)
 
  *  [fpCEF3](http://github.com/dliw/fpCEF3)
 

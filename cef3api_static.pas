@@ -168,6 +168,10 @@ procedure cef_run_message_loop; cdecl; external {$IFDEF DYNLINK}ceflib{$ENDIF};
 // if cef_run_message_loop() was used.
 procedure cef_quit_message_loop; cdecl; external {$IFDEF DYNLINK}ceflib{$ENDIF};
 
+// Set to true (1) before calling Windows APIs like TrackPopupMenu that enter a
+// modal message loop. Set to false (0) after exiting the modal message loop.
+procedure cef_set_osmodal_loop(osModalLoop : Integer); cdecl; external {$IFDEF DYNLINK}ceflib{$ENDIF};
+
 // This function should be called from the application entry point function to
 // execute a secondary process. It can be used to run secondary processes from
 // the browser client executable (default behavior) or from a separate

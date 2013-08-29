@@ -28,10 +28,10 @@ Unit cef3lib;
 
 {$MODE objfpc}{$H+}
 
-(*
+{
 {$ALIGN ON}
 {$MINENUMSIZE 4}
-*)
+}
 
 
 {$I cef.inc}
@@ -45,7 +45,6 @@ Uses
   ;
 
 Type
-  //ustring = WideString;
   ustring = AnsiString;
   rbstring = AnsiString;
 (*
@@ -74,9 +73,10 @@ Type
 
 *)
 
-  TCefWindowHandle = {$IFDEF WINDOWS}HWND{$ELSE}Pointer{$ENDIF};
-  TCefCursorHandle = {$IFDEF WINDOWS}HCURSOR{$ELSE}Pointer{$ENDIF};
-  TCefEventHandle  = {$IFDEF WINDOWS}PMSG{$ELSE}Pointer{$ENDIF};
+  TCefWindowHandle = {$IFDEF WINDOWS}HWND   {$ELSE}Pointer {PGtkWidget}{$ENDIF};
+  TCefCursorHandle = {$IFDEF WINDOWS}HCURSOR{$ELSE}Pointer {PGdkCursor}{$ENDIF};
+  TCefEventHandle  = {$IFDEF WINDOWS}PMSG   {$ELSE}Pointer {PGdkEvent}{$ENDIF};
+  TCefTextInputContext = Pointer;
 
   // CEF provides functions for converting between UTF-8, -16 and -32 strings.
   // CEF string types are safe for reading from multiple threads but not for
@@ -223,6 +223,14 @@ Type
     {$IFDEF LINUX}
       // Pointer for the parent GtkBox widget.
       parent_widget : TCefWindowHandle;
+
+      // If window rendering is disabled no browser window will be created. Set
+      // |parent_widget| to the window that will act as the parent for popup menus,
+      // dialog boxes, etc.
+      window_rendering_disabled : Boolean;
+
+      // Set to true to enable transparent painting.
+      transparent_painting : Boolean;
 
       // Pointer for the new browser widget.
       widget : TCefWindowHandle;
@@ -561,10 +569,6 @@ Type
     // "disable-text-area-resize" command-line switch.
     text_area_resize: TCefState;
 
-    // Controls whether the fastback (back/forward) page cache will be used. Also
-    // configurable using the "enable-fastback" command-line switch.
-    page_cache: TCefState;
-
     // Controls whether the tab key can advance focus to links. Also configurable
     // using the "disable-tab-to-links" command-line switch.
     tab_to_links: TCefState;
@@ -595,10 +599,6 @@ Type
     // not work on all systems even when enabled. Also configurable using the
     // "disable-accelerated-compositing" command-line switch.
     accelerated_compositing: TCefState;
-
-    // Controls whether developer tools (WebKit inspector) can be used. Also
-    // configurable using the "disable-developer-tools" command-line switch.
-    developer_tools: TCefState;
   end;
 
   // URL component parts.
@@ -780,6 +780,20 @@ Const
   ERR_INSECURE_RESPONSE = -501;
 
 Type
+  // "Verb" of a drag-and-drop operation as negotiated between the source and
+  // destination. These constants match their equivalents in WebCore's
+  // DragActions.h and should not be renumbered.
+  TCefDragOperationsMask = (
+    DRAG_OPERATION_NONE    = 0,
+    DRAG_OPERATION_COPY    = 1,
+    DRAG_OPERATION_LINK    = 2,
+    DRAG_OPERATION_GENERIC = 4,
+    DRAG_OPERATION_PRIVATE = 8,
+    DRAG_OPERATION_MOVE    = 16,
+    DRAG_OPERATION_DELETE  = 32,
+    DRAG_OPERATION_EVERY   = High(UInt32)
+    );
+
   // V8 access control values.
   TCefV8AccessControl = (
     //V8_ACCESS_CONTROL_DEFAULT               = 0;
@@ -1215,9 +1229,7 @@ const
   DOM_EVENT_CATEGORY_POPSTATE = $2000;
   DOM_EVENT_CATEGORY_PROGRESS = $4000;
   DOM_EVENT_CATEGORY_XMLHTTPREQUEST_PROGRESS = $8000;
-  DOM_EVENT_CATEGORY_WEBKIT_ANIMATION = $10000;
-  DOM_EVENT_CATEGORY_WEBKIT_TRANSITION = $20000;
-  DOM_EVENT_CATEGORY_BEFORE_LOAD = $40000;
+  DOM_EVENT_CATEGORY_BEFORE_LOAD = $10000;
 
 type
   // DOM event processing phases.
@@ -1235,7 +1247,6 @@ type
     DOM_NODE_TYPE_ATTRIBUTE,
     DOM_NODE_TYPE_TEXT,
     DOM_NODE_TYPE_CDATA_SECTION,
-    DOM_NODE_TYPE_ENTITY_REFERENCE,
     DOM_NODE_TYPE_ENTITY,
     DOM_NODE_TYPE_PROCESSING_INSTRUCTIONS,
     DOM_NODE_TYPE_COMMENT,
@@ -1378,6 +1389,8 @@ Type
   PCefBeforeDownloadCallback = ^TCefBeforeDownloadCallback;
   PCefDownloadItemCallback = ^TCefDownloadItemCallback;
   PCefDownloadItem = ^TCefDownloadItem;
+  PCefDragData = ^TCefDragData;
+  PCefDragHandler = ^TCefDragHandler;
   PCefStringVisitor = ^TCefStringVisitor;
   PCefJsDialogCallback = ^TCefJsDialogCallback;
   PCefUrlRequest = ^TCefUrlRequest;
@@ -1904,7 +1917,18 @@ Type
     send_focus_event: procedure(self: PCefBrowserHost; setFocus: Integer); cconv;
 
     // Send a capture lost event to the browser.
-    send_capture_lost_event: procedure(self: PCefBrowserHost);
+    send_capture_lost_event: procedure(self: PCefBrowserHost); cconv;
+
+    // Get the NSTextInputContext implementation for enabling IME on Mac when
+    // window rendering is disabled.
+    get_nstext_input_context: function(self : PCefBrowserHost) : TCefTextInputContext; cconv;
+
+    // Handles a keyDown event prior to passing it through the NSTextInputClient
+    // machinery.
+    handle_key_event_before_text_input_client: procedure(self : PCefBrowserHost; keyEvent : TCefEventHandle); cconv;
+
+    // Performs any additional actions after NSTextInputClient handles the event.
+    handle_key_event_after_text_input_client: procedure(self : PCefBrowserHost; keyEvent : TCefEventHandle); cconv;
   end;
 
   // Implement this structure to receive string values asynchronously.
@@ -2665,6 +2689,9 @@ Type
     // be called due to events like page navigation irregardless of whether any
     // dialogs are currently pending.
     on_reset_dialog_state: procedure(self: PCefJsDialogHandler; browser: PCefBrowser); cconv;
+
+    // Called when the default implementation dialog is closed.
+    on_dialog_closed: procedure(self: PCefJsDialogHandler; browser: PCefBrowser); cconv;
   end;
 
   // Supports creation and modification of menus. See cef_menu_id_t for the
@@ -3026,6 +3053,9 @@ Type
     // Return the handler for download events. If no handler is returned downloads
     // will not be allowed.
     get_download_handler: function(self: PCefClient): PCefDownloadHandler; cconv;
+
+    // Return the handler for drag events.
+    get_drag_handler: function(self: PCefClient): PCefDragHandler; cconv;
 
     // Return the handler for focus events.
     get_focus_handler: function(self: PCefClient): PCefFocusHandler; cconv;
@@ -3837,6 +3867,61 @@ Type
     get_mime_type: function(self: PCefDownloadItem): PCefStringUserFree; cconv;
   end;
 
+  // Structure used to represent drag data. The functions of this structure may be
+  // called on any thread.
+  TCefDragData = record
+    // Base structure.
+    base: TCefBase;
+
+    // Returns true (1) if the drag data is a link.
+    is_link: function(self: PCefDragData): Integer; cconv;
+
+    // Returns true (1) if the drag data is a text or html fragment.
+    is_fragment: function(self: PCefDragData): Integer; cconv;
+
+    // Returns true (1) if the drag data is a file.
+    is_file: function(self: PCefDragData): Integer; cconv;
+
+    // Return the link URL that is being dragged.
+    get_link_url: function(self: PCefDragData): PCefStringUserFree; cconv;
+
+    // Return the title associated with the link being dragged.
+    get_link_title: function(self: PCefDragData): PCefStringUserFree; cconv;
+
+    // Return the metadata, if any, associated with the link being dragged.
+    get_link_metadata: function(self: PCefDragData): PCefStringUserFree; cconv;
+
+    // Return the plain text fragment that is being dragged.
+    get_fragment_text: function(self: PCefDragData): PCefStringUserFree; cconv;
+
+    // Return the text/html fragment that is being dragged.
+    get_fragment_html: function(self: PCefDragData): PCefStringUserFree; cconv;
+
+    // Return the base URL that the fragment came from. This value is used for
+    // resolving relative URLs and may be NULL.
+    get_fragment_base_url: function(self: PCefDragData): PCefStringUserFree; cconv;
+
+    // Return the name of the file being dragged out of the browser window.
+    get_file_name: function(self: PCefDragData): PCefStringUserFree; cconv;
+
+    // Retrieve the list of file names that are being dragged into the browser
+    // window.
+    get_file_names: function(self: PCefDragData; names: TCefStringList): Integer; cconv;
+  end;
+
+  // Implement this structure to handle events related to dragging. The functions
+  // of this structure will be called on the UI thread.
+  TCefDragHandler = record
+    // Base structure.
+    base: TCefBase;
+
+    // Called when an external drag event enters the browser window. |dragData|
+    // contains the drag event data and |mask| represents the type of drag
+    // operation. Return false (0) for default drag handling behavior or true (1)
+    // to cancel the drag event.
+    on_drag_enter: function(self: PCefDragHandler; browser: PCefBrowser; dragData: PCefDragData; mask: TCefDragOperationsMask): Integer; cconv;
+  end;
+
   // Callback structure used to asynchronously continue a download.
   TCefBeforeDownloadCallback = record
     // Base structure.
@@ -4548,8 +4633,10 @@ Type
       const dirtyRects: PCefRectArray; const buffer: Pointer; width, height: Integer); cconv;
 
     // Called when the browser window's cursor has changed.
-    on_cursor_change: procedure(self: PCefRenderProcessHandler; browser: PCefBrowser;
-      cursor: TCefCursorHandle); cconv;
+    on_cursor_change: procedure(self: PCefRenderProcessHandler; browser: PCefBrowser; cursor: TCefCursorHandle); cconv;
+
+    // Called when the scroll offset has changed.
+    on_scroll_offset_changed: procedure(self: PCefRenderProcessHandler; browser: PCefBrowser); cconv;
   end;
 
   // Implement this structure to receive geolocation updates. The functions of
@@ -4566,7 +4653,6 @@ Type
 
   // Implement this structure to receive trace notifications. The functions of
   // this structure will be called on the browser process UI thread.
-
   TCefTraceClient = record
     // Base structure.
     base: TCefBase;
@@ -4587,4 +4673,4 @@ Type
 
 Implementation
 
-end.
+end.

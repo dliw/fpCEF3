@@ -155,7 +155,6 @@ Type
     FImageLoading: TCefState;
     FImageShrinkStandaloneToFit: TCefState;
     FTextAreaResize: TCefState;
-    FPageCache: TCefState;
     FTabToLinks: TCefState;
     FAuthorAndUserStyles: TCefState;
     FLocalStorage: TCefState;
@@ -163,7 +162,6 @@ Type
     FApplicationCache: TCefState;
     FWebgl: TCefState;
     FAcceleratedCompositing: TCefState;
-    FDeveloperTools: TCefState;
   published
     property Javascript: TCefState read FJavascript write FJavascript default STATE_DEFAULT;
     property JavascriptOpenWindows: TCefState read FJavascriptOpenWindows write FJavascriptOpenWindows default STATE_DEFAULT;
@@ -179,7 +177,6 @@ Type
     property ImageLoading: TCefState read FImageLoading write FImageLoading default STATE_DEFAULT;
     property ImageShrinkStandaloneToFit: TCefState read FImageShrinkStandaloneToFit write FImageShrinkStandaloneToFit default STATE_DEFAULT;
     property TextAreaResize: TCefState read FTextAreaResize write FTextAreaResize default STATE_DEFAULT;
-    property PageCache: TCefState read FPageCache write FPageCache default STATE_DEFAULT;
     property TabToLinks: TCefState read FTabToLinks write FTabToLinks default STATE_DEFAULT;
     property AuthorAndUserStyles: TCefState read FAuthorAndUserStyles write FAuthorAndUserStyles default STATE_DEFAULT;
     property LocalStorage: TCefState read FLocalStorage write FLocalStorage default STATE_DEFAULT;
@@ -187,7 +184,6 @@ Type
     property ApplicationCache: TCefState read FApplicationCache write FApplicationCache default STATE_DEFAULT;
     property Webgl: TCefState read FWebgl write FWebgl default STATE_DEFAULT;
     property AcceleratedCompositing: TCefState read FAcceleratedCompositing write FAcceleratedCompositing default STATE_DEFAULT;
-    property DeveloperTools: TCefState read FDeveloperTools write FDeveloperTools default STATE_DEFAULT;
   end;
 
   TChromiumFontOptions = class(TPersistent)

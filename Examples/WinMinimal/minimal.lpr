@@ -138,7 +138,7 @@ begin
   end;
   try
     wndClass.style         := CS_HREDRAW or CS_VREDRAW;
-    wndClass.lpfnWndProc   := @CefWndProc;
+    wndClass.lpfnWndProc   := WNDPROC(@CefWndProc);
     wndClass.cbClsExtra    := 0;
     wndClass.cbWndExtra    := 0;
     wndClass.hInstance     := hInstance;

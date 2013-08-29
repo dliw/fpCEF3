@@ -494,7 +494,6 @@ begin
   settings.image_loading := FOptions.ImageLoading;
   settings.image_shrink_standalone_to_fit := FOptions.ImageShrinkStandaloneToFit;
   settings.text_area_resize := FOptions.TextAreaResize;
-  settings.page_cache := FOptions.PageCache;
   settings.tab_to_links := FOptions.TabToLinks;
   settings.author_and_user_styles := FOptions.AuthorAndUserStyles;
   settings.local_storage := FOptions.LocalStorage;
@@ -502,7 +501,6 @@ begin
   settings.application_cache := FOptions.ApplicationCache;
   settings.webgl := FOptions.Webgl;
   settings.accelerated_compositing := FOptions.AcceleratedCompositing;
-  settings.developer_tools := FOptions.DeveloperTools;
 end;
 
 procedure TCustomChromium.CreateWnd;
@@ -551,9 +549,12 @@ begin
       end;
     WM_ERASEBKGND:
       If (csDesigning in ComponentState) or (FBrowser = nil) then inherited WndProc(Message);
+    {$IFNDEF CPU64}
+    {$WARNING temporary fix}
     CM_WANTSPECIALKEY:
       If not (TWMKey(Message).CharCode in [VK_LEFT .. VK_DOWN]) then Message.Result := 1
       Else inherited WndProc(Message);
+    {$ENDIF}
     WM_GETDLGCODE:
       Message.Result := DLGC_WANTARROWS or DLGC_WANTCHARS;
   Else

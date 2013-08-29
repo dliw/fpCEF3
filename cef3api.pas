@@ -43,21 +43,18 @@ Var
   // These functions set string values. If |copy| is true (1) the value will be
   // copied instead of referenced. It is up to the user to properly manage
   // the lifespan of references.
-
   cef_string_wide_set: function(const src: PWideChar; src_len: Cardinal;  output: PCefStringWide; copy: Integer): Integer; cdecl;
   cef_string_utf8_set: function(const src: PAnsiChar; src_len: Cardinal; output: PCefStringUtf8; copy: Integer): Integer; cdecl;
   cef_string_utf16_set: function(const src: PChar16; src_len: Cardinal; output: PCefStringUtf16; copy: Integer): Integer; cdecl;
   cef_string_set: function(const src: PCefChar; src_len: Cardinal; output: PCefString; copy: Integer): Integer; cdecl;
 
   // These functions clear string values. The structure itself is not freed.
-
   cef_string_wide_clear: procedure(str: PCefStringWide); cdecl;
   cef_string_utf8_clear: procedure(str: PCefStringUtf8); cdecl;
   cef_string_utf16_clear: procedure(str: PCefStringUtf16); cdecl;
   cef_string_clear: procedure(str: PCefString); cdecl;
 
   // These functions compare two string values with the same results as strcmp().
-
   cef_string_wide_cmp: function(const str1, str2: PCefStringWide): Integer; cdecl;
   cef_string_utf8_cmp: function(const str1, str2: PCefStringUtf8): Integer; cdecl;
   cef_string_utf16_cmp: function(const str1, str2: PCefStringUtf16): Integer; cdecl;
@@ -66,7 +63,6 @@ Var
   // potentially slow so unnecessary conversions should be avoided. The best
   // possible result will always be written to |output| with the boolean return
   // value indicating whether the conversion is 100% valid.
-
   cef_string_wide_to_utf8: function(const src: PWideChar; src_len: Cardinal; output: PCefStringUtf8): Integer; cdecl;
   cef_string_utf8_to_wide: function(const src: PAnsiChar; src_len: Cardinal; output: PCefStringWide): Integer; cdecl;
 
@@ -86,14 +82,12 @@ Var
   // These functions convert an ASCII string, typically a hardcoded constant, to a
   // Wide/UTF16 string. Use instead of the UTF8 conversion routines if you know
   // the string is ASCII.
-
   cef_string_ascii_to_wide: function(const src: PAnsiChar; src_len: Cardinal; output: PCefStringWide): Integer; cdecl;
   cef_string_ascii_to_utf16: function(const src: PAnsiChar; src_len: Cardinal; output: PCefStringUtf16): Integer; cdecl;
   cef_string_from_ascii: function(const src: PAnsiChar; src_len: Cardinal; output: PCefString): Integer; cdecl;
 
   // These functions allocate a new string structure. They must be freed by
   // calling the associated free function.
-
   cef_string_userfree_wide_alloc: function(): PCefStringUserFreeWide; cdecl;
   cef_string_userfree_utf8_alloc: function(): PCefStringUserFreeUtf8; cdecl;
   cef_string_userfree_utf16_alloc: function(): PCefStringUserFreeUtf16; cdecl;
@@ -101,13 +95,11 @@ Var
 
   // These functions free the string structure allocated by the associated
   // alloc function. Any string contents will first be cleared.
-
   cef_string_userfree_wide_free: procedure(str: PCefStringUserFreeWide); cdecl;
   cef_string_userfree_utf8_free: procedure(str: PCefStringUserFreeUtf8); cdecl;
   cef_string_userfree_utf16_free: procedure(str: PCefStringUserFreeUtf16); cdecl;
   cef_string_userfree_free: procedure(str: PCefStringUserFree); cdecl;
 
-Var
   // Create a new browser window using the window parameters specified by
   // |windowInfo|. All values will be copied internally and the actual window will
   // be created on the UI thread. This function can be called on any browser
@@ -143,6 +135,10 @@ Var
   // This function should only be called on the main application thread and only
   // if cef_run_message_loop() was used.
   cef_quit_message_loop: procedure; cdecl;
+
+  // Set to true (1) before calling Windows APIs like TrackPopupMenu that enter a
+  // modal message loop. Set to false (0) after exiting the modal message loop.
+  cef_set_osmodal_loop: procedure(osModalLoop : Integer); cdecl;
 
   // This function should be called from the application entry point function to
   // execute a secondary process. It can be used to run secondary processes from
@@ -309,7 +305,6 @@ Var
   //
   // This function may be called on any thread. Returns false (0) if
   // |source_origin| is invalid or the whitelist cannot be accessed.
-
   cef_add_cross_origin_whitelist_entry: function(const source_origin, target_protocol,
     target_domain: PCefString; allow_target_subdomains: Integer): Integer; cdecl;
 
@@ -576,7 +571,6 @@ Var
   // "-excluded_category1,-excluded_category2"
   //
   // This function must be called on the browser process UI thread.
-
   cef_begin_tracing: function(client: PCefTraceClient; const categories: PCefString): Integer; cdecl;
 
   // Get the maximum trace buffer percent full state across all processes.
@@ -590,7 +584,6 @@ Var
   // CefGetTraceBufferPercentFullAsync is pending.
   //
   // This function must be called on the browser process UI thread.
-
   cef_get_trace_buffer_percent_full_async: function: Integer; cdecl;
 
   // Stop tracing events on all processes.
@@ -599,7 +592,6 @@ Var
   // CefEndTracingAsync is already pending or if CefBeginTracing was not called.
   //
   // This function must be called on the browser process UI thread.
-
   cef_end_tracing_async: function: Integer; cdecl;
 
 
@@ -734,6 +726,7 @@ begin
     cef_do_message_loop_work                := GetProcAddress(LibHandle, 'cef_do_message_loop_work');
     cef_run_message_loop                    := GetProcAddress(LibHandle, 'cef_run_message_loop');
     cef_quit_message_loop                   := GetProcAddress(LibHandle, 'cef_quit_message_loop');
+    cef_set_osmodal_loop                    := GetProcAddress(LibHandle, 'cef_set_osmodal_loop');
     cef_register_extension                  := GetProcAddress(LibHandle, 'cef_register_extension');
     cef_register_scheme_handler_factory     := GetProcAddress(LibHandle, 'cef_register_scheme_handler_factory');
     cef_clear_scheme_handler_factories      := GetProcAddress(LibHandle, 'cef_clear_scheme_handler_factories');
@@ -870,6 +863,7 @@ begin
       Assigned(cef_do_message_loop_work) and
       Assigned(cef_run_message_loop) and
       Assigned(cef_quit_message_loop) and
+      Assigned(cef_set_osmodal_loop) and
       Assigned(cef_register_extension) and
       Assigned(cef_register_scheme_handler_factory) and
       Assigned(cef_clear_scheme_handler_factories) and
@@ -963,7 +957,7 @@ begin
     FreeLibrary(LibHandle);
     LibHandle := 0;
   end
-  Else Debugln('   already freed.');
+  Else Debugln('   : already freed.');
 end;
 
 Finalization
