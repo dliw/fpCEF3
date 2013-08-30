@@ -8,16 +8,12 @@
  * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
  * the specific language governing rights and limitations under the License.
  *
- * Ported to Free Pascal by d.l.i.w <dev.dliw@gmail.com>
- * based on 'Delphi Chromium Embedded'
- *
+ * Author: d.l.i.w <dev.dliw@gmail.com>
  * Repository: http://github.com/dliw/fpCEF3
  *
  *
- * Originally created for Delphi by: Henri Gourvest <hgourvest@gmail.com>
- * Web site   : http://www.progdigy.com
+ * Based on 'Delphi Chromium Embedded' by: Henri Gourvest <hgourvest@gmail.com>
  * Repository : http://code.google.com/p/delphichromiumembedded/
- * Group      : http://groups.google.com/group/delphichromiumembedded
  *
  * Embarcadero Technologies, Inc is not permitted to use or redistribute
  * this source code without explicit permission.
@@ -33,8 +29,8 @@ Unit cef3class;
 Interface
 
 Uses
-  Classes, SysUtils, Math,
-  cef3lib, cef3api, cef3intf,
+  Classes, SysUtils, Math, ctypes,
+  cef3lib, cef3api, cef3types, cef3intf,
   LCLProc;
 
 Type
@@ -44,7 +40,7 @@ Type
     FData: Pointer;
   public
     function Wrap: Pointer;
-    constructor CreateData(size: Cardinal; owned: Boolean = False); virtual;
+    constructor CreateData(size: csize_t; owned: Boolean = False); virtual;
     destructor Destroy; override;
   end;
 
@@ -900,7 +896,7 @@ Type
   TCefResourceBundleHandlerOwn = class(TCefBaseOwn, ICefResourceBundleHandler)
   protected
     function GetDataResource(resourceId: Integer; out data: Pointer;
-      out dataSize: Cardinal): Boolean; virtual; abstract;
+      out dataSize: csize_t): Boolean; virtual; abstract;
     function GetLocalizedString(messageId: Integer;
       out stringVal: ustring): Boolean; virtual; abstract;
   public
@@ -908,7 +904,7 @@ Type
   end;
 
 
- TGetDataResource = function(resourceId: Integer; out data: Pointer; out dataSize: Cardinal): Boolean;
+ TGetDataResource = function(resourceId: Integer; out data: Pointer; out dataSize: csize_t): Boolean;
  TGetLocalizedString = function(messageId: Integer; out stringVal: ustring): Boolean;
 
   TCefFastResourceBundle = class(TCefResourceBundleHandlerOwn)
@@ -917,7 +913,7 @@ Type
     FGetLocalizedString: TGetLocalizedString;
   protected
     function GetDataResource(resourceId: Integer; out data: Pointer;
-      out dataSize: Cardinal): Boolean; override;
+      out dataSize: csize_t): Boolean; override;
     function GetLocalizedString(messageId: Integer;
       out stringVal: ustring): Boolean; override;
   public
@@ -2558,7 +2554,7 @@ end;
 
 {  cef_stream_reader }
 
-function cef_stream_reader_read(self: PCefReadHandler; ptr: Pointer; size, n: Cardinal): Cardinal; cconv;
+function cef_stream_reader_read(self: PCefReadHandler; ptr: Pointer; size, n: csize_t): csize_t; cconv;
 begin
   with TCefCustomStreamReader(CefGetObject(self)) do
     Result := Read(ptr, size, n);
@@ -2602,7 +2598,7 @@ begin
     SetToFile(CefString(fileName));
 end;
 
-procedure cef_post_data_element_set_to_bytes(self: PCefPostDataElement; size: Cardinal; const bytes: Pointer); cconv;
+procedure cef_post_data_element_set_to_bytes(self: PCefPostDataElement; size: csize_t; const bytes: Pointer); cconv;
 begin
   with TCefPostDataElementOwn(CefGetObject(self)) do
     SetToBytes(size, bytes);
@@ -2620,13 +2616,13 @@ begin
     Result := CefUserFreeString(GetFile);
 end;
 
-function cef_post_data_element_get_bytes_count(self: PCefPostDataElement): Cardinal; cconv;
+function cef_post_data_element_get_bytes_count(self: PCefPostDataElement): csize_t; cconv;
 begin
   with TCefPostDataElementOwn(CefGetObject(self)) do
     Result := GetBytesCount;
 end;
 
-function cef_post_data_element_get_bytes(self: PCefPostDataElement; size: Cardinal; bytes: Pointer): Cardinal; cconv;
+function cef_post_data_element_get_bytes(self: PCefPostDataElement; size: csize_t; bytes: Pointer): csize_t; cconv;
 begin
   with TCefPostDataElementOwn(CefGetObject(self)) do
     Result := GetBytes(size, bytes)
@@ -2750,7 +2746,7 @@ begin
 end;
 
 function cef_resource_bundle_handler_get_data_resource(self: PCefResourceBundleHandler;
-  resource_id: Integer; var data: Pointer; var data_size: Cardinal): Integer; cconv;
+  resource_id: Integer; var data: Pointer; var data_size: csize_t): Integer; cconv;
 begin
   Result := Ord(TCefResourceBundleHandlerOwn(CefGetObject(self)).
     GetDataResource(resource_id, data, data_size));
@@ -2938,7 +2934,7 @@ begin
 end;
 
 procedure cef_url_request_client_on_download_data(self: PCefUrlRequestClient;
-  request: PCefUrlRequest; const data: Pointer; data_length: Cardinal); cconv;
+  request: PCefUrlRequest; const data: Pointer; data_length: csize_t); cconv;
 begin
   with TCefUrlrequestClientOwn(CefGetObject(self)) do
     OnDownloadData(TCefUrlRequestRef.UnWrap(request), data, data_length);
@@ -3050,7 +3046,7 @@ end;
 { cef_trace_client }
 
 procedure cef_trace_client_on_trace_data_collected(self: PCefTraceClient;
-  const fragment: PAnsiChar; fragment_size: Cardinal); cconv;
+  const fragment: PAnsiChar; fragment_size: csize_t); cconv;
 begin
   TCefTraceClientOwn(CefGetObject(self)).OnTraceDataCollected(fragment, fragment_size);
 end;
@@ -3142,7 +3138,7 @@ begin
 end;
 
 procedure cef_render_handler_on_paint(self: PCefRenderProcessHandler;
-  browser: PCefBrowser; kind: TCefPaintElementType; dirtyRectsCount: Cardinal;
+  browser: PCefBrowser; kind: TCefPaintElementType; dirtyRectsCount: csize_t;
   const dirtyRects: PCefRectArray; const buffer: Pointer; width, height: Integer); cconv;
 begin
   with TCefRenderHandlerOwn(CefGetObject(self)) do
@@ -3159,7 +3155,7 @@ end;
 
 { TCefBaseOwn }
 
-constructor TCefBaseOwn.CreateData(size: Cardinal; owned: Boolean);
+constructor TCefBaseOwn.CreateData(size: csize_t; owned: Boolean);
 begin
   GetMem(FData, size + SizeOf(Pointer));
   PPointer(FData)^ := Self;
@@ -5311,7 +5307,7 @@ constructor TCefV8AccessorOwn.Create;
 begin
   inherited CreateData(SizeOf(TCefV8Accessor));
   PCefV8Accessor(FData)^.get  := @cef_v8_accessor_get;
-  PCefV8Accessor(FData)^.put := @cef_v8_accessor_put;
+  PCefV8Accessor(FData)^.set_ := @cef_v8_accessor_put;
 end;
 
 function TCefV8AccessorOwn.Get(const name: ustring; const obj: ICefv8Value;
@@ -5899,7 +5895,7 @@ begin
 end;
 
 function TCefFastResourceBundle.GetDataResource(resourceId: Integer;
-  out data: Pointer; out dataSize: Cardinal): Boolean;
+  out data: Pointer; out dataSize: csize_t): Boolean;
 begin
   if Assigned(FGetDataResource) then
     Result := FGetDataResource(resourceId, data, dataSize) else
@@ -5935,7 +5931,7 @@ var
   pth: TCefString;
 begin
   pth := CefString(path);
-  Result := UnWrap(cef_cookie_manager_create_manager(@pth));
+  Result := UnWrap(cef_cookie_manager_create_manager(@pth, 0));
 end;
 
 function TCefCookieManagerRef.DeleteCookies(const url,
@@ -5983,7 +5979,7 @@ var
 begin
   p := CefString(path);
   Result := PCefCookieManager(FData)^.set_storage_path(
-    PCefCookieManager(FData), @p) <> 0;
+    PCefCookieManager(FData), @p, 0) <> 0;
 end;
 
 procedure TCefCookieManagerRef.SetSupportedSchemes(schemes: TStrings);
@@ -6115,7 +6111,7 @@ end;
 
 procedure TCefBrowserHostRef.CloseBrowser;
 begin
-  PCefBrowserHost(FData)^.close_browser(PCefBrowserHost(FData));
+  PCefBrowserHost(FData)^.close_browser(PCefBrowserHost(FData), 1);
 end;
 
 procedure TCefBrowserHostRef.SendCaptureLostEvent;
@@ -7474,9 +7470,11 @@ begin
     on_context_created := @cef_render_process_handler_on_context_created;
     on_context_released := @cef_render_process_handler_on_context_released;
     on_uncaught_exception := @cef_render_process_handler_on_uncaught_exception;
+    {
     on_worker_context_created := @cef_render_process_handler_on_worker_context_created;
     on_worker_context_released := @cef_render_process_handler_on_worker_context_released;
     on_worker_uncaught_exception := @cef_render_process_handler_on_worker_uncaught_exception;
+    }
     on_focused_node_changed := @cef_render_process_handler_on_focused_node_changed;
     on_process_message_received := @cef_render_process_handler_on_process_message_received;
   end;

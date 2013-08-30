@@ -8,16 +8,12 @@
  * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
  * the specific language governing rights and limitations under the License.
  *
- * Ported to Free Pascal and Linux by d.l.i.w <dev.dliw@gmail.com>
- * based on 'Delphi Chromium Embedded'
- *
+ * Author: d.l.i.w <dev.dliw@gmail.com>
  * Repository: http://github.com/dliw/fpCEF3
  *
  *
- * Originally created for Delphi by: Henri Gourvest <hgourvest@gmail.com>
- * Web site   : http://www.progdigy.com
+ * Based on 'Delphi Chromium Embedded' by: Henri Gourvest <hgourvest@gmail.com>
  * Repository : http://code.google.com/p/delphichromiumembedded/
- * Group      : http://groups.google.com/group/delphichromiumembedded
  *
  * Embarcadero Technologies, Inc is not permitted to use or redistribute
  * this source code without explicit permission.

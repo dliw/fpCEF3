@@ -62,7 +62,7 @@ Uses
   {$IFDEF LCLGTK2}
   Gtk2Def, gdk2x, glib2, gtk2, Gtk2Int,  Gtk2Proc,
   {$ENDIF}
-  cef3lib, cef3intf, cef3class, cef3gui;
+  cef3lib, cef3intf, cef3class, cef3gui, cef3types;
 
 type
 

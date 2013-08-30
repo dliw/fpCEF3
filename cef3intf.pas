@@ -8,16 +8,12 @@
  * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
  * the specific language governing rights and limitations under the License.
  *
- * Ported to Free Pascal by d.l.i.w <dev.dliw@gmail.com>
- * based on 'Delphi Chromium Embedded'
- *
+ * Author: d.l.i.w <dev.dliw@gmail.com>
  * Repository: http://github.com/dliw/fpCEF3
  *
  *
- * Originally created for Delphi by: Henri Gourvest <hgourvest@gmail.com>
- * Web site   : http://www.progdigy.com
+ * Based on 'Delphi Chromium Embedded' by: Henri Gourvest <hgourvest@gmail.com>
  * Repository : http://code.google.com/p/delphichromiumembedded/
- * Group      : http://groups.google.com/group/delphichromiumembedded
  *
  * Embarcadero Technologies, Inc is not permitted to use or redistribute
  * this source code without explicit permission.
@@ -33,8 +29,8 @@ Unit cef3intf;
 Interface
 
 Uses
-  Classes,
-  cef3lib, cef3api;
+  Classes, ctypes,
+  cef3lib, cef3api, cef3types;
 
 Type
   ICefBrowser = interface;
@@ -664,7 +660,7 @@ Type
   ICefResourceBundleHandler = interface(ICefBase)
     //['{09C264FD-7E03-41E3-87B3-4234E82B5EA2}']
     function GetLocalizedString(messageId: Integer; out stringVal: ustring): Boolean;
-    function GetDataResource(resourceId: Integer; out data: Pointer; out dataSize: Cardinal): Boolean;
+    function GetDataResource(resourceId: Integer; out data: Pointer; out dataSize: csize_t): Boolean;
   end;
 
   ICefCommandLine = interface(ICefBase)
