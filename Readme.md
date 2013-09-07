@@ -31,12 +31,12 @@ Also libcef.so needs the resources (folder `locales` and `cef.pak`, you can find
 
 ### SubProcess
 When initialising CEF for the first time (mostly in your main app) a subprocess is started. By default a second instance of the main program is used as the subprocess.
-The preferred way however is to define an own (minimal) second process executable.
+The preferred way however is to define an own (minimal) subprocess executable.
 
 You can achive this in fpCEF3 by setting `CefBrowserSubprocessPath` to the **path** of your subprocess executable.
-In the `LCLSimple` example this can be done by changing `TMainform.FormCreate` at the end of `main.pas` accordingly.
+In the `LCLSimple` example this can be done by changing `TMainform.FormCreate` at the end of `main.pas`.
 
-A minimal subprocess can be found in `/Examples/SubProcess`. It should work for any use case.
+A minimal subprocess can be found in `/Examples/SubProcess`. It should work for any use case.  
 Note, that the subprocess also needs the CEF3 library and resources in its path, so the easiest way is to put the subprocess executable in the same folder as the main exe.
 
 More details [here][5]
