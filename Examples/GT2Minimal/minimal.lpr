@@ -5,7 +5,7 @@ Program minimal;
 Uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}cthreads,{$ENDIF}{$ENDIF}
   Classes, Glib2, Gdk2, Gtk2,
-  cef3lib, cef3api, cef3class;
+  cef3types, cef3lib, cef3api, cef3ref, cef3own;
 
 Var
   Window : PGtkWidget;

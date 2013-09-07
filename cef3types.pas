@@ -24,100 +24,31 @@ Unit cef3types;
 
 {$MODE objfpc}{$H+}
 
-(*
-{$ALIGN ON}
-{$MINENUMSIZE 4}
-*)
-
-
 {$I cef.inc}
 
 Interface
 
-Uses ctypes;
+Uses
+  {$IFDEF WINDOWS}Windows,{$ENDIF}
+  ctypes;
 
 Type
+  ustring = WideString;
+  rbstring = AnsiString;
 
-{ ***  platform specific types  *** }
-
-  TCefWindowHandle = {$IFDEF WINDOWS}HWND   {$ELSE}Pointer {PGtkWidget}{$ENDIF};
-  TCefCursorHandle = {$IFDEF WINDOWS}HCURSOR{$ELSE}Pointer {PGdkCursor}{$ENDIF};
-  TCefEventHandle  = {$IFDEF WINDOWS}PMSG   {$ELSE}Pointer {PGdkEvent}{$ENDIF};
-  TCefTextInputContext = Pointer;
-
-  // Structure representing CefExecuteProcess arguments.
-  PCefMainArgs = ^TCefMainArgs;
-  TCefMainArgs = record
-    {$IFDEF WINDOWS}
-      instance : HINST;
-    {$ELSE}
-      argc : Integer;
-      argv : PPChar;
-    {$ENDIF}
+  TUrlParts = record
+    spec: ustring;
+    scheme: ustring;
+    username: ustring;
+    password: ustring;
+    host: ustring;
+    port: ustring;
+    path: ustring;
+    query: ustring;
   end;
 
-  // Structure representing window information.
-  PCefWindowInfo = ^TCefWindowInfo;
-  TCefWindowInfo = record
-    {$IFDEF WINDOWS}
-      // Standard parameters required by CreateWindowEx()
-      ex_style : DWORD;
-      window_name : TCefString;
-      style : DWORD;
-      x, y, width, height : Integer;
-      parent_window : TCefWindowHandle;
-      menu : HMENU;
-
-      // If window rendering is disabled no browser window will be created. Set
-      // |parent_window| to be used for identifying monitor info
-      // (MonitorFromWindow). If |parent_window| is not provided the main screen
-      // monitor will be used.
-      window_rendering_disabled : BOOL;
-
-      // Set to true to enable transparent painting.
-      // If window rendering is disabled and |transparent_painting| is set to true
-      // WebKit rendering will draw on a transparent background (RGBA=0x00000000).
-      // When this value is false the background will be white and opaque.
-      transparent_painting : BOOL;
-
-      // Handle for the new browser window.
-      window : TCefWindowHandle;
-    {$ENDIF}
-    {$IFDEF LINUX}
-      // Pointer for the parent GtkBox widget.
-      parent_widget : TCefWindowHandle;
-
-      // If window rendering is disabled no browser window will be created. Set
-      // |parent_widget| to the window that will act as the parent for popup menus,
-      // dialog boxes, etc.
-      window_rendering_disabled : Boolean;
-
-      // Set to true to enable transparent painting.
-      transparent_painting : Boolean;
-
-      // Pointer for the new browser widget.
-      widget : TCefWindowHandle;
-    {$ENDIF}
-    {$IFDEF MACOS}
-      window_name : TCefString;
-      x, y, width, height, hidden : Integer;
-
-      // NSView pointer for the parent view.
-      parent_view : TCefWindowHandle;
-
-      // If window rendering is disabled no browser window will be created. Set
-      // |parent_view| to the window that will act as the parent for popup menus,
-      // dialog boxes, etc.
-      window_rendering_disabled : Boolean;
-
-      // Set to true to enable transparent painting.
-      transparent_painting : Boolean;
-
-      // NSView pointer for the new browser view.
-      view : TCefWindowHandle;
-    {$ENDIF}
-  end;
-
+  PSize = ^TSize;
+  TSize = csize_t;
 
 { ***  cef_string_types.h  *** }
   // CEF provides functions for converting between UTF-8, -16 and -32 strings.
@@ -215,6 +146,87 @@ Type
   // CEF string multimaps are a set of key/value string pairs.
   // More than one value can be assigned to a single key.
   TCefStringMultimap = Pointer;
+
+
+{ ***  platform specific types  *** }
+
+  TCefWindowHandle = {$IFDEF WINDOWS}HWND   {$ELSE}Pointer {PGtkWidget}{$ENDIF};
+  TCefCursorHandle = {$IFDEF WINDOWS}HCURSOR{$ELSE}Pointer {PGdkCursor}{$ENDIF};
+  TCefEventHandle  = {$IFDEF WINDOWS}PMSG   {$ELSE}Pointer {PGdkEvent}{$ENDIF};
+  TCefTextInputContext = Pointer;
+
+  // Structure representing CefExecuteProcess arguments.
+  PCefMainArgs = ^TCefMainArgs;
+  TCefMainArgs = record
+    {$IFDEF WINDOWS}
+      instance : HINST;
+    {$ELSE}
+      argc : Integer;
+      argv : PPChar;
+    {$ENDIF}
+  end;
+
+  // Structure representing window information.
+  PCefWindowInfo = ^TCefWindowInfo;
+  TCefWindowInfo = record
+    {$IFDEF WINDOWS}
+      // Standard parameters required by CreateWindowEx()
+      ex_style : DWORD;
+      window_name : TCefString;
+      style : DWORD;
+      x, y, width, height : Integer;
+      parent_window : TCefWindowHandle;
+      menu : HMENU;
+
+      // If window rendering is disabled no browser window will be created. Set
+      // |parent_window| to be used for identifying monitor info
+      // (MonitorFromWindow). If |parent_window| is not provided the main screen
+      // monitor will be used.
+      window_rendering_disabled : BOOL;
+
+      // Set to true to enable transparent painting.
+      // If window rendering is disabled and |transparent_painting| is set to true
+      // WebKit rendering will draw on a transparent background (RGBA=0x00000000).
+      // When this value is false the background will be white and opaque.
+      transparent_painting : BOOL;
+
+      // Handle for the new browser window.
+      window : TCefWindowHandle;
+    {$ENDIF}
+    {$IFDEF LINUX}
+      // Pointer for the parent GtkBox widget.
+      parent_widget : TCefWindowHandle;
+
+      // If window rendering is disabled no browser window will be created. Set
+      // |parent_widget| to the window that will act as the parent for popup menus,
+      // dialog boxes, etc.
+      window_rendering_disabled : Boolean;
+
+      // Set to true to enable transparent painting.
+      transparent_painting : Boolean;
+
+      // Pointer for the new browser widget.
+      widget : TCefWindowHandle;
+    {$ENDIF}
+    {$IFDEF MACOS}
+      window_name : TCefString;
+      x, y, width, height, hidden : Integer;
+
+      // NSView pointer for the parent view.
+      parent_view : TCefWindowHandle;
+
+      // If window rendering is disabled no browser window will be created. Set
+      // |parent_view| to the window that will act as the parent for popup menus,
+      // dialog boxes, etc.
+      window_rendering_disabled : Boolean;
+
+      // Set to true to enable transparent painting.
+      transparent_painting : Boolean;
+
+      // NSView pointer for the new browser view.
+      view : TCefWindowHandle;
+    {$ENDIF}
+  end;
 
 { ***  cef_time.h  *** }
   // Time information. Values should always be in UTC.
@@ -1273,6 +1285,11 @@ Type
     // Human-readable error message.
     error_message: TCefString;
   end;
+
+  // Callbacks
+  TGetDataResource = function(resourceId: Integer; out data: Pointer; out dataSize: TSize): Boolean;
+  TGetLocalizedString = function(messageId: Integer; out stringVal: ustring): Boolean;
+  TCefWebPluginIsUnstableProc = procedure(const path: ustring; unstable: Boolean);
 
 Implementation
 

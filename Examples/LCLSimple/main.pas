@@ -5,8 +5,8 @@ Unit Main;
 Interface
 
 Uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, LCLType,
-  ExtCtrls, cef3lcl, cef3lib, cef3intf;
+  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, LCLType, ExtCtrls,
+  cef3types, cef3lib, cef3intf, cef3lcl;
 
 Type
 
@@ -24,6 +24,7 @@ Type
       const Browser : ICefBrowser; const title : ustring);
     procedure EUrlKeyDown(Sender : TObject; var Key : Word;
       Shift : TShiftState);
+    procedure FormCreate(Sender : TObject);
   private
     { private declarations }
   public
@@ -47,7 +48,7 @@ end;
 procedure TMainform.ChromiumLoadEnd(Sender : TObject; const Browser : ICefBrowser; const Frame : ICefFrame;
   httpStatusCode : Integer);
 begin
-  //EUrl.Text := Browser.MainFrame.Url;
+  EUrl.Text := Browser.MainFrame.Url;
 end;
 
 procedure TMainform.ChromiumTitleChange(Sender : TObject; const Browser : ICefBrowser; const title : ustring);
@@ -58,6 +59,12 @@ end;
 procedure TMainform.EUrlKeyDown(Sender : TObject; var Key : Word; Shift : TShiftState);
 begin
   If Key = VK_RETURN then BGoClick(Sender);
+end;
+
+procedure TMainform.FormCreate(Sender : TObject);
+begin
+  {$INFO Uncomment to use a subprocess}
+  // CefBrowserSubprocessPath := './subprocess'{$IFDEF WINDOWS}+'.exe'{$ENDIF};
 end;
 
 end.

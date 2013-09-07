@@ -60,9 +60,9 @@ Uses
   Windows,
   {$ENDIF}
   {$IFDEF LCLGTK2}
-  Gtk2Def, gdk2x, glib2, gtk2, Gtk2Int,  Gtk2Proc,
+  Gtk2Def, gdk2x, gtk2, Gtk2Int,  Gtk2Proc,
   {$ENDIF}
-  cef3lib, cef3intf, cef3class, cef3gui, cef3types;
+  cef3types, cef3lib, cef3intf, cef3gui;
 
 type
 
@@ -144,7 +144,7 @@ type
 
       procedure doOnLoadStart(const Browser: ICefBrowser; const Frame: ICefFrame); virtual;
       procedure doOnLoadEnd(const Browser: ICefBrowser; const Frame: ICefFrame; httpStatusCode: Integer); virtual;
-      procedure doOnLoadError(const Browser: ICefBrowser; const Frame: ICefFrame; errorCode: Integer;
+      procedure doOnLoadError(const Browser: ICefBrowser; const Frame: ICefFrame; errorCode: TCefErrorCode;
         const errorText, failedUrl: ustring); virtual;
       procedure doOnRenderProcessTerminated(const Browser: ICefBrowser; Status: TCefTerminationStatus); virtual;
       procedure doOnPluginCrashed(const Browser: ICefBrowser; const pluginPath: ustring); virtual;
@@ -289,6 +289,7 @@ type
       property UserStyleSheetLocation: ustring read FUserStyleSheetLocation write FUserStyleSheetLocation;
       property BrowserId: Integer read FBrowserId;
       property Browser: ICefBrowser read FBrowser;
+      property Handler: ICefClient read FHandler;
     public
       constructor Create(TheOwner : TComponent); override;
       destructor Destroy; override;
@@ -358,6 +359,8 @@ type
       property FontOptions;
       property DefaultEncoding;
       property UserStyleSheetLocation;
+
+      property Handler;
   end;
 
 procedure Register;
@@ -424,19 +427,25 @@ begin
     Timer.Enabled := false;
     Timer.OnTimer := @OnTimer;
 
+    {$IFDEF DEBUG}
     Debugln('Timer created.');
+    {$ENDIF}
   end;
 
   InterLockedIncrement(CefInstances);
   {$ENDIF}
 
+  {$IFDEF DEBUG}
   Debugln('ClientHandler instances: ', IntToStr(CefInstances));
+  {$ENDIF}
 end;
 
 procedure TLCLClientHandler.Cleanup;
 begin
   { TODO : Check, why Destroy; override never gets called }
+  {$IFDEF DEBUG}
   Debugln('LCLClientHandler.Cleanup');
+  {$ENDIF}
 
   {$IFNDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
   InterLockedDecrement(CefInstances);
@@ -447,7 +456,9 @@ begin
 
     FreeAndNil(Timer);
 
+    {$IFDEF DEBUG}
     Debugln('Timer cleaned.');
+    {$ENDIF}
   end;
   {$ENDIF}
 
@@ -456,7 +467,7 @@ end;
 
 procedure TLCLClientHandler.StartTimer;
 begin
-  Assert(Assigned(Timer), 'Timer must be assigned...');
+  If not Assigned(Timer) then Exit;
 
   Timer.Enabled := true;
 end;
@@ -465,7 +476,7 @@ end;
 
 procedure TCustomChromium.GetSettings(var settings : TCefBrowserSettings);
 begin
-  Assert(settings.size >= SizeOf(settings));
+  If not (settings.size >= SizeOf(settings)) then raise Exception.Create('settings invalid');
   settings.standard_font_family := CefString(FFontOptions.StandardFontFamily);
   settings.fixed_font_family := CefString(FFontOptions.FixedFontFamily);
   settings.serif_font_family := CefString(FFontOptions.SerifFontFamily);
@@ -515,7 +526,7 @@ begin
   Include(FControlState, csCustomPaint);
   inherited WMPaint(Msg);
 
-  If (csDesigning in ComponentState) and (FCanvas<>nil) then
+  If (csDesigning in ComponentState) and (FCanvas <> nil) then
   begin
     With FCanvas do
     begin
@@ -628,7 +639,7 @@ begin
 {$ENDIF}
 
     (FHandler as TLCLClientHandler).StartTimer;
-    Load(FDefaultUrl);
+    //Load(FDefaultUrl);
   end;
 end;
 
@@ -641,6 +652,8 @@ begin
   If not (csDesigning in ComponentState) then
   begin
     FHandler := TLCLClientHandler.Create(Self);
+
+    If not Assigned(FHandler) then raise Exception.Create('FHandler is nil');
   end
   Else
   begin
@@ -659,8 +672,6 @@ end;
 
 destructor TCustomChromium.Destroy;
 begin
-  Debugln('CustomChromium.Destroy');
-
   FreeAndNil(FCanvas);
 
   If FBrowser <> nil then
@@ -690,7 +701,12 @@ begin
   If FBrowser <> nil then
   begin
     Frame := FBrowser.MainFrame;
-    If Frame <> nil then Frame.LoadUrl(url);
+
+    If Frame <> nil then
+    begin
+      FBrowser.StopLoad;
+      Frame.LoadUrl(url);
+    end;
   end;
 end;
 
@@ -727,7 +743,7 @@ procedure TCustomChromium.doOnBeforeDownload(const Browser: ICefBrowser;
   const downloadItem: ICefDownloadItem; const suggestedName: ustring;
   const callback: ICefBeforeDownloadCallback);
 begin
-  if Assigned(FOnBeforeDownload) then
+  If Assigned(FOnBeforeDownload) then
     FOnBeforeDownload(Self, Browser, downloadItem, suggestedName, callback);
 end;
 
@@ -735,7 +751,7 @@ function TCustomChromium.doOnBeforePluginLoad(const Browser: ICefBrowser;
   const url, policyUrl: ustring; const info: ICefWebPluginInfo): Boolean;
 begin
   Result := False;
-  if Assigned(FOnBeforePluginLoad) then
+  If Assigned(FOnBeforePluginLoad) then
     FOnBeforePluginLoad(Self, Browser, url, policyUrl, info, Result);
 end;
 
@@ -746,7 +762,7 @@ function TCustomChromium.doOnBeforePopup(const Browser: ICefBrowser;
   var noJavascriptAccess: Boolean): Boolean;
 begin
   Result := False;
-  if Assigned(FOnBeforePopup) then
+  If Assigned(FOnBeforePopup) then
     FOnBeforePopup(Self, Browser, Frame, targetUrl, targetFrameName, popupFeatures,
       windowInfo, client, settings, noJavascriptAccess, Result);
 end;
@@ -755,7 +771,7 @@ function TCustomChromium.doOnBeforeResourceLoad(const Browser: ICefBrowser;
   const Frame: ICefFrame; const request: ICefRequest): Boolean;
 begin
   Result := False;
-  if Assigned(FOnBeforeResourceLoad) then
+  If Assigned(FOnBeforeResourceLoad) then
     FOnBeforeResourceLoad(Self, Browser, Frame, request, Result);
 end;
 
@@ -822,8 +838,7 @@ function TCustomChromium.doOnGetAuthCredentials(const Browser: ICefBrowser; cons
 begin
   Result := False;
   If Assigned(FOnGetAuthCredentials) then
-    FOnGetAuthCredentials(Self, Browser, Frame, isProxy, host,
-      port, realm, scheme, callback, Result);
+    FOnGetAuthCredentials(Self, Browser, Frame, isProxy, host, port, realm, scheme, callback, Result);
 end;
 
 function TCustomChromium.doOnGetCookieManager(const Browser: ICefBrowser;
@@ -888,7 +903,7 @@ begin
 end;
 
 procedure TCustomChromium.doOnLoadError(const Browser: ICefBrowser;
-  const Frame: ICefFrame; errorCode: Integer; const errorText,
+  const Frame: ICefFrame; errorCode: TCefErrorCode; const errorText,
   failedUrl: ustring);
 begin
   If Assigned(FOnLoadError) then
@@ -1044,7 +1059,7 @@ begin
       NewWidget := gtk_vbox_new(False, 0);
       Result := HWND(PtrUInt(Pointer(NewWidget)));
 
-      //PGtkObject(NewWidget)^.flags := PGtkObject(NewWidget)^.flags or GTK_CAN_FOCUS;
+      // PGtkObject(NewWidget)^.flags := PGtkObject(NewWidget)^.flags or GTK_CAN_FOCUS;
 
       TGtk2WidgetSet(WidgetSet).FinishCreateHandle(ChromiumControl, NewWidget, AParams);
     {$ENDIF}
@@ -1053,8 +1068,6 @@ end;
 
 class procedure TWSChromiumControl.DestroyHandle(const AWinControl: TWinControl);
 begin
-  Debugln('DestroyHandle');
-
   // do not use "inherited DestroyHandle", because the LCL changes the hierarchy at run time
   TWSWinControlClass(ClassParent).DestroyHandle(AWinControl);
 end;

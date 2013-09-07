@@ -3,8 +3,6 @@ fpCEF3
 
 Chromium Embedded Framework for Free Pascal
 
-It is still in an early state, expect crashes, exceptions and other bad things...
-
 ## How to get started on
 #### [Windows]
 Download CEF3 from [here][1] and copy all .dll files from either `Debug` or `Release` to the directory your .exe is / will be in.
@@ -14,7 +12,7 @@ Install `cef3.lpk` into Lazarus
 Look into the examples
 
 #### [Linux]
-Download CEF3 from [here][1] and copy / link _libcef.so_,  
+Download CEF3 from [here][1] and copy / link _libcef.so_ (and maybe _libffmpegsumo.so_),  
   a) to a default library location, eg. `/usr/lib(64)`, `/usr/local/lib(64)` __OR__  
   b) somewhere and set `LD_LIBRARY_PATH` accordingly
 
@@ -22,12 +20,26 @@ Install `cef3.lpk` into Lazarus
 
 Look into the examples
 
-### Very important:
-Make sure to switch **off** any runtime checks in the project settings:
-**No** `-Ci` `-Co` `-Cr` `-Ct`, unless you want to have various crashes at different places.
-Unfortunately it's not clear to me, what the reason is...
+##### Notes
+Don't use `--single-process` or change `CefSingleProcess` to `True`. This will trigger a SIGSEGV in pthread_mutex_lock. It's a bug in either CEF3 or Chromium itself: You can find more details [here][4]  
+
+~~Make sure to switch **off** any runtime checks in the project settings:~~  
+While `-Ci` `-Cr` and `-Co` seem to be ok, it still is better to switch off `-Ct` and `-CR`.
+Nevertheless, if crashes occur too often, runtime test should be turned off as a first step.  
 
 Also libcef.so needs the resources (folder `locales` and `cef.pak`, you can find them in the CEF package) in the directory where your executable is.
+
+### SubProcess
+When initialising CEF for the first time (mostly in your main app) a subprocess is started. By default a second instance of the main program is used as the subprocess.
+The preferred way however is to define an own (minimal) second process executable.
+
+You can achive this in fpCEF3 by setting `CefBrowserSubprocessPath` to the **path** of your subprocess executable.
+In the `LCLSimple` example this can be done by changing `TMainform.FormCreate` at the end of `main.pas` accordingly.
+
+A minimal subprocess can be found in `/Examples/SubProcess`. It should work for any use case.
+Note, that the subprocess also needs the CEF3 library and resources in its path, so the easiest way is to put the subprocess executable in the same folder as the main exe.
+
+More details [here][5]
 
 
 ## FAQ:
@@ -42,6 +54,11 @@ Version 3.1547.1412 (and newer) should work.
 - Linux with GTK2
 
 The plain header should be ready for Mac (maybe with small changes), but the component needs to be adopted.
+
+### How stable is fpCEF?
+That's hard to say.  
+On Windows things look good, I didn't have a single crash so far while browsing big websites and running several browser benchmarks.  
+On Linux there are still crashes, but it seems that they occur less often. Unfortunately CEF3 itself seems to have some serious bugs on its Linux part.
 
 
 ### Is there a documentation for fpCEF?
@@ -77,3 +94,5 @@ To a certain amount - yes, but don't expect too much.
 [1]:http://www.magpcss.net/cef_downloads
 [2]:http://magpcss.org/ceforum/apidocs3/
 [3]:http://code.google.com/p/chromiumembedded/source/browse/#svn%2Ftrunk%2Fcef3%2Ftests%2Fcefclient
+[4]:https://code.google.com/p/chromiumembedded/issues/detail?id=976
+[5]:https://code.google.com/p/chromiumembedded/wiki/Architecture#CEF3

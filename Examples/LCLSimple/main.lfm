@@ -6,7 +6,8 @@ object Mainform: TMainform
   Caption = 'Browser -'
   ClientHeight = 382
   ClientWidth = 628
-  LCLVersion = '1.0.8.0'
+  OnCreate = FormCreate
+  LCLVersion = '1.0.12.0'
   object Chromium: TChromium
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrBottom
@@ -15,8 +16,8 @@ object Mainform: TMainform
     AnchorSideBottom.Control = Owner
     AnchorSideBottom.Side = asrBottom
     Left = 0
-    Height = 332
-    Top = 50
+    Height = 334
+    Top = 48
     Width = 628
     Anchors = [akTop, akLeft, akRight, akBottom]
     DefaultUrl = 'www.google.de'

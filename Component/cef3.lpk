@@ -15,6 +15,13 @@
           <AllowLabel Value="False"/>
         </SyntaxOptions>
       </Parsing>
+      <CodeGeneration>
+        <Checks>
+          <IOChecks Value="True"/>
+          <RangeChecks Value="True"/>
+          <OverflowChecks Value="True"/>
+        </Checks>
+      </CodeGeneration>
       <Other>
         <CompilerMessages>
           <MsgFileName Value=""/>
@@ -23,33 +30,45 @@
       </Other>
     </CompilerOptions>
     <Description Value="Chromium component for Lazarus"/>
-    <Version Minor="1"/>
-    <Files Count="6">
+    <Version Minor="1" Release="1"/>
+    <Files Count="9">
       <Item1>
-        <Filename Value="cef3lcl.pas"/>
-        <HasRegisterProc Value="True"/>
-        <UnitName Value="cef3lcl"/>
-      </Item1>
-      <Item2>
         <Filename Value="../cef.inc"/>
         <Type Value="Include"/>
+      </Item1>
+      <Item2>
+        <Filename Value="../cef3types.pas"/>
+        <UnitName Value="cef3types"/>
       </Item2>
       <Item3>
         <Filename Value="../cef3api.pas"/>
         <UnitName Value="cef3api"/>
       </Item3>
       <Item4>
-        <Filename Value="../cef3class.pas"/>
-        <UnitName Value="cef3class"/>
+        <Filename Value="../cef3lib.pas"/>
+        <UnitName Value="cef3lib"/>
       </Item4>
       <Item5>
-        <Filename Value="../cef3gui.pas"/>
-        <UnitName Value="cef3gui"/>
-      </Item5>
-      <Item6>
         <Filename Value="../cef3intf.pas"/>
         <UnitName Value="cef3intf"/>
+      </Item5>
+      <Item6>
+        <Filename Value="../cef3ref.pas"/>
+        <UnitName Value="cef3ref"/>
       </Item6>
+      <Item7>
+        <Filename Value="../cef3own.pas"/>
+        <UnitName Value="cef3own"/>
+      </Item7>
+      <Item8>
+        <Filename Value="../cef3gui.pas"/>
+        <UnitName Value="cef3gui"/>
+      </Item8>
+      <Item9>
+        <Filename Value="cef3lcl.pas"/>
+        <HasRegisterProc Value="True"/>
+        <UnitName Value="cef3lcl"/>
+      </Item9>
     </Files>
     <Type Value="RunAndDesignTime"/>
     <RequiredPkgs Count="3">

@@ -28,7 +28,7 @@ Interface
 
 Uses
   Classes,
-  cef3lib, cef3intf, cef3class, cef3types;
+  cef3types, cef3lib, cef3intf, cef3own;
 
 Type
   TOnProcessMessageReceived = procedure(Sender: TObject; const Browser: ICefBrowser;
@@ -36,7 +36,7 @@ Type
 
   TOnLoadStart = procedure(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame) of object;
   TOnLoadEnd = procedure(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame; httpStatusCode: Integer) of object;
-  TOnLoadError = procedure(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame; errorCode: Integer;
+  TOnLoadError = procedure(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame; errorCode: TCefErrorCode;
     const errorText, failedUrl: ustring) of object;
   TOnRenderProcessTerminated = procedure(Sender: TObject; const Browser: ICefBrowser; status: TCefTerminationStatus) of object;
   TOnPluginCrashed = procedure(Sender: TObject; const Browser: ICefBrowser; const pluginPath: ustring) of object;
@@ -210,15 +210,14 @@ Type
     property RemoteFonts: TCefState read FRemoteFontsDisabled write FRemoteFontsDisabled default STATE_DEFAULT;
   end;
 
-  IChromiumEvents = interface
-  //['{0C139DB1-0349-4D7F-8155-76FEA6A0126D}']
+  IChromiumEvents = interface ['{0C139DB1-0349-4D7F-8155-76FEA6A0126D}']
     procedure GetSettings(var settings: TCefBrowserSettings);
     function doOnProcessMessageReceived(const Browser: ICefBrowser;
       sourceProcess: TCefProcessId; const message: ICefProcessMessage): Boolean;
 
     procedure doOnLoadStart(const Browser: ICefBrowser; const Frame: ICefFrame);
     procedure doOnLoadEnd(const Browser: ICefBrowser; const Frame: ICefFrame; httpStatusCode: Integer);
-    procedure doOnLoadError(const Browser: ICefBrowser; const Frame: ICefFrame; errorCode: Integer;
+    procedure doOnLoadError(const Browser: ICefBrowser; const Frame: ICefFrame; errorCode: TCefErrorCode;
       const errorText, failedUrl: ustring);
     procedure doOnRenderProcessTerminated(const Browser: ICefBrowser; status: TCefTerminationStatus);
     procedure doOnPluginCrashed(const Browser: ICefBrowser; const pluginPath: ustring);
@@ -316,18 +315,17 @@ Type
     FLoadHandler: ICefLoadHandler;
     FFocusHandler: ICefFocusHandler;
     FContextMenuHandler: ICefContextMenuHandler;
-    FDialogHandler: ICefDialogHandler;
     FKeyboardHandler: ICefKeyboardHandler;
     FDisplayHandler: ICefDisplayHandler;
     FDownloadHandler: ICefDownloadHandler;
     FGeolocationHandler: ICefGeolocationHandler;
     FJsDialogHandler: ICefJsDialogHandler;
     FLifeSpanHandler: ICefLifeSpanHandler;
-    FRenderHandler: ICefRenderHandler;
     FRequestHandler: ICefRequestHandler;
+    FDialogHandler: ICefDialogHandler;
+    FRenderHandler: ICefRenderHandler;
   protected
     function GetContextMenuHandler: ICefContextMenuHandler; override;
-    function GetDialogHandler: ICefDialogHandler; override;
     function GetDisplayHandler: ICefDisplayHandler; override;
     function GetDownloadHandler: ICefDownloadHandler; override;
     function GetFocusHandler: ICefFocusHandler; override;
@@ -335,11 +333,12 @@ Type
     function GetJsdialogHandler: ICefJsdialogHandler; override;
     function GetKeyboardHandler: ICefKeyboardHandler; override;
     function GetLifeSpanHandler: ICefLifeSpanHandler; override;
-    function GetRenderHandler: ICefRenderHandler; override;
     function GetLoadHandler: ICefLoadHandler; override;
     function GetRequestHandler: ICefRequestHandler; override;
     function OnProcessMessageReceived(const Browser: ICefBrowser;
       sourceProcess: TCefProcessId; const message: ICefProcessMessage): Boolean; override;
+    function GetDialogHandler: ICefDialogHandler; override;
+    function GetRenderHandler: ICefRenderHandler; override;
     procedure Disconnect;
   public
     constructor Create(const events: IChromiumEvents); reintroduce; virtual;
@@ -353,7 +352,7 @@ Type
   protected
     procedure OnLoadStart(const Browser: ICefBrowser; const Frame: ICefFrame); override;
     procedure OnLoadEnd(const Browser: ICefBrowser; const Frame: ICefFrame; httpStatusCode: Integer); override;
-    procedure OnLoadError(const Browser: ICefBrowser; const Frame: ICefFrame; errorCode: Integer;
+    procedure OnLoadError(const Browser: ICefBrowser; const Frame: ICefFrame; errorCode: TCefErrorCode;
       const errorText, failedUrl: ustring); override;
     procedure OnRenderProcessTerminated(const Browser: ICefBrowser; status: TCefTerminationStatus); override;
     procedure OnPluginCrashed(const Browser: ICefBrowser; const pluginPath: ustring); override;
@@ -382,17 +381,6 @@ Type
       const params: ICefContextMenuParams; commandId: Integer;
       eventFlags: TCefEventFlags): Boolean; override;
     procedure OnContextMenuDismissed(const Browser: ICefBrowser; const Frame: ICefFrame); override;
-  public
-    constructor Create(const events: IChromiumEvents); reintroduce; virtual;
-  end;
-
-  TCustomDialogHandler = class(TCefDialogHandlerOwn)
-  private
-    FEvent: IChromiumEvents;
-  protected
-    function OnFileDialog(const Browser: ICefBrowser; mode: TCefFileDialogMode;
-      const title: ustring; const defaultFileName: ustring;
-      acceptTypes: TStrings; const callback: ICefFileDialogCallback): Boolean; override;
   public
     constructor Create(const events: IChromiumEvents); reintroduce; virtual;
   end;
@@ -467,7 +455,7 @@ Type
     FEvent: IChromiumEvents;
   protected
     function OnBeforePopup(const Browser: ICefBrowser; const Frame: ICefFrame;
-      const targetUrl, targetFrameName: ustring; var popupFeatures: TCefPopupFeatures;
+      var targetUrl : ustring; const targetFrameName: ustring; var popupFeatures: TCefPopupFeatures;
       var windowInfo: TCefWindowInfo; var client: ICefClient; var settings: TCefBrowserSettings;
       var noJavascriptAccess: Boolean): Boolean; override;
     procedure OnAfterCreated(const Browser: ICefBrowser); override;
@@ -497,6 +485,17 @@ Type
     procedure OnProtocolExecution(const Browser: ICefBrowser; const url: ustring; out allowOsExecution: Boolean); override;
     function OnBeforePluginLoad(const Browser: ICefBrowser; const url: ustring;
       const policyUrl: ustring; const info: ICefWebPluginInfo): Boolean; override;
+  public
+    constructor Create(const events: IChromiumEvents); reintroduce; virtual;
+  end;
+
+  TCustomDialogHandler = class(TCefDialogHandlerOwn)
+  private
+    FEvent: IChromiumEvents;
+  protected
+    function OnFileDialog(const Browser: ICefBrowser; mode: TCefFileDialogMode;
+      const title, defaultFileName: ustring;
+      acceptTypes: TStrings; callback: ICefFileDialogCallback): Boolean; override;
   public
     constructor Create(const events: IChromiumEvents); reintroduce; virtual;
   end;
@@ -547,7 +546,6 @@ begin
   FLoadHandler := TCustomLoadHandler.Create(events);
   FFocusHandler := TCustomFocusHandler.Create(events);
   FContextMenuHandler := TCustomContextMenuHandler.Create(events);
-  FDialogHandler := TCustomDialogHandler.Create(events);
   FKeyboardHandler := TCustomKeyboardHandler.Create(events);
   FDisplayHandler := TCustomDisplayHandler.Create(events);
   FDownloadHandler := TCustomDownloadHandler.Create(events);
@@ -555,6 +553,7 @@ begin
   FJsDialogHandler := TCustomJsDialogHandler.Create(events);
   FLifeSpanHandler := TCustomLifeSpanHandler.Create(events);
   FRequestHandler := TCustomRequestHandler.Create(events);
+  FDialogHandler := TCustomDialogHandler.Create(events);
   FRenderHandler := TCustomRenderHandler.Create(events);
 end;
 
@@ -564,7 +563,6 @@ begin
   FLoadHandler := nil;
   FFocusHandler := nil;
   FContextMenuHandler := nil;
-  FDialogHandler := nil;
   FKeyboardHandler := nil;
   FDisplayHandler := nil;
   FDownloadHandler := nil;
@@ -572,17 +570,13 @@ begin
   FJsDialogHandler := nil;
   FLifeSpanHandler := nil;
   FRequestHandler := nil;
+  FDialogHandler := nil;
   FRenderHandler := nil;
 end;
 
 function TCustomClientHandler.GetContextMenuHandler: ICefContextMenuHandler;
 begin
   Result := FContextMenuHandler;
-end;
-
-function TCustomClientHandler.GetDialogHandler: ICefDialogHandler;
-begin
-  Result := FDialogHandler;
 end;
 
 function TCustomClientHandler.GetDisplayHandler: ICefDisplayHandler;
@@ -625,11 +619,6 @@ begin
   Result := FLoadHandler;
 end;
 
-function TCustomClientHandler.GetRenderHandler: ICefRenderHandler;
-begin
-  Result := FRenderHandler;
-end;
-
 function TCustomClientHandler.GetRequestHandler: ICefRequestHandler;
 begin
   Result := FRequestHandler;
@@ -640,6 +629,16 @@ function TCustomClientHandler.OnProcessMessageReceived(
   const message: ICefProcessMessage): Boolean;
 begin
   Result := FEvents.doOnProcessMessageReceived(Browser, sourceProcess, message);
+end;
+
+function TCustomClientHandler.GetDialogHandler: ICefDialogHandler;
+begin
+  Result := FDialogHandler;
+end;
+
+function TCustomClientHandler.GetRenderHandler: ICefRenderHandler;
+begin
+  Result := FRenderHandler;
 end;
 
 { TCustomLoadHandler }
@@ -657,7 +656,7 @@ begin
 end;
 
 procedure TCustomLoadHandler.OnLoadError(const Browser: ICefBrowser;
-  const Frame: ICefFrame; errorCode: Integer; const errorText,
+  const Frame: ICefFrame; errorCode: TCefErrorCode; const errorText,
   failedUrl: ustring);
 begin
   FEvent.doOnLoadError(Browser, Frame, errorCode, errorText, failedUrl);
@@ -891,11 +890,9 @@ begin
   FEvent.doOnBeforeClose(Browser);
 end;
 
-
-function TCustomLifeSpanHandler.OnBeforePopup(const Browser: ICefBrowser;
-  const Frame: ICefFrame; const targetUrl, targetFrameName: ustring;
-  var popupFeatures: TCefPopupFeatures; var windowInfo: TCefWindowInfo;
-  var client: ICefClient; var settings: TCefBrowserSettings;
+function TCustomLifeSpanHandler.OnBeforePopup(const Browser: ICefBrowser; const Frame: ICefFrame;
+  var targetUrl : ustring; const targetFrameName: ustring; var popupFeatures: TCefPopupFeatures;
+  var windowInfo: TCefWindowInfo; var client: ICefClient; var settings: TCefBrowserSettings;
   var noJavascriptAccess: Boolean): Boolean;
 begin
   Result := FEvent.doOnBeforePopup(Browser, Frame, targetUrl, targetFrameName,
@@ -976,7 +973,7 @@ end;
 
 function TCustomDialogHandler.OnFileDialog(const Browser: ICefBrowser;
   mode: TCefFileDialogMode; const title, defaultFileName: ustring;
-  acceptTypes: TStrings; const callback: ICefFileDialogCallback): Boolean;
+  acceptTypes: TStrings; {const }callback: ICefFileDialogCallback): Boolean;
 begin
   Result := FEvent.doOnFileDialog(Browser, mode, title,
     defaultFileName, acceptTypes, callback)

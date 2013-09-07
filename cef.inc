@@ -20,6 +20,8 @@
  *
  *)
 
+{.$DEFINE DEBUG}
+
 // Don't change this, unless you know, what you are doing
 {$DEFINE CEF_STRING_TYPE_UTF16}
 
@@ -43,4 +45,4 @@
   {$IFNDEF WINDOWS}
     {$ERROR CEF doesn't support the mulithreaded message loop on systems other than Windows}
   {$ENDIF}
-{$ENDIF}
+{$ENDIF}

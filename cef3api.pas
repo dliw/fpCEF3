@@ -284,10 +284,10 @@ Type
     get_frame: function(self: PCefBrowser; const name: PCefString): PCefFrame; cconv;
 
     // Returns the number of frames that currently exist.
-    get_frame_count: function(self: PCefBrowser): Cardinal; cconv;
+    get_frame_count: function(self: PCefBrowser): csize_t; cconv;
 
     // Returns the identifiers of all existing frames.
-    get_frame_identifiers: procedure(self: PCefBrowser; identifiersCount: PCardinal; identifiers: PInt64); cconv;
+    get_frame_identifiers: procedure(self: PCefBrowser; identifiersCount: pcsize_t; identifiers: PInt64); cconv;
 
     // Returns the names of all existing frames.
     get_frame_names: procedure(self: PCefBrowser; names: TCefStringList); cconv;
@@ -689,7 +689,7 @@ Type
     // this callback.
     on_context_menu_command: function(self: PCefContextMenuHandler;
       browser: PCefBrowser; frame: PCefFrame; params: PCefContextMenuParams;
-      command_id: Integer; event_flags: Integer): Integer; cconv;
+      command_id: Integer; event_flags: TCefEventFlags): Integer; cconv;
 
     // Called when the context menu is dismissed irregardless of whether the menu
     // was NULL or a command was selected.
@@ -755,7 +755,7 @@ Type
 
     // Returns flags representing the actions supported by the media element, if
     // any, that the context menu was invoked on.
-    get_media_state_flags: function(self: PCefContextMenuParams): Integer; cconv;
+    get_media_state_flags: function(self: PCefContextMenuParams): TCefContextMenuMediaStateFlags; cconv;
 
     // Returns the text of the selection, if any, that the context menu was
     // invoked on.
@@ -1767,7 +1767,7 @@ Type
       frame: PCefFrame; errorCode: TCefErrorCode; const errorText, failedUrl: PCefString); cconv;
     }
     on_load_error: procedure(self: PCefLoadHandler; browser: PCefBrowser;
-      frame: PCefFrame; errorCode: Integer; const errorText, failedUrl: PCefString); cconv;
+      frame: PCefFrame; errorCode: TCefErrorCode; const errorText, failedUrl: PCefString); cconv;
 
     // Called when the render process terminates unexpectedly. |status| indicates
     // how the process terminated.
@@ -2045,12 +2045,12 @@ Type
 
     // Called when the browser wants to show or hide the popup widget. The popup
     // should be shown if |show| is true (1) and hidden if |show| is false (0).
-    on_popup_show: procedure(self: PCefRenderProcessHandler; browser: PCefBrowser;
+    on_popup_show: procedure(self: PCefRenderHandler; browser: PCefBrowser;
       show: Integer); cconv;
 
     // Called when the browser wants to move or resize the popup widget. |rect|
     // contains the new location and size.
-    on_popup_size: procedure(self: PCefRenderProcessHandler; browser: PCefBrowser;
+    on_popup_size: procedure(self: PCefRenderHandler; browser: PCefBrowser;
       const rect: PCefRect); cconv;
 
     // Called when an element should be painted. |type| indicates whether the
@@ -2058,15 +2058,15 @@ Type
     // for the whole image. |dirtyRects| contains the set of rectangles that need
     // to be repainted. On Windows |buffer| will be |width|*|height|*4 bytes in
     // size and represents a BGRA image with an upper-left origin.
-    on_paint: procedure(self: PCefRenderProcessHandler; browser: PCefBrowser;
+    on_paint: procedure(self: PCefRenderHandler; browser: PCefBrowser;
       type_: TCefPaintElementType; dirtyRectsCount: csize_t;
       const dirtyRects: PCefRectArray; const buffer: Pointer; width, height: Integer); cconv;
 
     // Called when the browser window's cursor has changed.
-    on_cursor_change: procedure(self: PCefRenderProcessHandler; browser: PCefBrowser; cursor: TCefCursorHandle); cconv;
+    on_cursor_change: procedure(self: PCefRenderHandler; browser: PCefBrowser; cursor: TCefCursorHandle); cconv;
 
     // Called when the scroll offset has changed.
-    on_scroll_offset_changed: procedure(self: PCefRenderProcessHandler; browser: PCefBrowser); cconv;
+    on_scroll_offset_changed: procedure(self: PCefRenderHandler; browser: PCefBrowser); cconv;
   end;
 
 
@@ -2787,7 +2787,7 @@ Type
 
     // Returns the request error if status is UR_CANCELED or UR_FAILED, or 0
     // otherwise.
-    get_request_error: function(self: PCefUrlRequest): Integer; cconv;
+    get_request_error: function(self: PCefUrlRequest): TCefErrorCode; cconv;
 
     // Returns the response, or NULL if no response information is available.
     // Response information will only be available after the upload has completed.
@@ -2902,9 +2902,9 @@ Type
     // that will be thrown. Return true (1) if execution was handled.
     {$NOTE check var usage}
     execute: function(self: PCefv8Handler;
-        const name: PCefString; object_: PCefv8Value; argumentsCount: Cardinal;
-        const arguments: PPCefV8Value; var retval: PCefV8Value;
-        var exception: TCefString): Integer; cconv;
+        const name: PCefString; object_: PCefv8Value; argumentsCount: csize_t;
+        arguments: PPCefV8Value; out retval: PCefV8Value;
+        exception: TCefString): Integer; cconv;
         //exception: PCefString): Integer; cconv;
   end;
 
@@ -3117,7 +3117,7 @@ Type
     // exception is thrown. For read-only values this function will return true
     // (1) even though assignment failed.
     set_value_bykey: function(self: PCefv8Value; const key: PCefString;
-      value: PCefv8Value; attribute: Integer): Integer; cconv;
+      value: PCefv8Value; attribute: TCefV8PropertyAttribute): Integer; cconv;
 
     // Associates a value with the specified identifier and returns true (1) on
     // success. Returns false (0) if this function is called incorrectly or an
@@ -3133,7 +3133,7 @@ Type
     // values this function will return true (1) even though assignment failed.
     {$NOTE Integer -> TCefV8AccessControl / TCefV8PropertyAttribute}
     set_value_byaccessor: function(self: PCefv8Value; const key: PCefString;
-      settings: Integer; attribute: Integer): Integer; cconv;
+      settings: TCefV8AccessControl; attribute: TCefV8PropertyAttribute): Integer; cconv;
 
     // Read the keys for the object's values into the specified vector. Integer-
     // based keys will also be returned as strings.
@@ -4291,11 +4291,11 @@ Var
   // These functions set string values. If |copy| is true (1) the value will be
   // copied instead of referenced. It is up to the user to properly manage
   // the lifespan of references.
-  cef_string_wide_set: function(const src: PWideChar; src_len: Cardinal;  output: PCefStringWide; copy: Integer): Integer; cdecl;
-  cef_string_utf8_set: function(const src: PAnsiChar; src_len: Cardinal; output: PCefStringUtf8; copy: Integer): Integer; cdecl;
-  cef_string_utf16_set: function(const src: PChar16; src_len: Cardinal; output: PCefStringUtf16; copy: Integer): Integer; cdecl;
+  cef_string_wide_set: function(const src: PWideChar; src_len: csize_t;  output: PCefStringWide; copy: Integer): Integer; cdecl;
+  cef_string_utf8_set: function(const src: PAnsiChar; src_len: csize_t; output: PCefStringUtf8; copy: Integer): Integer; cdecl;
+  cef_string_utf16_set: function(const src: PChar16; src_len: csize_t; output: PCefStringUtf16; copy: Integer): Integer; cdecl;
 
-  cef_string_set: function(const src: PCefChar; src_len: Cardinal; output: PCefString; copy: Integer): Integer; cdecl;
+  cef_string_set: function(const src: PCefChar; src_len: csize_t; output: PCefString; copy: Integer): Integer; cdecl;
 
   // Makros
 
@@ -4317,31 +4317,31 @@ Var
   // potentially slow so unnecessary conversions should be avoided. The best
   // possible result will always be written to |output| with the boolean return
   // value indicating whether the conversion is 100% valid.
-  cef_string_wide_to_utf8: function(const src: PWideChar; src_len: Cardinal; output: PCefStringUtf8): Integer; cdecl;
-  cef_string_utf8_to_wide: function(const src: PAnsiChar; src_len: Cardinal; output: PCefStringWide): Integer; cdecl;
+  cef_string_wide_to_utf8: function(const src: PWideChar; src_len: csize_t; output: PCefStringUtf8): Integer; cdecl;
+  cef_string_utf8_to_wide: function(const src: PAnsiChar; src_len: csize_t; output: PCefStringWide): Integer; cdecl;
 
-  cef_string_wide_to_utf16: function (const src: PWideChar; src_len: Cardinal; output: PCefStringUtf16): Integer; cdecl;
-  cef_string_utf16_to_wide: function(const src: PChar16; src_len: Cardinal; output: PCefStringWide): Integer; cdecl;
+  cef_string_wide_to_utf16: function (const src: PWideChar; src_len: csize_t; output: PCefStringUtf16): Integer; cdecl;
+  cef_string_utf16_to_wide: function(const src: PChar16; src_len: csize_t; output: PCefStringWide): Integer; cdecl;
 
-  cef_string_utf8_to_utf16: function(const src: PAnsiChar; src_len: Cardinal; output: PCefStringUtf16): Integer; cdecl;
-  cef_string_utf16_to_utf8: function(const src: PChar16; src_len: Cardinal; output: PCefStringUtf8): Integer; cdecl;
+  cef_string_utf8_to_utf16: function(const src: PAnsiChar; src_len: csize_t; output: PCefStringUtf16): Integer; cdecl;
+  cef_string_utf16_to_utf8: function(const src: PChar16; src_len: csize_t; output: PCefStringUtf8): Integer; cdecl;
 
   { Additional }
-  cef_string_to_utf8: function(const src: PCefChar; src_len: Cardinal; output: PCefStringUtf8): Integer; cdecl;
-  cef_string_from_utf8: function(const src: PAnsiChar; src_len: Cardinal; output: PCefString): Integer; cdecl;
-  cef_string_to_utf16: function(const src: PCefChar; src_len: Cardinal; output: PCefStringUtf16): Integer; cdecl;
-  cef_string_from_utf16: function(const src: PChar16; src_len: Cardinal; output: PCefString): Integer; cdecl;
-  cef_string_to_wide: function(const src: PCefChar; src_len: Cardinal; output: PCefStringWide): Integer; cdecl;
-  cef_string_from_wide: function(const src: PWideChar; src_len: Cardinal; output: PCefString): Integer; cdecl;
+  cef_string_to_utf8: function(const src: PCefChar; src_len: csize_t; output: PCefStringUtf8): Integer; cdecl;
+  cef_string_from_utf8: function(const src: PAnsiChar; src_len: csize_t; output: PCefString): Integer; cdecl;
+  cef_string_to_utf16: function(const src: PCefChar; src_len: csize_t; output: PCefStringUtf16): Integer; cdecl;
+  cef_string_from_utf16: function(const src: PChar16; src_len: csize_t; output: PCefString): Integer; cdecl;
+  cef_string_to_wide: function(const src: PCefChar; src_len: csize_t; output: PCefStringWide): Integer; cdecl;
+  cef_string_from_wide: function(const src: PWideChar; src_len: csize_t; output: PCefString): Integer; cdecl;
 
 
   // These functions convert an ASCII string, typically a hardcoded constant, to a
   // Wide/UTF16 string. Use instead of the UTF8 conversion routines if you know
   // the string is ASCII.
-  cef_string_ascii_to_wide: function(const src: PAnsiChar; src_len: Cardinal; output: PCefStringWide): Integer; cdecl;
-  cef_string_ascii_to_utf16: function(const src: PAnsiChar; src_len: Cardinal; output: PCefStringUtf16): Integer; cdecl;
+  cef_string_ascii_to_wide: function(const src: PAnsiChar; src_len: csize_t; output: PCefStringWide): Integer; cdecl;
+  cef_string_ascii_to_utf16: function(const src: PAnsiChar; src_len: csize_t; output: PCefStringUtf16): Integer; cdecl;
 
-  cef_string_from_ascii: function(const src: PAnsiChar; src_len: Cardinal; output: PCefString): Integer; cdecl;
+  cef_string_from_ascii: function(const src: PAnsiChar; src_len: csize_t; output: PCefString): Integer; cdecl;
 
 
   // These functions allocate a new string structure. They must be freed by
@@ -4396,7 +4396,7 @@ Var
   cef_string_map_size: function(map: TCefStringMap): Integer; cdecl;
 
   // Return the value assigned to the specified key.
-  cef_string_map_find: function(map: TCefStringMap; const key: PCefString; var value: TCefString): Integer; cdecl;
+  cef_string_map_find: function(map: TCefStringMap; const key: PCefString; value: PCefString): Integer; cdecl;
 
   // Return the key at the specified zero-based string map index.
   cef_string_map_key: function(map: TCefStringMap; index: Integer; var key: TCefString): Integer; cdecl;
@@ -4505,22 +4505,22 @@ Var
 { ***  cef_string_types.h *** }
 
 // Convenience macros for copying values.
-function cef_string_wide_copy(const src: PWideChar; src_len: Cardinal;  output: PCefStringWide): Integer;
+function cef_string_wide_copy(const src: PWideChar; src_len: csize_t;  output: PCefStringWide): Integer;
 begin
   Result := cef_string_wide_set(src, src_len, output, ord(True))
 end;
 
-function cef_string_utf8_copy(const src: PAnsiChar; src_len: Cardinal; output: PCefStringUtf8): Integer;
+function cef_string_utf8_copy(const src: PAnsiChar; src_len: csize_t; output: PCefStringUtf8): Integer;
 begin
   Result := cef_string_utf8_set(src, src_len, output, ord(True))
 end;
 
-function cef_string_utf16_copy(const src: PChar16; src_len: Cardinal; output: PCefStringUtf16): Integer; cdecl;
+function cef_string_utf16_copy(const src: PChar16; src_len: csize_t; output: PCefStringUtf16): Integer; cdecl;
 begin
   Result := cef_string_utf16_set(src, src_len, output, ord(True))
 end;
 
-function cef_string_copy(const src: PCefChar; src_len: Cardinal; output: PCefString): Integer; cdecl;
+function cef_string_copy(const src: PCefChar; src_len: csize_t; output: PCefString): Integer; cdecl;
 begin
   Result := cef_string_set(src, src_len, output, ord(True));
 end;
@@ -4528,7 +4528,9 @@ end;
 
 procedure CefLoadLibrary;
 begin
+  {$IFDEF DEBUG}
   Debugln('CefLoadLibrary');
+  {$ENDIF}
 
   If LibHandle = 0 then
   begin
@@ -4840,22 +4842,35 @@ begin
     ) then raise Exception.Create('Invalid CEF Library version');
     //) then raise ECefException.Create('Invalid CEF Library version');
 
+    {$IFDEF DEBUG}
     Debugln('   : Loaded');
+    {$ENDIF}
   end
-  Else Debugln('   : already loaded');
+  {$IFDEF DEBUG}
+  Else Debugln('   : already loaded')
+  {$ENDIF}
+  ;
 end;
 
 procedure CefCloseLibrary;
 begin
+  {$IFDEF DEBUG}
   Debugln('CefCloseLibrary');
+  {$ENDIF}
   If LibHandle <> 0 then
   begin
+    {$IFDEF DEBUG}
     Debugln('   : Freed');
+    {$ENDIF}
 
     FreeLibrary(LibHandle);
     LibHandle := 0;
   end
-  Else Debugln('   : already freed.');
+  Else
+  {$IFDEF DEBUG}
+  Debugln('   : already freed.')
+  {$ENDIF}
+  ;
 end;
 
 Finalization
