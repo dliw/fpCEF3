@@ -48,12 +48,12 @@ end;
 procedure TMainform.ChromiumLoadEnd(Sender : TObject; const Browser : ICefBrowser; const Frame : ICefFrame;
   httpStatusCode : Integer);
 begin
-  EUrl.Text := Browser.MainFrame.Url;
+  EUrl.Text := UTF8Encode(Browser.MainFrame.Url);
 end;
 
 procedure TMainform.ChromiumTitleChange(Sender : TObject; const Browser : ICefBrowser; const title : ustring);
 begin
-  Caption := 'Browser - ' + title;
+  Caption := 'Browser - ' + UTF8Encode(title);
 end;
 
 procedure TMainform.EUrlKeyDown(Sender : TObject; var Key : Word; Shift : TShiftState);
@@ -64,7 +64,7 @@ end;
 procedure TMainform.FormCreate(Sender : TObject);
 begin
   {$INFO Uncomment to use a subprocess}
-  // CefBrowserSubprocessPath := './subprocess'{$IFDEF WINDOWS}+'.exe'{$ENDIF};
+  CefBrowserSubprocessPath := '.' + PathDelim + 'subprocess'{$IFDEF WINDOWS}+'.exe'{$ENDIF};
 end;
 
 end.
