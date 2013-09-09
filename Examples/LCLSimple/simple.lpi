@@ -21,14 +21,14 @@
     </MacroValues>
     <BuildModes Count="3">
       <Item1 Name="Linux" Default="True"/>
-      <Item2 Name="Windows">
+      <Item2 Name="Win32">
         <MacroValues Count="1">
           <Macro1 Name="LCLWidgetType" Value="win32"/>
         </MacroValues>
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="simple"/>
+            <Filename Value="simple32"/>
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
@@ -41,6 +41,11 @@
           </Parsing>
           <CodeGeneration>
             <RelocatableUnit Value="True"/>
+            <Checks>
+              <IOChecks Value="True"/>
+              <RangeChecks Value="True"/>
+              <OverflowChecks Value="True"/>
+            </Checks>
             <TargetCPU Value="i386"/>
             <TargetOS Value="win32"/>
           </CodeGeneration>
@@ -67,7 +72,7 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="simple"/>
+            <Filename Value="simple64"/>
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
@@ -80,6 +85,11 @@
           </Parsing>
           <CodeGeneration>
             <RelocatableUnit Value="True"/>
+            <Checks>
+              <IOChecks Value="True"/>
+              <RangeChecks Value="True"/>
+              <OverflowChecks Value="True"/>
+            </Checks>
             <TargetCPU Value="x86_64"/>
             <TargetOS Value="win64"/>
           </CodeGeneration>

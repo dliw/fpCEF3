@@ -2,7 +2,7 @@ Program minimal;
 
 Uses
   Windows, Messages, LCLProc,
-  cef3lib, cef3api, cef3class, cef3intf;
+  cef3types, cef3api, cef3lib, cef3intf, cef3own;
 
 Type
   TCustomClient = class(TCefClientOwn)
