@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
     <Version Value="9"/>
@@ -23,7 +23,7 @@
       <Item1 Name="Linux" Default="True"/>
       <Item2 Name="Win32">
         <MacroValues Count="1">
-          <Macro1 Name="LCLWidgetType" Value="win32"/>
+          <Macro2 Name="LCLWidgetType" Value="win32"/>
         </MacroValues>
         <CompilerOptions>
           <Version Value="11"/>
@@ -62,12 +62,11 @@
             </CompilerMessages>
             <CompilerPath Value="$(CompPath)"/>
           </Other>
-          <LCLWidgetType Value="win32"/>
         </CompilerOptions>
       </Item2>
       <Item3 Name="Win64">
         <MacroValues Count="1">
-          <Macro1 Name="LCLWidgetType" Value="win32"/>
+          <Macro2 Name="LCLWidgetType" Value="win32"/>
         </MacroValues>
         <CompilerOptions>
           <Version Value="11"/>
@@ -106,9 +105,12 @@
             </CompilerMessages>
             <CompilerPath Value="$(CompPath)"/>
           </Other>
-          <LCLWidgetType Value="win32"/>
         </CompilerOptions>
       </Item3>
+      <SharedMatrixOptions Count="2">
+        <Item1 ID="661871476567" Modes="Linux" Type="IDEMacro" MacroName="LCLWidgetType" Value="gtk2"/>
+        <Item2 ID="279904151772" Modes="Win32,Win64" Type="IDEMacro" MacroName="LCLWidgetType" Value="win32"/>
+      </SharedMatrixOptions>
     </BuildModes>
     <PublishOptions>
       <Version Value="2"/>
@@ -118,7 +120,6 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <LaunchingApplication PathPlusParams="/usr/bin/xterm -T 'Lazarus Run Output' -e $(LazarusDir)/tools/runwait.sh $(TargetCmdLine)"/>
       </local>
       <environment>
         <UserOverrides Count="1">
@@ -170,6 +171,7 @@
         <IOChecks Value="True"/>
         <RangeChecks Value="True"/>
         <OverflowChecks Value="True"/>
+        <StackChecks Value="True"/>
       </Checks>
       <TargetCPU Value="x86_64"/>
       <TargetOS Value="linux"/>
@@ -187,7 +189,6 @@
       </CompilerMessages>
       <CompilerPath Value="$(CompPath)"/>
     </Other>
-    <LCLWidgetType Value="gtk2"/>
   </CompilerOptions>
   <Debugging>
     <Exceptions Count="3">

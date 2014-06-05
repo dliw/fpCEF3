@@ -3,9 +3,9 @@ Program simple;
 {$MODE objfpc}{$H+}
 
 Uses
-  {$IFDEF UNIX}{$IFDEF UseCThreads}
+  {$IFDEF UNIX}
   cthreads,
-  {$ENDIF}{$ENDIF}
+  {$ENDIF}
   Interfaces, // this includes the LCL widgetset
   Forms, Main;
 

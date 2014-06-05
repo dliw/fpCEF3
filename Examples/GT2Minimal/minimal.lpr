@@ -3,8 +3,8 @@ Program minimal;
 {$MODE objfpc}{$H+}
 
 Uses
-  {$IFDEF UNIX}{$IFDEF UseCThreads}cthreads,{$ENDIF}{$ENDIF}
-  Classes, Glib2, Gdk2, Gtk2,
+  {$IFDEF UNIX}cthreads,{$ENDIF}
+  Classes, sysutils, Glib2, Gtk2,
   cef3types, cef3lib, cef3api, cef3ref, cef3own;
 
 Var
@@ -32,7 +32,7 @@ begin
   base.release(@base);
 end;
 
-function idle(widget: PGtkWidget): gboolean; cdecl;
+function idle(Widget: PGtkWidget): gboolean; cdecl;
 begin
   cef_do_message_loop_work;
 
@@ -41,16 +41,7 @@ end;
 
 procedure destroy(Widget: PGtkWidget; Data: gpointer); cdecl;
 begin
-  Host := Browser^.get_host(Browser);
-  Host^.parent_window_will_close(Host);
-
-  Release(Host^.base);
-  Release(Browser^.base);
-
   gtk_main_quit;
-  cef_shutdown;
-
-  Client.Free;
 end;
 
 procedure bclicked(widget : PGtkWidget; data : gpointer); cdecl;
@@ -59,7 +50,7 @@ Var
 begin
   WriteLn('Reloading...');
 
-  Dest := CefString('http://www.google.de');
+  Dest := CefString('http://youtube.de');
   Frame := Browser^.get_main_frame(Browser);
   Frame^.load_url(Frame, @Dest);
 
@@ -75,12 +66,12 @@ begin
   ExitCode := cef_execute_process(@MainArgs, nil);
   If ExitCode >= 0 then Halt(ExitCode);
 
-  Settings.multi_threaded_message_loop := false;
-  Settings.single_process := true;
+  Settings.multi_threaded_message_loop := False;
+  Settings.single_process := False;
   Settings.context_safety_implementation := 0;
-  Settings.log_severity := LOGSEVERITY_VERBOSE;
+  Settings.log_severity := LOGSEVERITY_INFO;
   Settings.uncaught_exception_stack_size := 20;
-  Settings.release_dcheck_enabled := true;
+  Settings.release_dcheck_enabled := TRUE;
 
   cef_initialize(@MainArgs, @Settings, nil);
 
@@ -103,12 +94,22 @@ begin
   Client := TCefClientOwn.Create;
 
   URL := CefString('');
-  Browser := cef_browser_host_create_browser_sync(@info, Client.Wrap, @URL, @BrowserSettings);
+  Browser := cef_browser_host_create_browser_sync(@info, Client.Wrap, @URL, @BrowserSettings, nil);
 
   g_signal_connect(G_OBJECT(window), 'destroy', G_CALLBACK(@Destroy), nil);
   g_idle_add_full(G_PRIORITY_HIGH_IDLE,TGSourceFunc(@idle), Window, nil);
 
   gtk_widget_show_all(Window);
 
+  // main loop
   gtk_main;
+
+  // cleanup
+  Host := Browser^.get_host(Browser);
+  Host^.close_browser(Host, 1);
+
+  Release(Host^.base);
+  Release(Browser^.base);
+
+  cef_shutdown;
 end.

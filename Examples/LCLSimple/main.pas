@@ -20,10 +20,9 @@ Type
     procedure BGoClick(Sender : TObject);
     procedure ChromiumLoadEnd(Sender : TObject; const Browser : ICefBrowser;
       const Frame : ICefFrame; httpStatusCode : Integer);
-    procedure ChromiumTitleChange(Sender : TObject;
-      const Browser : ICefBrowser; const title : ustring);
-    procedure EUrlKeyDown(Sender : TObject; var Key : Word;
-      Shift : TShiftState);
+    procedure ChromiumTitleChange(Sender : TObject; const Browser : ICefBrowser;
+      const title : ustring);
+    procedure EUrlKeyDown(Sender : TObject; var Key : Word; Shift : TShiftState);
     procedure FormCreate(Sender : TObject);
   private
     { private declarations }
@@ -63,7 +62,7 @@ end;
 
 procedure TMainform.FormCreate(Sender : TObject);
 begin
-  {$INFO Uncomment to use a subprocess}
+  {$INFO subprocess is set here, comment to use main program as subprocess}
   CefBrowserSubprocessPath := '.' + PathDelim + 'subprocess'{$IFDEF WINDOWS}+'.exe'{$ENDIF};
 end;
 

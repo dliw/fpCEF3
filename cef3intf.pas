@@ -35,6 +35,7 @@ Uses
 Type
   ICefBase = interface;
   ICefApp = interface;
+  ICefAuthCallback = interface;
   ICefBrowser = interface;
   ICefRunFileDialogCallback = interface;
   ICefBrowserHost = interface;
@@ -78,7 +79,8 @@ Type
   ICefRequest = interface;
   ICefPostData = interface;
   ICefPostDataElement = interface;
-  ICefAuthCallback = interface;
+  ICefRequestContext = interface;
+  ICefRequestContextHandler = interface;
   ICefQuotaCallback = interface;
   ICefAllowCertificateErrorCallback = interface;
   ICefRequestHandler = interface;
@@ -142,6 +144,11 @@ Type
     function GetRenderProcessHandler: ICefRenderProcessHandler;
   end;
 
+  ICefAuthCallback = interface(ICefBase) ['{500C2023-BF4D-4FF7-9C04-165E5C389131}']
+    procedure Cont(const username, password: ustring);
+    procedure Cancel;
+  end;
+
   ICefBrowser = interface(ICefBase) ['{BA003C2E-CF15-458F-9D4A-FE3CEFCF3EEF}']
     function GetHost: ICefBrowserHost;
     function CanGoBack: Boolean;
@@ -184,10 +191,16 @@ Type
     function GetWindowHandle: TCefWindowHandle;
     function GetOpenerWindowHandle: TCefWindowHandle;
     function GetClient: ICefClient;
+    function GetRequestContext: ICefRequestContext;
     function GetDevToolsUrl(httpScheme: Boolean): ustring;
     function GetZoomLevel: Double;
     procedure SetZoomLevel(zoomLevel: Double);
-    procedure StartDownload(const ulr: ustring);
+    procedure RunFileDialog(mode: TCefFileDialogMode; const title, defaultFileName: ustring;
+      acceptTypes: TStrings; const callback: ICefRunFileDialogCallback);
+    procedure StartDownload(const url: ustring);
+    procedure Print;
+    procedure Find(identifier: Integer; const searchText: ustring; forward_, matchCase, findNext: Boolean);
+    procedure StopFinding(clearSelection: Boolean);
     procedure SetMouseCursorChangeDisabled(disabled: Boolean);
     function GetIsMouseCursorChangeDisabled: Boolean;
     function GetIsWindowRenderingDisabled: Boolean;
@@ -256,7 +269,20 @@ Type
     procedure InitFromArgv(argc: Integer; const argv: PPAnsiChar);
     procedure InitFromString(const commandLine: ustring);
     procedure Reset;
-    {$NOTE incomplete}
+    procedure GetArgv(argv: TStrings);
+    function GetCommandLineString: ustring;
+    function GetProgram: ustring;
+    procedure SetProgram(const program_: ustring);
+    function HasSwitches: Boolean;
+    function HasSwitch(const name: ustring): Boolean;
+    function GetSwitchValue(const name: ustring): ustring;
+    procedure GetSwitches(switches: ICefStringMap);
+    procedure AppendSwitch(const name: ustring);
+    procedure AppendSwitchWithValue(const name, value: ustring);
+    function HasArguments: Boolean;
+    procedure GetArguments(arguments: TStrings);
+    procedure AppendArgument(const argument: ustring);
+    procedure PrependWrapper(const wrapper: ustring);
   end;
 
   ICefContextMenuHandler = interface(ICefBase) ['{C2951895-4087-49D5-BA18-4D9BA4F5EDD7}']
@@ -275,7 +301,7 @@ Type
     function GetLinkUrl: ustring;
     function GetUnfilteredLinkUrl: ustring;
     function GetSourceUrl: ustring;
-    function IsImageBlocked: Boolean;
+    function HasImageContents: Boolean;
     function GetPageUrl: ustring;
     function GetFrameUrl: ustring;
     function GetFrameCharset: ustring;
@@ -317,14 +343,14 @@ Type
   end;
 
   ICefCookieVisitor = interface(ICefBase) ['{8378CF1B-84AB-4FDB-9B86-34DDABCCC402}']
-    function visit(const name, value, domain, path: ustring; secure, httponly,
+    function Visit(const name, value, domain, path: ustring; secure, httponly,
       hasExpires: Boolean; const creation, lastAccess, expires: TDateTime;
       count, total: Integer; out deleteCookie: Boolean): Boolean;
   end;
 
   ICefFileDialogCallBack = interface(ICefBase) ['{F5F75E88-4BEC-4BE3-B179-DC5C6DFDAA84}']
-    procedure cont(file_paths:TStrings);
-    procedure cancel;
+    procedure Cont(file_paths:TStrings);
+    procedure Cancel;
   end;
 
   ICefDialogHandler = interface(ICefBase) ['{07386301-A6AB-4599-873E-8D89545CB39F}']
@@ -334,7 +360,6 @@ Type
   end;
 
   ICefDisplayHandler = interface(ICefBase) ['{1EC7C76D-6969-41D1-B26D-079BCFF054C4}']
-    procedure OnLoadingStateChange(const browser: ICefBrowser; isLoading, canGoBack, canGoForward: Boolean);
     procedure OnAddressChange(const browser: ICefBrowser; const frame: ICefFrame; const url: ustring);
     procedure OnTitleChange(const browser: ICefBrowser; const title: ustring);
     function OnTooltip(const browser: ICefBrowser; var text: ustring): Boolean;
@@ -474,7 +499,7 @@ Type
     function GetStartTime: TDateTime;
     function GetEndTime: TDateTime;
     function GetFullPath: ustring;
-    function GetId: Integer;
+    function GetId: UInt32;
     function GetUrl: ustring;
     function GetSuggestedFileName: ustring;
     function GetContentDisposition: ustring;
@@ -487,19 +512,18 @@ Type
     property StartTime: TDateTime read GetStartTime;
     property EndTime: TDateTime read GetEndTime;
     property FullPath: ustring read GetFullPath;
-    property Id: Integer read GetId;
+    property Id: UInt32 read GetId;
     property Url: ustring read GetUrl;
     property SuggestedFileName: ustring read GetSuggestedFileName;
     property ContentDisposition: ustring read GetContentDisposition;
     property MimeType: ustring read GetMimeType;
   end;
 
-  {$NOTE check twice}
-  ICefDragData = interface(ICefBase) {[]}
+  ICefDragData = interface(ICefBase) ['{DD211D8A-E42D-48D4-B01F-2082A7DE0FCD}']
     function IsLink: Boolean;
     function IsFragment: Boolean;
     function IsFile: Boolean;
-    function GetLinkURL: ustring;
+    function GetLinkUrl: ustring;
     function GetLinkTitle: ustring;
     function GetLinkMetadata: ustring;
     function GetFragmentText: ustring;
@@ -509,8 +533,8 @@ Type
     function GetFileNames(names: TStrings): Boolean;
   end;
 
-  ICefDragHandler = interface(ICefBase) {[]}
-    function OnDragEnter(browser: ICefBrowser; dragData: ICefDragData; mask: TCefDragOperationsMask): Boolean;
+  ICefDragHandler = interface(ICefBase) ['{FA58BA67-6D5B-48DE-A9AB-E39E424763B2}']
+    function OnDragEnter(const browser: ICefBrowser; const dragData: ICefDragData; mask: TCefDragOperationsMask): Boolean;
   end;
 
   ICefFocusHandler = interface(ICefBase) ['{BB7FA3FA-7B1A-4ADC-8E50-12A24018DD90}']
@@ -553,9 +577,8 @@ Type
     property Parent: ICefFrame read GetParent;
   end;
 
-  {$NOTE check twice}
   ICefGetGeolocationCallback = interface(ICefBase) ['{ACB82FD9-3FFD-43F9-BF1A-A4849BF5B814}']
-    procedure OnLocationUpdate(const position: PCefGeoposition);
+    procedure OnLocationUpdate(const position: TCefGeoposition);
   end;
 
   ICefGeolocationCallback = interface(ICefBase) ['{272B8E4F-4AE4-4F14-BC4E-5924FA0C149D}']
@@ -581,6 +604,7 @@ Type
       const messageText: ustring; isReload: Boolean;
       const callback: ICefJsDialogCallback): Boolean;
     procedure OnResetDialogState(const browser: ICefBrowser);
+    procedure OnDialogClosed(const browser: ICefBrowser);
   end;
 
   ICefKeyboardHandler = interface(ICefBase) ['{0512F4EC-ED88-44C9-90D3-5C6D03D3B146}']
@@ -602,12 +626,11 @@ Type
   end;
 
   ICefLoadHandler = interface(ICefBase) ['{2C63FB82-345D-4A5B-9858-5AE7A85C9F49}']
+    procedure OnLoadingStateChange(const browser: ICefBrowser; isLoading, canGoBack, canGoForward: Boolean);
     procedure OnLoadStart(const browser: ICefBrowser; const frame: ICefFrame);
     procedure OnLoadEnd(const browser: ICefBrowser; const frame: ICefFrame; httpStatusCode: Integer);
     procedure OnLoadError(const browser: ICefBrowser; const frame: ICefFrame; errorCode: TCefErrorCode;
       const errorText, failedUrl: ustring);
-    procedure OnRenderProcessTerminated(const browser: ICefBrowser; status: TCefTerminationStatus);
-    procedure OnPluginCrashed(const browser: ICefBrowser; const pluginPath: ustring);
   end;
 
   ICefMenuModel = interface(ICefBase) ['{40AF19D3-8B4E-44B8-8F89-DEB5907FC495}']
@@ -672,20 +695,19 @@ Type
     property ArgumentList: ICefListValue read GetArgumentList;
   end;
 
-  {$NOTE check twice}
   ICefRenderHandler = interface(ICefBase) ['{2AB9C201-F638-4AFE-ADDA-3DCDB556B2FD}']
-    function GetRootScreenRect(const browser:ICefBrowser; rect:PCefRect):Boolean;
-    function GetViewRect(const browser:ICefBrowser; rect:PCefRect):Boolean;
+    function GetRootScreenRect(const browser: ICefBrowser; rect: PCefRect): Boolean;
+    function GetViewRect(const browser: ICefBrowser; rect: PCefRect): Boolean;
     function GetScreenPoint(const browser: ICefBrowser; viewX, viewY: Integer;
-      screenX, screenY: PInteger):Boolean;
+      screenX, screenY: PInteger): Boolean;
     function GetScreenInfo(browser: ICefBrowser; screenInfo: PCefScreenInfo): Boolean;
-    procedure OnPopupShow(const browser:ICefBrowser; show:Boolean);
-    procedure OnPopupSize(const browser:ICefBrowser; const rect:PCefRect);
-    procedure OnPaint(const browser:ICefBrowser; aType:TCefPaintElementType;
-        dirtyRectsCount:Cardinal; const dirtyRects:PCefRectArray; const buffer:Pointer;
-        width:integer; height:integer);
-    procedure OnCursorChange(const browser:ICefBrowser; cursor:TCefCursorHandle);
-    procedure OnScrollOffsetChanged(browser: ICefBrowser);
+    procedure OnPopupShow(const browser: ICefBrowser; show: Boolean);
+    procedure OnPopupSize(const browser: ICefBrowser; const rect: PCefRect);
+    procedure OnPaint(const browser: ICefBrowser; aType: TCefPaintElementType;
+      dirtyRectsCount: TSize; const dirtyRects: PCefRectArray; const buffer: Pointer;
+      width, height: Integer);
+    procedure OnCursorChange(const browser: ICefBrowser; cursor: TCefCursorHandle);
+    procedure OnScrollOffsetChanged(const browser: ICefBrowser);
   end;
 
   ICefRenderProcessHandler = interface(IcefBase) ['{FADEE3BC-BF66-430A-BA5D-1EE3782ECC58}']
@@ -693,30 +715,20 @@ Type
     procedure OnWebKitInitialized;
     procedure OnBrowserCreated(const browser: ICefBrowser);
     procedure OnBrowserDestroyed(const browser: ICefBrowser);
-    function OnBeforeNavigation(const browser:ICefBrowser;
-        const frame:ICefFrame; const request:ICefRequest;
-        const navigation_type:TCefNavigationType;
-        const is_redirect:integer):boolean;
-    procedure OnContextCreated(const browser: ICefBrowser;
-      const frame: ICefFrame; const context: ICefv8Context);
-    procedure OnContextReleased(const browser: ICefBrowser;
-      const frame: ICefFrame; const context: ICefv8Context);
-    procedure OnUncaughtException(const browser:ICefBrowser;
-      const frame:ICefFrame; const context:ICefV8Context;
-      const exception:ICefV8Exception; const stackTrace:ICefV8StackTrace);
-{
-    procedure OnWorkerContextCreated(const worker_id:integer; const url:ustring;
-      const context:ICefV8Context);
-    procedure OnWorkerContextReleased(const worker_id:integer; const url:ustring;
-      const context:ICefV8Context);
-    procedure OnWorkerUncaughtException(const worker_id:integer; const url:ustring;
-      const context:ICefV8Context; const exception:ICefV8Exception;
-      const stackTrace:ICefV8StackTrace);
-}
-    procedure OnFocusedNodeChanged(const browser: ICefBrowser;
-      const frame: ICefFrame; const node: ICefDomNode);
-    function OnProcessMessageReceived(const browser: ICefBrowser;
-      sourceProcess: TCefProcessId; const message: ICefProcessMessage): Boolean;
+    function GetLoadHandler: ICefLoadHandler;
+    function OnBeforeNavigation(const browser: ICefBrowser; const frame: ICefFrame;
+      const request: ICefRequest; const navigationType: TCefNavigationType;
+      const isRedirect: Boolean): Boolean;
+    procedure OnContextCreated(const browser: ICefBrowser; const frame: ICefFrame;
+      const context: ICefv8Context);
+    procedure OnContextReleased(const browser: ICefBrowser; const frame: ICefFrame;
+      const context: ICefv8Context);
+    procedure OnUncaughtException(const browser: ICefBrowser; const frame: ICefFrame;
+      const context: ICefV8Context; const exception: ICefV8Exception; const stackTrace: ICefV8StackTrace);
+    procedure OnFocusedNodeChanged(const browser: ICefBrowser; const frame: ICefFrame;
+      const node: ICefDomNode);
+    function OnProcessMessageReceived(const browser: ICefBrowser; sourceProcess: TCefProcessId;
+      const message: ICefProcessMessage): Boolean;
   end;
 
   ICefRequest = interface(ICefBase) ['{FB4718D3-7D13-4979-9F4C-D7F6C0EC592A}']
@@ -733,8 +745,11 @@ Type
     procedure SetFlags(flags: TCefUrlRequestFlags);
     function GetFirstPartyForCookies: ustring;
     procedure SetFirstPartyForCookies(const url: ustring);
-    procedure Assign(const url, method: ustring;
-      const postData: ICefPostData; const headerMap: ICefStringMultimap); {$NOTE !}
+    function GetResourceType: TCefResourceType;
+    function GetTransitionType: TCefTransitionType;
+    {$NOTE !}
+    procedure Assign(const url, method: ustring; const postData: ICefPostData;
+      const headerMap: ICefStringMultimap);
     property Url: ustring read GetUrl write SetUrl;
     property Method: ustring read GetMethod write SetMethod;
     property PostData: ICefPostData read GetPostData write SetPostData;
@@ -744,28 +759,32 @@ Type
 
   ICefPostData = interface(ICefBase) ['{1E677630-9339-4732-BB99-D6FE4DE4AEC0}']
     function IsReadOnly: Boolean;
-    function GetCount: Cardinal;
-    function GetElements(Count: Cardinal): IInterfaceList; // ICefPostDataElement
+    function GetElementCount: TSize;
+    function GetElements(Count: TSize): IInterfaceList; // ICefPostDataElement
     function RemoveElement(const element: ICefPostDataElement): Integer;
     function AddElement(const element: ICefPostDataElement): Integer;
     procedure RemoveElements;
   end;
 
-  {$NOTE !}
   ICefPostDataElement = interface(ICefBase) ['{3353D1B8-0300-4ADC-8D74-4FF31C77D13C}']
     function IsReadOnly: Boolean;
     procedure SetToEmpty;
     procedure SetToFile(const fileName: ustring);
-    procedure SetToBytes(size: Cardinal; bytes: Pointer);
+    procedure SetToBytes(size: TSize; const bytes: Pointer);
     function GetType: TCefPostDataElementType;
     function GetFile: ustring;
-    function GetBytesCount: Cardinal;
-    function GetBytes(size: Cardinal; bytes: Pointer): Cardinal;
+    function GetBytesCount: TSize;
+    function GetBytes(size: TSize; bytes: Pointer): TSize;
   end;
 
-  ICefAuthCallback = interface(ICefBase) ['{500C2023-BF4D-4FF7-9C04-165E5C389131}']
-    procedure Cont(const username, password: ustring);
-    procedure Cancel;
+  ICefRequestContext = interface(ICefBase) ['{D8ACE4EB-A23D-407A-92A0-FDACDE97FBC0}']
+    function IsSame(other: ICefRequestContext): Boolean;
+    function IsGlobal: Boolean;
+    function GetHandler: ICefRequestContextHandler;
+  end;
+
+  ICefRequestContextHandler = interface(ICefBase) ['{0FC0165C-E871-4C12-8857-A459B5FD8C3F}']
+    function GetCookieManager: ICefCookieManager;
   end;
 
   ICefQuotaCallback = interface(ICefBase) ['{F163D612-CC9C-49CC-ADEA-FB6A32A25485}']
@@ -773,12 +792,13 @@ Type
     procedure Cancel;
   end;
 
-  {$NOTE check twice}
-  ICefAllowCertificateErrorCallback = interface(ICefBase) {[]}
+  ICefAllowCertificateErrorCallback = interface(ICefBase) ['{E7DAB88B-92D8-4907-91F4-CF4EE6F28C7C}']
     procedure Cont(allow: Boolean);
   end;
 
   ICefRequestHandler = interface(ICefBase) ['{050877A9-D1F8-4EB3-B58E-50DC3E3D39FD}']
+    function OnBeforeBrowse(const browser: ICefBrowser; const frame: ICefFrame;
+      const request: ICefRequest; isRedirect: Boolean): Boolean;
     function OnBeforeResourceLoad(const browser: ICefBrowser; const frame: ICefFrame;
       const request: ICefRequest): Boolean;
     function GetResourceHandler(const browser: ICefBrowser; const frame: ICefFrame;
@@ -790,12 +810,14 @@ Type
       const callback: ICefAuthCallback): Boolean;
     function OnQuotaRequest(const browser: ICefBrowser;
       const originUrl: ustring; newSize: Int64; const callback: ICefQuotaCallback): Boolean;
-    function GetCookieManager(const browser: ICefBrowser; const mainUrl: ustring): ICefCookieManager;
-    procedure OnProtocolExecution(const browser: ICefBrowser; const url: ustring; out allowOsExecution: Boolean);
-    function OnBeforePluginLoad(const browser: ICefBrowser; const url, policyUrl: ustring;
-      const info: ICefWebPluginInfo): Boolean;
+    procedure OnProtocolExecution(const browser: ICefBrowser; const url: ustring;
+      out allowOsExecution: Boolean);
     function OnCertificateError(certError: TCefErrorcode; const requestUrl: ustring;
-      callback: ICefAllowCertificateErrorCallback): Boolean; {$NOTE !}
+      callback: ICefAllowCertificateErrorCallback): Boolean;
+    function OnBeforePluginLoad(const browser: ICefBrowser; const url, policy_url: ustring;
+      const info: ICefWebPluginInfo): Boolean;
+    procedure OnPluginCrashed(const browser: ICefBrowser; const plugin_path: ustring);
+    procedure OnRenderProcessTerminated(const browser: ICefBrowser; status: TCefTerminationStatus);
   end;
 
   ICefResourceBundleHandler = interface(ICefBase) ['{09C264FD-7E03-41E3-87B3-4234E82B5EA2}']
@@ -831,8 +853,8 @@ Type
   end;
 
   ICefSchemeRegistrar = interface(ICefBase) ['{1832FF6E-100B-4E8B-B996-AD633168BEE7}']
-    function AddCustomScheme(const schemeName: ustring; IsStandard, IsLocal,
-      IsDisplayIsolated: Boolean): Boolean; cconv;
+    function AddCustomScheme(const schemeName: ustring; isStandard, isLocal,
+      isDisplayIsolated: Boolean): Boolean; cconv;
   end;
 
   ICefSchemeHandlerFactory = interface(ICefBase) ['{4D9B7960-B73B-4EBD-9ABE-6C1C43C245EB}']
@@ -840,9 +862,8 @@ Type
       const schemeName: ustring; const request: ICefRequest): ICefResourceHandler;
   end;
 
-  {$NOTE check twice}
   ICefCustomStreamReader = interface(ICefBase) ['{BBCFF23A-6FE7-4C28-B13E-6D2ACA5C83B7}']
-    function Read(ptr: Pointer; size, n: Cardinal): Cardinal;
+    function Read(ptr: Pointer; size, n: TSize): TSize;
     function Seek(offset: Int64; whence: Integer): Integer;
     function Tell: Int64;
     function Eof: Boolean;
@@ -850,14 +871,14 @@ Type
 
   {$NOTE ICefReadHandler, ICefStreamWriter}
   ICefStreamReader = interface(ICefBase) ['{DD5361CB-E558-49C5-A4BD-D1CE84ADB277}']
-    function Read(ptr: Pointer; size, n: Cardinal): Cardinal;
+    function Read(ptr: Pointer; size, n: TSize): TSize;
     function Seek(offset: Int64; whence: Integer): Integer;
     function Tell: Int64;
     function Eof: Boolean;
   end;
 
   ICefStringVisitor = interface(ICefBase) ['{63ED4D6C-2FC8-4537-964B-B84C008F6158}']
-    procedure Visit(const str: ustring); {$NOTE !}
+    procedure Visit(const str: ustring);
   end;
 
   ICefTask = interface(ICefBase) ['{0D965470-4A86-47CE-BD39-A8770021AD7E}']
@@ -865,16 +886,15 @@ Type
   end;
 
   ICefTaskRunner = interface(ICefBase) ['{B933A3B2-75AD-48DA-B820-B573052A7A4A}']
-    function IsSame(that:ICefTaskRunner):boolean;
-    function BelongsToCurrentThread:boolean;
-    function BelongsToThread(ThreadID:TCefThreadID):boolean;
-    function PostTask(task:ICefTask):integer;
-    function PostDelayedTask(task:ICefTask; delay_ms:Int64):integer;
+    function IsSame(that: ICefTaskRunner): Boolean;
+    function BelongsToCurrentThread: Boolean;
+    function BelongsToThread(ThreadID: TCefThreadID): Boolean;
+    function PostTask(task: ICefTask): Integer;
+    function PostDelayedTask(task: ICefTask; delayMs: Int64): Integer;
   end;
 
-  {$NOTE check twice}
   ICefTraceClient = interface(ICefBase) ['{B6995953-A56A-46AC-B3D1-D644AEC480A5}']
-    procedure OnTraceDataCollected(const fragment: PAnsiChar; fragmentSize: Cardinal);
+    procedure OnTraceDataCollected(const fragment: PAnsiChar; fragmentSize: TSize);
     procedure OnTraceBufferPercentFullReply(percentFull: Single);
     procedure OnEndTracingComplete;
   end;
@@ -892,12 +912,14 @@ Type
     procedure OnRequestComplete(const request: ICefUrlRequest);
     procedure OnUploadProgress(const request: ICefUrlRequest; current, total: UInt64);
     procedure OnDownloadProgress(const request: ICefUrlRequest; current, total: UInt64);
-    procedure OnDownloadData(const request: ICefUrlRequest; data: Pointer; dataLength: Cardinal);
+    procedure OnDownloadData(const request: ICefUrlRequest; data: Pointer; dataLength: TSize);
+    function GetAuthCredentials(isProxy: Boolean; const host: ustring; port: Integer;
+      const realm, scheme: ustring; callback: ICefAuthCallback): Boolean;
   end;
 
   ICefv8Context = interface(ICefBase) ['{2295A11A-8773-41F2-AD42-308C215062D9}']
-    function GetTaskRunner:ICefTaskRunner;
-    function IsValid:boolean;
+    function GetTaskRunner: ICefTaskRunner;
+    function IsValid: Boolean;
     function GetBrowser: ICefBrowser;
     function GetFrame: ICefFrame;
     function GetGlobal: ICefv8Value;
@@ -917,6 +939,7 @@ Type
       var exception: ustring): Boolean;
   end;
 
+  {$NOTE (u)string ?}
   ICefV8Accessor = interface(ICefBase) ['{DCA6D4A2-726A-4E24-AA64-5E8C731D868A}']
     function Get(const name: ustring; const obj: ICefv8Value;
       out value: ICefv8Value; const exception: string): Boolean;
@@ -945,7 +968,7 @@ Type
   end;
 
   ICefv8Value = interface(ICefBase) ['{52319B8D-75A8-422C-BD4B-16FA08CC7F42}']
-    function IsValid:boolean;
+    function IsValid: Boolean;
     function IsUndefined: Boolean;
     function IsNull: Boolean;
     function IsBool: Boolean;
@@ -996,7 +1019,7 @@ Type
   end;
 
   ICefV8StackTrace = interface(ICefBase) ['{32111C84-B7F7-4E3A-92B9-7CA1D0ADB613}']
-    function IsValid:boolean;
+    function IsValid: Boolean;
     function GetFrameCount: Integer;
     function GetFrame(index: Integer): ICefV8StackFrame;
     property FrameCount: Integer read GetFrameCount;
@@ -1004,7 +1027,7 @@ Type
   end;
 
   ICefV8StackFrame = interface(ICefBase) ['{BA1FFBF4-E9F2-4842-A827-DC220F324286}']
-    function IsValid:boolean;
+    function IsValid: Boolean;
     function GetScriptName: ustring;
     function GetScriptNameOrSourceUrl: ustring;
     function GetFunctionName: ustring;
@@ -1024,16 +1047,16 @@ Type
     function IsValid: Boolean;
     function IsOwned: Boolean;
     function Copy: ICefBinaryValue;
-    function GetSize: Cardinal;
-    function GetData(buffer: Pointer; bufferSize, dataOffset: Cardinal): Cardinal;
+    function GetSize: TSize;
+    function GetData(buffer: Pointer; bufferSize, dataOffset: TSize): TSize;
   end;
 
   ICefDictionaryValue = interface(ICefBase) ['{B9638559-54DC-498C-8185-233EEF12BC69}']
     function IsValid: Boolean;
-    function isOwned: Boolean;
+    function IsOwned: Boolean;
     function IsReadOnly: Boolean;
     function Copy(excludeEmptyChildren: Boolean): ICefDictionaryValue;
-    function GetSize: Cardinal;
+    function GetSize: TSize;
     function Clear: Boolean;
     function HasKey(const key: ustring): Boolean;
     function GetKeys(const keys: TStrings): Boolean;

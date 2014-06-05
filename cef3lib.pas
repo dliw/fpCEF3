@@ -31,8 +31,8 @@ Interface
 Uses
   {$IFDEF CEF_MULTI_THREADED_MESSAGE_LOOP}Messages,{$ENDIF}
   {$IFDEF WINDOWS}Windows,{$ENDIF}
-  {$IFNDEF WINDOWS}cwstring, {$ENDIF}
-  SysUtils, Classes, LCLProc, strutils,
+  {$IFNDEF WINDOWS}cwstring,{$ENDIF}
+  SysUtils, Classes, LCLProc,
   cef3api, cef3types, cef3intf, cef3ref, cef3own;
 
 function CefInitDefault: Boolean;
@@ -106,9 +106,9 @@ procedure CefQuitMessageLoop;
 {$ENDIF}
 
 function CefBrowserHostCreateSync(windowInfo: PCefWindowInfo; const client: ICefClient;
-  const url: ustring; const settings: PCefBrowserSettings): ICefBrowser;
+  const url: ustring; const settings: PCefBrowserSettings; const requestContext: ICefRequestContext): ICefBrowser;
 function CefBrowserHostCreateBrowser(windowInfo: PCefWindowInfo; const client: ICefClient;
-  const url: ustring; const settings: PCefBrowserSettings): boolean;
+  const url: ustring; const settings: PCefBrowserSettings; const requestContext: ICefRequestContext): Boolean;
 
 function CefRequestCreate:ICefRequest;
 function CefPostDataCreate:ICefPostData;
@@ -159,6 +159,11 @@ Var
   CefOnRegisterCustomSchemes: TOnRegisterCustomSchemes = nil;
 
 Implementation
+
+Type
+  TC = class(TThread)
+    procedure Execute; override;
+  end;
 
 (*
 
@@ -612,33 +617,34 @@ end;
 
 {$NOTE duplicate? }
 function CefBrowserHostCreate(windowInfo: PCefWindowInfo; const client: ICefClient;
-  const url: ustring; const settings: PCefBrowserSettings): Boolean;
+  const url: ustring; const settings: PCefBrowserSettings; const requestContext: ICefRequestContext): Boolean;
+
 Var
   u: TCefString;
 begin
   CefInitDefault;
   u := CefString(url);
-  Result := cef_browser_host_create_browser(windowInfo, CefGetData(client), @u, settings) <> 0;
+  Result := cef_browser_host_create_browser(windowInfo, CefGetData(client), @u, settings, CefGetData(requestContext)) <> 0;
 end;
 
 function CefBrowserHostCreateSync(windowInfo: PCefWindowInfo; const client: ICefClient;
-  const url: ustring; const settings: PCefBrowserSettings): ICefBrowser;
+  const url: ustring; const settings: PCefBrowserSettings; const requestContext: ICefRequestContext): ICefBrowser;
 Var
   u: TCefString;
 begin
   CefInitDefault;
   u := CefString(url);
-  Result := TCefBrowserRef.UnWrap(cef_browser_host_create_browser_sync(windowInfo, CefGetData(client), @u, settings));
+  Result := TCefBrowserRef.UnWrap(cef_browser_host_create_browser_sync(windowInfo, CefGetData(client), @u, settings, CefGetData(requestContext)));
 end;
 
 function CefBrowserHostCreateBrowser(windowInfo: PCefWindowInfo; const client: ICefClient;
-  const url: ustring; const settings: PCefBrowserSettings): Boolean;
+  const url: ustring; const settings: PCefBrowserSettings; const requestContext: ICefRequestContext): Boolean;
 Var
   u : TCefString;
 begin
   CefInitDefault;
   u := CefString(url);
-  Result := cef_browser_host_create_browser(windowInfo, CefGetData(client), @u, settings) <> 0;
+  Result := cef_browser_host_create_browser(windowInfo, CefGetData(client), @u, settings, CefGetData(requestContext)) <> 0;
 end;
 
 function CefRequestCreate: ICefRequest;
@@ -741,6 +747,22 @@ procedure CefStringSet(const str: PCefString; const value: ustring);
 begin
   If str <> nil then cef_string_set(PWideChar(value), Length(value), str, 1);
 end;
+
+{ TC }
+
+procedure TC.Execute;
+begin
+  { empty }
+end;
+
+Initialization
+
+  // initialize threading system
+  With TC.Create(False) do
+  begin
+    WaitFor;
+    Free;
+  end;
 
 Finalization
   CefShutDown;

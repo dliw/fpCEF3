@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <Package Version="4">
     <Name Value="CEF3"/>
@@ -21,6 +21,9 @@
           <RangeChecks Value="True"/>
           <OverflowChecks Value="True"/>
         </Checks>
+        <Optimizations>
+          <OptimizationLevel Value="2"/>
+        </Optimizations>
       </CodeGeneration>
       <Other>
         <CompilerMessages>
@@ -88,5 +91,8 @@
     <PublishOptions>
       <Version Value="2"/>
     </PublishOptions>
+    <CustomOptions Items="ExternHelp" Version="2">
+      <_ExternHelp Items="Count"/>
+    </CustomOptions>
   </Package>
 </CONFIG>
