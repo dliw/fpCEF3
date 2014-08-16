@@ -1,0 +1,113 @@
+object Mainform: TMainform
+  Left = 186
+  Height = 587
+  Top = 31
+  Width = 921
+  Anchors = []
+  Caption = 'Browser -'
+  ClientHeight = 587
+  ClientWidth = 921
+  OnCreate = FormCreate
+  LCLVersion = '1.2.4.0'
+  object Chromium: TChromium
+    AnchorSideLeft.Control = Owner
+    AnchorSideTop.Side = asrBottom
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    AnchorSideBottom.Control = Log
+    Left = 0
+    Height = 368
+    Top = 80
+    Width = 921
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    DefaultUrl = 'www.google.de'
+    TabOrder = 0
+    OnTitleChange = ChromiumTitleChange
+  end
+  object BGo: TButton
+    AnchorSideTop.Control = Owner
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    Left = 837
+    Height = 25
+    Top = 10
+    Width = 79
+    Anchors = [akTop, akRight]
+    BorderSpacing.Top = 10
+    BorderSpacing.Right = 5
+    Caption = 'Go'
+    OnClick = BGoClick
+    TabOrder = 1
+  end
+  object LUrl: TStaticText
+    AnchorSideTop.Control = Owner
+    Left = 8
+    Height = 22
+    Top = 12
+    Width = 25
+    BorderSpacing.Top = 12
+    Caption = 'Url:'
+    Font.Style = [fsBold]
+    ParentFont = False
+    TabOrder = 2
+  end
+  object EUrl: TEdit
+    AnchorSideLeft.Control = LUrl
+    AnchorSideLeft.Side = asrBottom
+    AnchorSideTop.Control = Owner
+    AnchorSideRight.Control = BGo
+    Left = 38
+    Height = 25
+    Top = 10
+    Width = 794
+    Anchors = [akTop, akLeft, akRight]
+    AutoSize = False
+    BorderSpacing.Left = 5
+    BorderSpacing.Top = 10
+    BorderSpacing.Right = 5
+    OnKeyDown = EUrlKeyDown
+    TabOrder = 3
+    Text = 'http://'
+  end
+  object Log: TMemo
+    AnchorSideLeft.Control = Owner
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    AnchorSideBottom.Control = Owner
+    AnchorSideBottom.Side = asrBottom
+    Left = 0
+    Height = 139
+    Top = 448
+    Width = 921
+    Anchors = [akLeft, akRight, akBottom]
+    ScrollBars = ssAutoVertical
+    TabOrder = 4
+  end
+  object Button1: TButton
+    Left = 38
+    Height = 25
+    Top = 48
+    Width = 75
+    Caption = 'Button1'
+    OnClick = Button1Click
+    TabOrder = 5
+  end
+  object Button2: TButton
+    Left = 128
+    Height = 25
+    Top = 48
+    Width = 75
+    Caption = 'Button2'
+    OnClick = Button2Click
+    TabOrder = 6
+  end
+  object Button3: TButton
+    Left = 216
+    Height = 25
+    Top = 48
+    Width = 75
+    Caption = 'Button3'
+    OnClick = Button3Click
+    TabOrder = 7
+  end
+end

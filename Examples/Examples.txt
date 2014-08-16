@@ -7,8 +7,18 @@ DOMAccess
 GTK2Minimal
   Minimal gtk2 example, doesn't use LCL and classes, direct use of cef3api
 
+JavaScript
+  Shows interaction with JavaScript
+
+  Thanks to stacho for sharing:
+  http://www.lazarusforum.de/viewtopic.php?p=70126#p70134
+
 LCLSimple
   Simple LCL example to get started
+
+OSRDemo
+  Basic example on how to use TChromiumOSR.
+  You need BGRAControls for this example (http://wiki.lazarus.freepascal.org/BGRAControls).
 
 SubProcess
   Minimal subprocess, can be used as is as long as no custom render handler is needed

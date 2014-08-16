@@ -700,7 +700,7 @@ Type
     function GetViewRect(const browser: ICefBrowser; rect: PCefRect): Boolean;
     function GetScreenPoint(const browser: ICefBrowser; viewX, viewY: Integer;
       screenX, screenY: PInteger): Boolean;
-    function GetScreenInfo(browser: ICefBrowser; screenInfo: PCefScreenInfo): Boolean;
+    function GetScreenInfo(const browser: ICefBrowser; screenInfo: PCefScreenInfo): Boolean;
     procedure OnPopupShow(const browser: ICefBrowser; show: Boolean);
     procedure OnPopupSize(const browser: ICefBrowser; const rect: PCefRect);
     procedure OnPaint(const browser: ICefBrowser; aType: TCefPaintElementType;
@@ -901,14 +901,14 @@ Type
 
   ICefUrlRequest = interface(ICefBase) ['{59226AC1-A0FA-4D59-9DF4-A65C42391A67}']
     function GetRequest: ICefRequest;
-    function GetClient: ICefClient; {$NOTE !}
+    function GetClient: ICefUrlRequestClient;
     function GetRequestStatus: TCefUrlRequestStatus;
     function GetRequestError: TCefErrorcode;
     function GetResponse: ICefResponse;
     procedure Cancel;
   end;
 
-  ICefUrlrequestClient = interface(ICefBase) ['{114155BD-C248-4651-9A4F-26F3F9A4F737}']
+  ICefUrlRequestClient = interface(ICefBase) ['{114155BD-C248-4651-9A4F-26F3F9A4F737}']
     procedure OnRequestComplete(const request: ICefUrlRequest);
     procedure OnUploadProgress(const request: ICefUrlRequest; current, total: UInt64);
     procedure OnDownloadProgress(const request: ICefUrlRequest; current, total: UInt64);
@@ -939,7 +939,6 @@ Type
       var exception: ustring): Boolean;
   end;
 
-  {$NOTE (u)string ?}
   ICefV8Accessor = interface(ICefBase) ['{DCA6D4A2-726A-4E24-AA64-5E8C731D868A}']
     function Get(const name: ustring; const obj: ICefv8Value;
       out value: ICefv8Value; const exception: string): Boolean;

@@ -248,23 +248,14 @@ Type
   // in a known order. Equivalent to the SkColor type.
   TCefColor = UInt32;
 
-{ TODO
-  // Return the alpha byte from a cef_color_t value.
-  #define CefColorGetA(color)      (((color) >> 24) & 0xFF)
-  // Return the red byte from a cef_color_t value.
-  #define CefColorGetR(color)      (((color) >> 16) & 0xFF)
-  // Return the green byte from a cef_color_t value.
-  #define CefColorGetG(color)      (((color) >>  8) & 0xFF)
-  // Return the blue byte from a cef_color_t value.
-  #define CefColorGetB(color)      (((color) >>  0) & 0xFF)
+function CefColorGetA(color: TCefColor): Byte;
+function CefColorGetR(color: TCefColor): Byte;
+function CefColorGetG(color: TCefColor): Byte;
+function CefColorGetB(color: TCefColor): Byte;
 
-  // Return an cef_color_t value with the specified byte component values.
-  #define CefColorSetARGB(a, r, g, b) static_cast<cef_color_t>(\
-        (static_cast<unsigned>(a) << 24) | \
-        (static_cast<unsigned>(r) << 16) | \
-        (static_cast<unsigned>(g) << 8) | \
-        (static_cast<unsigned>(b) << 0))
-}
+function CefColorSetARGB(a, r, g, b: Byte): TCefColor;
+
+Type
 
   // Log severity levels.
   TCefLogSeverity = (
@@ -1109,7 +1100,7 @@ Type
     EVENTFLAG_NUM_LOCK_ON,         //= 1 shl 8,
     EVENTFLAG_IS_KEY_PAD,          //= 1 shl 9,
     EVENTFLAG_IS_LEFT,             //= 1 shl 10,
-    EVENTFLAG_IS_RIGHT            //= 1 shl 11
+    EVENTFLAG_IS_RIGHT             //= 1 shl 11
   );
   TCefEventFlags = set of TCefEventFlag;
 
@@ -1436,5 +1427,30 @@ Type
   TCefWebPluginIsUnstableProc = procedure(const path: ustring; unstable: Boolean);
 
 Implementation
+
+function CefColorGetA(color : TCefColor) : Byte;
+begin
+  Result := (color shr 24) and $FF;
+end;
+
+function CefColorGetR(color : TCefColor) : Byte;
+begin
+  Result := (color shr 16) and $FF;
+end;
+
+function CefColorGetG(color : TCefColor) : Byte;
+begin
+  Result := (color shr 8) and $FF;
+end;
+
+function CefColorGetB(color : TCefColor) : Byte;
+begin
+  Result := (color shr 0) and $FF;
+end;
+
+function CefColorSetARGB(a, r, g, b : Byte) : TCefColor;
+begin
+  Result := (a shl 24) or (r shl 16) or (g shl 8) or (b shl 0);
+end;
 
 end.

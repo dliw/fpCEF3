@@ -116,15 +116,18 @@ Type
     rect: PCefRect; out Result: Boolean) of object;
   TOnGetScreenPoint = procedure(Sender: TObject; const Browser: ICefBrowser;
     viewX, viewY: Integer; screenX, screenY: PInteger; out Result: Boolean) of object;
+  TOnGetScreenInfo = procedure(Sender: TObject; const browser : ICefBrowser;
+    var screenInfo : TCefScreenInfo; out Result: Boolean) of object;
   TOnPopupShow = procedure(Sender: TObject; const Browser: ICefBrowser;
-    show: Boolean) of Object;
+    show_: Boolean) of object;
   TOnPopupSize = procedure(Sender: TObject; const Browser: ICefBrowser;
     const rect: PCefRect) of object;
   TOnPaint = procedure(Sender: TObject; const Browser: ICefBrowser;
     kind: TCefPaintElementType; dirtyRectsCount: Cardinal; const dirtyRects: PCefRectArray;
-    const buffer: Pointer; width, height: Integer) of object;
+    const buffer: Pointer; awidth, aheight: Integer) of object;
   TOnCursorChange = procedure(Sender: TObject; const Browser: ICefBrowser;
     cursor: TCefCursorHandle) of object;
+  TOnScrollOffsetChanged = procedure(Sender: TObject; const Browser: ICefBrowser) of object;
 
   { RequestHandler }
   TOnBeforeBrowse = procedure(Sender: TObject; const browser: ICefBrowser; const frame: ICefFrame;
@@ -145,8 +148,8 @@ Type
     const mainUrl: ustring; out Result: ICefCookieManager) of object;
   TOnProtocolExecution = procedure(Sender: TObject; const Browser: ICefBrowser;
     const url: ustring; out allowOsExecution: Boolean) of object;
-  TOnCertificateError = function(Sender: TObject; certError: TCefErrorcode; const requestUrl: ustring;
-      callback: ICefAllowCertificateErrorCallback): Boolean of object;
+  TOnCertificateError = procedure(Sender: TObject; certError: TCefErrorcode; const requestUrl: ustring;
+      callback: ICefAllowCertificateErrorCallback; out Result: Boolean) of object;
   TOnBeforePluginLoad = procedure(Sender: TObject; const Browser: ICefBrowser;
     const url, policyUrl: ustring; const info: ICefWebPluginInfo; out Result: Boolean) of object;
   TOnPluginCrashed = procedure(Sender: TObject; const browser: ICefBrowser; const plugin_path: ustring) of object;
@@ -312,14 +315,14 @@ Type
     function doOnGetViewRect(const browser: ICefBrowser; rect: PCefRect): Boolean;
     function doOnGetScreenPoint(const browser: ICefBrowser; viewX, viewY: Integer;
       screenX, screenY: PInteger): Boolean;
-    // function doGetSceenInfo(browser: ICefBrowser; var screenInfo: PCefScreenInfo): Boolean; { TODO }
+    function doOnGetScreenInfo(const browser: ICefBrowser; var screenInfo: TCefScreenInfo): Boolean;
     procedure doOnPopupShow(const browser: ICefBrowser; show: Boolean);
     procedure doOnPopupSize(const browser: ICefBrowser; const rect: PCefRect);
     procedure doOnPaint(const browser: ICefBrowser; kind: TCefPaintElementType;
       dirtyRectsCount: TSize; const dirtyRects: PCefRectArray;
       const buffer: Pointer; width, height: Integer);
     procedure doOnCursorChange(const browser: ICefBrowser; cursor: TCefCursorHandle);
-    //procedure doOnScrollOffsetChanged(const browser: ICefBrowser); { TODO }
+    procedure doOnScrollOffsetChanged(const browser: ICefBrowser);
 
     { CefRequestHandler }
     function doOnBeforeBrowse(const browser: ICefBrowser; const frame: ICefFrame;
@@ -557,12 +560,14 @@ Type
     function GetViewRect(const Browser: ICefBrowser; rect: PCefRect): Boolean; override;
     function GetScreenPoint(const Browser: ICefBrowser; viewX, viewY: Integer;
       screenX, screenY: PInteger): Boolean; override;
+    function GetScreenInfo(const Browser: ICefBrowser; screenInfo: PCefScreenInfo): Boolean; override;
     procedure OnPopupShow(const Browser: ICefBrowser; show: Boolean); override;
     procedure OnPopupSize(const Browser: ICefBrowser; const rect: PCefRect); override;
     procedure OnPaint(const Browser: ICefBrowser; kind: TCefPaintElementType;
       dirtyRectsCount: TSize; const dirtyRects: PCefRectArray;
       const buffer: Pointer; width, height: Integer); override;
     procedure OnCursorChange(const Browser: ICefBrowser; cursor: TCefCursorHandle); override;
+    procedure OnScrollOffsetChanged(const Browser: ICefBrowser); override;
   public
     constructor Create(const events: IChromiumEvents); reintroduce; virtual;
   end;
@@ -612,6 +617,7 @@ begin
   FKeyboardHandler := TCustomKeyboardHandler.Create(events);
   FDisplayHandler := TCustomDisplayHandler.Create(events);
   FDownloadHandler := TCustomDownloadHandler.Create(events);
+  FDragHandler := TCustomDragHandler.Create(events);
   FGeolocationHandler := TCustomGeolocationHandler.Create(events);
   FJsDialogHandler := TCustomJsDialogHandler.Create(events);
   FLifeSpanHandler := TCustomLifeSpanHandler.Create(events);
@@ -629,6 +635,7 @@ begin
   FKeyboardHandler := nil;
   FDisplayHandler := nil;
   FDownloadHandler := nil;
+  FDragHandler := nil;
   FGeolocationHandler := nil;
   FJsDialogHandler := nil;
   FLifeSpanHandler := nil;
@@ -1055,6 +1062,12 @@ begin
   Result := FEvent.doOnGetScreenPoint(Browser, viewX, viewY, screenX, screenY);
 end;
 
+function TCustomRenderHandler.GetScreenInfo(const Browser : ICefBrowser;
+  screenInfo : PCefScreenInfo) : Boolean;
+begin
+  Result := FEvent.doOnGetScreenInfo(Browser, screenInfo^);
+end;
+
 function TCustomRenderHandler.GetViewRect(const Browser: ICefBrowser; rect: PCefRect): Boolean;
 begin
   Result := FEvent.doOnGetViewRect(Browser, rect);
@@ -1063,6 +1076,11 @@ end;
 procedure TCustomRenderHandler.OnCursorChange(const Browser: ICefBrowser; cursor: TCefCursorHandle);
 begin
   FEvent.doOnCursorChange(Browser, cursor);
+end;
+
+procedure TCustomRenderHandler.OnScrollOffsetChanged(const Browser : ICefBrowser);
+begin
+  FEvent.doOnScrollOffsetChanged(Browser);
 end;
 
 procedure TCustomRenderHandler.OnPaint(const Browser: ICefBrowser;

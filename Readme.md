@@ -68,8 +68,8 @@ Further details can be found [here][6].
 ## FAQ:
 ### Which versions of CEF are supported?
 
-fpCEF3 only supports CEF3, *no* support for CEF1.
-Version 3.1650 (and newer) should work.
+fpCEF3 only supports CEF3, *no* support for CEF1.  
+See changelog for the latest supported version, older ones usually don't work, newer ones *may* work, but are *not* recommended.
 
 ### Which platforms are supported?
 
@@ -96,14 +96,13 @@ If you feel like contributing some more Pascal examples - please do.
 - compatibility with Free Pascal / Lazarus
 - reworked unit layout - more modular
 - slightly changed mechanism for loading the library
-- cef3api_static unit
 - _removed_ VLC and FMX component
 
 ### Can I help?
 Of course - patches are always welcome :)
 
 ### Can you help?
-To a certain amount - yes, but don't expect too much.
+To a certain amount - yes.
 
 ## Links:
  *  [Chromium Embedded Framework](http://code.google.com/p/chromiumembedded)

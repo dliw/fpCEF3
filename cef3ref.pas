@@ -96,9 +96,9 @@ Type
     procedure WasResized;
     procedure WasHidden(hidden: Boolean);
     procedure NotifyScreenInfoChanged;
-    procedure Invalidate(const dirtyRect:PCefRect; const aType:TCefPaintElementType);
+    procedure Invalidate(const dirtyRect: PCefRect; const aType: TCefPaintElementType);
     procedure SendKeyEvent(const event:TCefKeyEvent);
-    procedure SendMouseClickEvent(const event:TCefMouseEvent; aType:TCefMouseButtonType;
+    procedure SendMouseClickEvent(const event: TCefMouseEvent; aType: TCefMouseButtonType;
       mouseUp: Boolean; clickCount: Integer);
     procedure SendMouseMoveEvent(event:TCefMouseEvent; mouseLeave:boolean);
     procedure SendMouseWheelEvent(const event:TCefMouseEvent; deltaX, deltaY: Integer);
@@ -596,7 +596,7 @@ Type
   TCefUrlRequestRef = class(TCefBaseRef, ICefUrlRequest)
   protected
     function GetRequest: ICefRequest;
-    function GetClient: ICefClient; {$NOTE !}
+    function GetClient: ICefUrlRequestClient;
     function GetRequestStatus: TCefUrlRequestStatus;
     function GetRequestError: TCefErrorcode;
     function GetResponse: ICefResponse;
@@ -604,6 +604,18 @@ Type
   public
     class function UnWrap(data: Pointer): ICefUrlRequest;
     class function New(const request: ICefRequest; const client: ICefUrlRequestClient): ICefUrlRequest;
+  end;
+
+  TCefUrlRequestClientRef = class(TCefBaseRef, ICefUrlRequestClient)
+  protected
+    procedure OnRequestComplete(const request: ICefUrlRequest);
+    procedure OnUploadProgress(const request: ICefUrlRequest; current, total: UInt64);
+    procedure OnDownloadProgress(const request: ICefUrlRequest; current, total: UInt64);
+    procedure OnDownloadData(const request: ICefUrlRequest; data: Pointer; dataLength: TSize);
+    function GetAuthCredentials(isProxy: Boolean; const host: ustring; port: Integer;
+      const realm, scheme: ustring; callback: ICefAuthCallback): Boolean;
+  public
+    class function UnWrap(data: Pointer): ICefUrlRequestClient;
   end;
 
   TCefv8ContextRef = class(TCefBaseRef, ICefv8Context)
@@ -906,42 +918,6 @@ end;
 class function TCefAllowCertificateErrorCallbackRef.UnWrap(data : Pointer) : ICefAllowCertificateErrorCallback;
 begin
   If data <> nil then Result := Create(data) as ICefAllowCertificateErrorCallback
-  Else Result := nil;
-end;
-
-{ TCefRequestContextHandlerRef }
-
-function TCefRequestContextHandlerRef.GetCookieManager : ICefCookieManager;
-begin
-  Result := TCefCookieManagerRef.UnWrap(PCefRequestContextHandler(FData)^.get_cookie_manager(FData));
-end;
-
-class function TCefRequestContextHandlerRef.UnWrap(data : Pointer) : ICefRequestContextHandler;
-begin
-  If data <> nil then Result := Create(data) as ICefRequestContextHandler
-  Else Result := nil;
-end;
-
-{ TCefRequestContextRef }
-
-function TCefRequestContextRef.IsSame(other : ICefRequestContext) : Boolean;
-begin
-  Result := PCefRequestContext(FData)^.is_same(PCefRequestContext(FData), CefGetData(other)) <> 0;
-end;
-
-function TCefRequestContextRef.IsGlobal : Boolean;
-begin
-  Result := PCefRequestContext(FData)^.is_global(PCefRequestContext(FData)) <> 0;
-end;
-
-function TCefRequestContextRef.GetHandler : ICefRequestContextHandler;
-begin
-  Result := TCefRequestContextHandlerRef.UnWrap(PCefRequestContext(FData)^.get_handler(PCefRequestContext(FData)));
-end;
-
-class function TCefRequestContextRef.UnWrap(data : Pointer) : ICefRequestContext;
-begin
-  If data <> nil then Result := Create(data) as ICefRequestContext
   Else Result := nil;
 end;
 
@@ -2973,6 +2949,42 @@ begin
   Result := UnWrap(cef_post_data_element_create);
 end;
 
+{ TCefRequestContextRef }
+
+function TCefRequestContextRef.IsSame(other : ICefRequestContext) : Boolean;
+begin
+  Result := PCefRequestContext(FData)^.is_same(PCefRequestContext(FData), CefGetData(other)) <> 0;
+end;
+
+function TCefRequestContextRef.IsGlobal : Boolean;
+begin
+  Result := PCefRequestContext(FData)^.is_global(PCefRequestContext(FData)) <> 0;
+end;
+
+function TCefRequestContextRef.GetHandler : ICefRequestContextHandler;
+begin
+  Result := TCefRequestContextHandlerRef.UnWrap(PCefRequestContext(FData)^.get_handler(PCefRequestContext(FData)));
+end;
+
+class function TCefRequestContextRef.UnWrap(data : Pointer) : ICefRequestContext;
+begin
+  If data <> nil then Result := Create(data) as ICefRequestContext
+  Else Result := nil;
+end;
+
+{ TCefRequestContextHandlerRef }
+
+function TCefRequestContextHandlerRef.GetCookieManager : ICefCookieManager;
+begin
+  Result := TCefCookieManagerRef.UnWrap(PCefRequestContextHandler(FData)^.get_cookie_manager(FData));
+end;
+
+class function TCefRequestContextHandlerRef.UnWrap(data : Pointer) : ICefRequestContextHandler;
+begin
+  If data <> nil then Result := Create(data) as ICefRequestContextHandler
+  Else Result := nil;
+end;
+
 { TCefAuthCallbackRef }
 
 procedure TCefAuthCallbackRef.Cont(const username, password : ustring);
@@ -3218,10 +3230,9 @@ begin
   Result := TCefRequestRef.UnWrap(PCefUrlRequest(FData)^.get_request(FData));
 end;
 
-function TCefUrlRequestRef.GetClient : ICefClient;
+function TCefUrlRequestRef.GetClient : ICefUrlrequestClient;
 begin
-  {$NOTE TODO}
-  // Result := TCefUrlRequestClientRef.UnWrap(PCefUrlRequest(FData)^.get_client(FData));
+  Result := TCefUrlRequestClientRef.UnWrap(PCefUrlRequest(FData)^.get_client(FData));
 end;
 
 function TCefUrlRequestRef.GetRequestStatus : TCefUrlRequestStatus;
@@ -3254,6 +3265,49 @@ class function TCefUrlRequestRef.New(const request : ICefRequest;
   const client : ICefUrlRequestClient) : ICefUrlRequest;
 begin
   Result := UnWrap(cef_urlrequest_create(CefGetData(request), CefGetData(client)));
+end;
+
+{ TCefUrlRequestClientRef }
+
+procedure TCefUrlRequestClientRef.OnRequestComplete(const request : ICefUrlRequest);
+begin
+  PCefUrlRequestClient(FData)^.on_request_complete(FData, CefGetData(request));
+end;
+
+procedure TCefUrlRequestClientRef.OnUploadProgress(const request : ICefUrlRequest;
+  current, total : UInt64);
+begin
+  PCefUrlRequestClient(FData)^.on_upload_progress(FData, CefGetData(request), current, total);
+end;
+
+procedure TCefUrlRequestClientRef.OnDownloadProgress(const request : ICefUrlRequest;
+  current, total : UInt64);
+begin
+  PCefUrlRequestClient(FData)^.on_download_progress(FData, CefGetData(request), current, total);
+end;
+
+procedure TCefUrlRequestClientRef.OnDownloadData(const request : ICefUrlRequest;
+  data : Pointer; dataLength : TSize);
+begin
+  PCefUrlRequestClient(FData)^.on_download_data(FData, CefGetData(request), data, dataLength);
+end;
+
+function TCefUrlRequestClientRef.GetAuthCredentials(isProxy : Boolean;
+  const host : ustring; port : Integer; const realm, scheme : ustring;
+  callback : ICefAuthCallback) : Boolean;
+Var
+  h, r, s: TCefString;
+begin
+  h := CefString(host);
+  r := CefString(realm);
+  s := CefString(scheme);
+  Result := PCefUrlRequestClient(FData)^.get_auth_credentials(FData, Ord(isProxy), @h, port, @r, @s, CefGetData(callback)) <> 0;
+end;
+
+class function TCefUrlRequestClientRef.UnWrap(data : Pointer) : ICefUrlRequestClient;
+begin
+  If data <> nil then Result := Create(data) as ICefUrlRequestClient
+  Else Result := nil;
 end;
 
 { TCefv8ContextRef }

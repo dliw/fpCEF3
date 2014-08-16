@@ -18,8 +18,6 @@
       <CodeGeneration>
         <Checks>
           <IOChecks Value="True"/>
-          <RangeChecks Value="True"/>
-          <OverflowChecks Value="True"/>
         </Checks>
         <Optimizations>
           <OptimizationLevel Value="2"/>
@@ -27,14 +25,15 @@
       </CodeGeneration>
       <Other>
         <CompilerMessages>
+          <IgnoredMessages idx5024="True"/>
           <MsgFileName Value=""/>
         </CompilerMessages>
         <CompilerPath Value="$(CompPath)"/>
       </Other>
     </CompilerOptions>
     <Description Value="Chromium component for Lazarus"/>
-    <Version Minor="1" Release="1"/>
-    <Files Count="9">
+    <Version Minor="1" Release="2"/>
+    <Files Count="10">
       <Item1>
         <Filename Value="../cef.inc"/>
         <Type Value="Include"/>
@@ -72,6 +71,11 @@
         <HasRegisterProc Value="True"/>
         <UnitName Value="cef3lcl"/>
       </Item9>
+      <Item10>
+        <Filename Value="cef3osr.pas"/>
+        <HasRegisterProc Value="True"/>
+        <UnitName Value="cef3osr"/>
+      </Item10>
     </Files>
     <Type Value="RunAndDesignTime"/>
     <RequiredPkgs Count="3">

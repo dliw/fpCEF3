@@ -8,13 +8,14 @@ interface
 
 uses
   cef3types, cef3api, cef3lib, cef3intf, cef3ref, cef3own, cef3gui, cef3lcl, 
-  LazarusPackageIntf;
+  cef3osr, LazarusPackageIntf;
 
 implementation
 
 procedure Register;
 begin
   RegisterUnit('cef3lcl', @cef3lcl.Register);
+  RegisterUnit('cef3osr', @cef3osr.Register);
 end;
 
 initialization

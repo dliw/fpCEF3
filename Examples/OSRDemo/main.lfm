@@ -1,0 +1,84 @@
+object Mainform: TMainform
+  Left = 338
+  Height = 475
+  Top = 133
+  Width = 762
+  Caption = 'Browser -'
+  ClientHeight = 475
+  ClientWidth = 762
+  OnCreate = FormCreate
+  LCLVersion = '1.2.4.0'
+  object BGo: TButton
+    AnchorSideTop.Control = Owner
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    Left = 678
+    Height = 25
+    Top = 10
+    Width = 79
+    Anchors = [akTop, akRight]
+    BorderSpacing.Top = 10
+    BorderSpacing.Right = 5
+    Caption = 'Go'
+    OnClick = BGoClick
+    TabOrder = 0
+  end
+  object LUrl: TStaticText
+    AnchorSideTop.Control = Owner
+    Left = 8
+    Height = 22
+    Top = 12
+    Width = 25
+    BorderSpacing.Top = 12
+    Caption = 'Url:'
+    Font.Style = [fsBold]
+    ParentFont = False
+    TabOrder = 1
+  end
+  object EUrl: TEdit
+    AnchorSideLeft.Control = LUrl
+    AnchorSideLeft.Side = asrBottom
+    AnchorSideTop.Control = Owner
+    AnchorSideRight.Control = BGo
+    Left = 38
+    Height = 25
+    Top = 10
+    Width = 635
+    Anchors = [akTop, akLeft, akRight]
+    AutoSize = False
+    BorderSpacing.Left = 5
+    BorderSpacing.Top = 10
+    BorderSpacing.Right = 5
+    OnKeyDown = EUrlKeyDown
+    TabOrder = 2
+    Text = 'http://'
+  end
+  object PaintBox: TPaintBox
+    AnchorSideLeft.Control = Owner
+    AnchorSideTop.Control = EUrl
+    AnchorSideTop.Side = asrBottom
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    AnchorSideBottom.Control = Owner
+    AnchorSideBottom.Side = asrBottom
+    Left = 0
+    Height = 430
+    Top = 45
+    Width = 762
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    BorderSpacing.Top = 10
+    OnMouseDown = PaintBoxMouseDown
+    OnMouseMove = PaintBoxMouseMove
+    OnMouseUp = PaintBoxMouseUp
+    OnMouseWheel = PaintBoxMouseWheel
+    OnResize = PaintBoxResize
+  end
+  object Chromium: TChromiumOSR
+    DefaultUrl = 'about:blank'
+    OnGetRootScreenRect = ChromiumGetRootScreenRect
+    OnGetViewRect = ChromiumGetViewRect
+    OnPaint = ChromiumPaint
+    left = 8
+    top = 40
+  end
+end

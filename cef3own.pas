@@ -286,14 +286,14 @@ Type
     function GetViewRect(const browser: ICefBrowser; rect: PCefRect): Boolean; virtual;
     function GetScreenPoint(const browser: ICefBrowser; viewX, viewY: Integer;
       screenX, screenY: PInteger): Boolean; virtual;
-    function GetScreenInfo(browser: ICefBrowser; screenInfo: PCefScreenInfo): Boolean;
+    function GetScreenInfo(const browser: ICefBrowser; screenInfo: PCefScreenInfo): Boolean; virtual;
     procedure OnPopupShow(const browser: ICefBrowser; show: Boolean); virtual;
     procedure OnPopupSize(const browser: ICefBrowser; const rect: PCefRect); virtual;
     procedure OnPaint(const browser: ICefBrowser; kind: TCefPaintElementType;
       dirtyRectsCount: TSize; const dirtyRects: PCefRectArray;
       const buffer: Pointer; width, height: Integer); virtual;
     procedure OnCursorChange(const browser: ICefBrowser; cursor: TCefCursorHandle); virtual;
-    procedure OnScrollOffsetChanged(const browser: ICefBrowser);
+    procedure OnScrollOffsetChanged(const browser: ICefBrowser); virtual;
   public
     constructor Create; virtual;
   end;
@@ -364,7 +364,7 @@ Type
     function OnBeforePluginLoad(const browser: ICefBrowser; const url, policyUrl: ustring;
       const info: ICefWebPluginInfo): Boolean; virtual;
     function OnCertificateError(certError: TCefErrorcode; const requestUrl: ustring;
-      callback: ICefAllowCertificateErrorCallback): Boolean; {$NOTE !}
+      callback: ICefAllowCertificateErrorCallback): Boolean;
     procedure OnPluginCrashed(const browser: ICefBrowser; const plugin_path: ustring);
     procedure OnRenderProcessTerminated(const browser: ICefBrowser; status: TCefTerminationStatus);
   public
@@ -623,7 +623,7 @@ function cef_drag_handler_on_drag_enter(self: PCefDragHandler; browser: PCefBrow
   dragData: PCefDragData; mask: TCefDragOperationsMask): Integer; cconv;
 begin
   Result := Ord(TCefDragHandlerOwn(CefGetObject(self)).OnDragEnter(
-    TCefBrowserRef.UnWrap(browser), TCefDragDataRef(dragData), mask));
+    TCefBrowserRef.UnWrap(browser), TCefDragDataRef.UnWrap(dragData), mask));
 end;
 
 function TCefDragHandlerOwn.OnDragEnter(const browser : ICefBrowser; const dragData : ICefDragData;
@@ -672,7 +672,7 @@ end;
 destructor TCefBaseOwn.Destroy;
 begin
   {$IFDEF DEBUG}
-  WriteLn(Self.ClassName, '.Destroy; RefCount: ', Self.RefCount);
+  DebugLn(Self.ClassName, '.Destroy; RefCount: ', Self.RefCount);
   {$ENDIF}
 
   Dec(FData, SizeOf(Pointer));
@@ -1789,8 +1789,7 @@ procedure cef_render_handler_on_paint(self : PCefRenderHandler; browser: PCefBro
   const buffer : Pointer; width, height : Integer); cconv;
 begin
   With TCefRenderHandlerOwn(CefGetObject(self)) do
-    OnPaint(TCefBrowserRef.UnWrap(browser), type_, dirtyRectsCount, dirtyRects,
-      buffer, width, height);
+    OnPaint(TCefBrowserRef.UnWrap(browser), type_, dirtyRectsCount, dirtyRects, buffer, width, height);
 end;
 
 procedure cef_render_handler_on_cursor_change(self : PCefRenderHandler; browser : PCefBrowser;
@@ -1823,7 +1822,7 @@ begin
   Result := False;
 end;
 
-function TCefRenderHandlerOwn.GetScreenInfo(browser : ICefBrowser;
+function TCefRenderHandlerOwn.GetScreenInfo(const browser : ICefBrowser;
   screenInfo : PCefScreenInfo) : Boolean;
 begin
   Result := False;
@@ -2269,8 +2268,6 @@ end;
 
 function cef_request_handler_on_certificate_error(self : PCefRequestHandler; cert_error : TCefErrorcode;
   const request_url : PCefString; callback : PCefAllowCertificateErrorCallback) : Integer; cconv;
-Var
-  r : ustring;
 begin
   With TCefRequestHandlerOwn(CefGetObject(self)) do
     Result := Ord(OnCertificateError(cert_error, CefString(request_url),

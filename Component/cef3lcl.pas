@@ -64,7 +64,7 @@ Uses
   {$ENDIF}
   cef3types, cef3lib, cef3intf, cef3gui;
 
-type
+Type
 
   { TCustomChromium }
 
@@ -124,8 +124,9 @@ type
       { RenderHandler }
       FOnPopupShow: TOnPopupShow;
       FOnPopupSize: TOnPopupSize;
-      FOnPaint: TOnPaint;
+      // FOnPaint: TOnPaint; {$NOTE !}
       FOnCursorChange: TOnCursorChange;
+      FOnScrollOffsetChanged: TOnScrollOffsetChanged;
       { RequestHandler }
       FOnBeforeBrowse: TOnBeforeBrowse;
       FOnBeforeResourceLoad: TOnBeforeResourceLoad;
@@ -226,12 +227,14 @@ type
       function doOnGetViewRect(const Browser: ICefBrowser; rect: PCefRect): Boolean;
       function doOnGetScreenPoint(const Browser: ICefBrowser; viewX, viewY: Integer;
         screenX, screenY: PInteger): Boolean;
+      function doOnGetScreenInfo(const browser: ICefBrowser; var screenInfo: TCefScreenInfo): Boolean;
       procedure doOnPopupShow(const Browser: ICefBrowser; doshow: Boolean);
       procedure doOnPopupSize(const Browser: ICefBrowser; const rect: PCefRect);
       procedure doOnPaint(const Browser: ICefBrowser; kind: TCefPaintElementType;
         dirtyRectsCount: TSize; const dirtyRects: PCefRectArray;
         const buffer: Pointer; awidth, aheight: Integer);
       procedure doOnCursorChange(const Browser: ICefBrowser; acursor: TCefCursorHandle);
+      procedure doOnScrollOffsetChanged(const browser: ICefBrowser);
       { RequestHandler }
       function doOnBeforeBrowse(const browser: ICefBrowser; const frame: ICefFrame;
         const request: ICefRequest; isRedirect: Boolean): Boolean; virtual;
@@ -302,6 +305,7 @@ type
       property OnLoadEnd: TOnLoadEnd read FOnLoadEnd write FOnLoadEnd;
       property OnLoadError: TOnLoadError read FOnLoadError write FOnLoadError;
       { RenderHandler }
+      property OnScrollOffsetChanged: TOnScrollOffsetChanged read FOnScrollOffsetChanged write FOnScrollOffsetChanged;
       { RequestHandler }
       property OnBeforeBrowse: TOnBeforeBrowse read FOnBeforeBrowse write FOnBeforeBrowse;
       property OnBeforeResourceLoad: TOnBeforeResourceLoad read FOnBeforeResourceLoad write FOnBeforeResourceLoad;
@@ -345,61 +349,74 @@ type
       property Visible;
 
       property OnProcessMessageReceived;
-      property OnLoadStart;
-      property OnLoadEnd;
-      property OnLoadError;
-      property OnRenderProcessTerminated;
-      property OnPluginCrashed;
 
-      property OnTakeFocus;
-      property OnSetFocus;
-      property OnGotFocus;
       property OnBeforeContextMenu;
       property OnContextMenuCommand;
       property OnContextMenuDismissed;
-      property OnPreKeyEvent;
-      property OnKeyEvent;
-      property OnLoadingStateChange;
+
+      property OnFileDialog;
 
       property OnAddressChange;
       property OnTitleChange;
       property OnTooltip;
       property OnStatusMessage;
       property OnConsoleMessage;
+
       property OnBeforeDownload;
       property OnDownloadUpdated;
+
+      property OnDragEnter;
+
+      property OnTakeFocus;
+      property OnSetFocus;
+      property OnGotFocus;
+
       property OnRequestGeolocationPermission;
       property OnCancelGeolocationPermission;
-      property OnJsdialog;
 
+      property OnJsdialog;
       property OnBeforeUnloadDialog;
       property OnResetDialogState;
+
+      property OnPreKeyEvent;
+      property OnKeyEvent;
+
       property OnBeforePopup;
       property OnAfterCreated;
       property OnBeforeClose;
       property OnRunModal;
       property OnClose;
+
+      property OnLoadingStateChange;
+      property OnLoadStart;
+      property OnLoadEnd;
+      property OnLoadError;
+
+      property OnScrollOffsetChanged;
+
+      property OnBeforeBrowse;
       property OnBeforeResourceLoad;
       property OnGetResourceHandler;
       property OnResourceRedirect;
       property OnGetAuthCredentials;
+      property OnQuotaRequest;
       property OnGetCookieManager;
       property OnProtocolExecution;
-
-      property OnFileDialog;
-
+      property OnCertificateError;
+      property OnBeforePluginLoad;
+      property OnPluginCrashed;
+      property OnRenderProcessTerminated;
 
       property Options;
       property FontOptions;
       property DefaultEncoding;
       property UserStyleSheetLocation;
-
-      property Handler;
   end;
 
 procedure Register;
 
 Implementation
+
 {$IFNDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
 Uses ExtCtrls;
 Var
@@ -430,7 +447,7 @@ Type
 
 procedure Register;
 begin
-  RegisterComponents('Chromium',[TChromium]);
+  RegisterComponents('Chromium', [TChromium]);
 end;
 
 {$IFNDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
@@ -458,7 +475,7 @@ begin
   begin
     Timer := TTimer.Create(nil);
     Timer.Interval := 15;
-    Timer.Enabled := false;
+    Timer.Enabled := False;
     Timer.OnTimer := @OnTimer;
 
     {$IFDEF DEBUG}
@@ -486,7 +503,7 @@ begin
 
   If CefInstances = 0 then
   begin
-    Timer.Enabled := false;
+    Timer.Enabled := False;
 
     FreeAndNil(Timer);
 
@@ -522,8 +539,8 @@ begin
   settings.minimum_font_size := FFontOptions.MinimumFontSize;
   settings.minimum_logical_font_size := FFontOptions.MinimumLogicalFontSize;
   settings.remote_fonts := FFontOptions.RemoteFonts;
-  settings.default_encoding := CefString(DefaultEncoding);
-  settings.user_style_sheet_location := CefString(UserStyleSheetLocation);
+  settings.default_encoding := CefString(FDefaultEncoding);
+  settings.user_style_sheet_location := CefString(FUserStyleSheetLocation);
 
   settings.javascript := FOptions.Javascript;
   settings.javascript_open_windows := FOptions.JavascriptOpenWindows;
@@ -663,9 +680,9 @@ begin
     GetSettings(settings);
 
 {$IFDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
-    CefBrowserHostCreate(@info, FHandler, FDefaultUrl, @settings, nil);
+    CefBrowserHostCreateBrowser(@info, FHandler, FDefaultUrl, @settings, nil);
 {$ELSE}
-    FBrowser := CefBrowserHostCreateSync(@info, FHandler, '', @settings, nil);
+    FBrowser := CefBrowserHostCreateBrowserSync(@info, FHandler, '', @settings, nil);
     FBrowserId := FBrowser.Identifier;
 {$ENDIF}
 
@@ -766,8 +783,7 @@ end;
 procedure TCustomChromium.doOnBeforeContextMenu(const Browser: ICefBrowser; const Frame: ICefFrame;
   const params: ICefContextMenuParams; const model: ICefMenuModel);
 begin
-  If Assigned(FOnBeforeContextMenu) then
-    FOnBeforeContextMenu(Self, Browser, Frame, params, model);
+  If Assigned(FOnBeforeContextMenu) then FOnBeforeContextMenu(Self, Browser, Frame, params, model);
 end;
 
 procedure TCustomChromium.doOnBeforeDownload(const Browser: ICefBrowser;
@@ -843,9 +859,15 @@ begin
   If Assigned(FOnContextMenuDismissed) then FOnContextMenuDismissed(Self, Browser, Frame);
 end;
 
-procedure TCustomChromium.doOnCursorChange(const Browser: ICefBrowser; aCursor: TCefCursorHandle);
+procedure TCustomChromium.doOnCursorChange(const Browser : ICefBrowser;
+  acursor : TCefCursorHandle);
 begin
   If Assigned(FOnCursorChange) then FOnCursorChange(Self, Browser, aCursor);
+end;
+
+procedure TCustomChromium.doOnScrollOffsetChanged(const browser : ICefBrowser);
+begin
+  If Assigned(FOnScrollOffsetChanged) then FOnScrollOffsetChanged(Self, browser);
 end;
 
 function TCustomChromium.doOnBeforeBrowse(const browser : ICefBrowser;
@@ -866,8 +888,7 @@ function TCustomChromium.doOnDragEnter(const Browser: ICefBrowser; const dragDat
   mask: TCefDragOperationsMask): Boolean;
 begin
   Result := False;
-  If Assigned(FOnDragEnter) then
-    FOnDragEnter(Self, Browser, dragData, mask, Result);
+  If Assigned(FOnDragEnter) then FOnDragEnter(Self, Browser, dragData, mask, Result);
 end;
 
 function TCustomChromium.doOnFileDialog(const Browser: ICefBrowser; mode: TCefFileDialogMode;
@@ -910,6 +931,12 @@ end;
 
 function TCustomChromium.doOnGetScreenPoint(const Browser: ICefBrowser; viewX,
   viewY: Integer; screenX, screenY: PInteger): Boolean;
+begin
+  Result := False;
+end;
+
+function TCustomChromium.doOnGetScreenInfo(const browser : ICefBrowser;
+  var screenInfo : TCefScreenInfo) : Boolean;
 begin
   Result := False;
 end;
@@ -1012,10 +1039,11 @@ begin
 end;
 
 function TCustomChromium.doOnCertificateError(certError : TCefErrorcode;
-  const requestUrl : ustring;
-  callback : ICefAllowCertificateErrorCallback) : Boolean;
+  const requestUrl : ustring; callback : ICefAllowCertificateErrorCallback) : Boolean;
 begin
-  { TODO }
+  Result := False;
+  If Assigned(FOnCertificateError) then
+    FOnCertificateError(Self, certError, requestUrl, callback, Result);
 end;
 
 function TCustomChromium.doOnQuotaRequest(const Browser: ICefBrowser; const originUrl: ustring;
@@ -1125,6 +1153,6 @@ end;
 
 Initialization
   RegisterWSComponent(TCustomChromium, TWSChromiumControl);
-  {$I icon.lrs}
+  {$I icons.lrs}
 
 end.

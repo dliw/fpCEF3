@@ -73,8 +73,7 @@ function CefRemoveCrossOriginWhitelistEntry(
   AllowTargetSubdomains: Boolean): Boolean;
 function CefClearCrossOriginWhitelist: Boolean;
 
-function CefRegisterExtension(const name, code: ustring;
-  const Handler: ICefv8Handler): Boolean;
+function CefRegisterExtension(const name, code: ustring; const Handler: ICefv8Handler): Boolean;
 function CefCurrentlyOn(ThreadId: TCefThreadId): Boolean;
 procedure CefPostTask(ThreadId: TCefThreadId; const task: ICefTask);
 procedure CefPostDelayedTask(ThreadId: TCefThreadId; const task: ICefTask; delayMs: Int64);
@@ -105,14 +104,14 @@ procedure CefRunMessageLoop;
 procedure CefQuitMessageLoop;
 {$ENDIF}
 
-function CefBrowserHostCreateSync(windowInfo: PCefWindowInfo; const client: ICefClient;
+function CefBrowserHostCreateBrowserSync(windowInfo: PCefWindowInfo; const client: ICefClient;
   const url: ustring; const settings: PCefBrowserSettings; const requestContext: ICefRequestContext): ICefBrowser;
 function CefBrowserHostCreateBrowser(windowInfo: PCefWindowInfo; const client: ICefClient;
   const url: ustring; const settings: PCefBrowserSettings; const requestContext: ICefRequestContext): Boolean;
 
-function CefRequestCreate:ICefRequest;
-function CefPostDataCreate:ICefPostData;
-function CefPostDataElementCreate:ICefPostDataElement;
+function CefRequestCreate: ICefRequest;
+function CefPostDataCreate: ICefPostData;
+function CefPostDataElementCreate: ICefPostDataElement;
 
 function CefBeginTracing(const client: ICefTraceClient; const categories: ustring): Boolean;
 function CefGetTraceBufferPercentFullAsync: Integer;
@@ -209,7 +208,6 @@ Var
   ErrCode: Integer;
 
   Args : TCefMainArgs;
-  i    : Integer;
 begin
   {$IFDEF DEBUG}
   Debugln('CefInitialize');
@@ -442,12 +440,12 @@ begin
   Result := cef_clear_cross_origin_whitelist() <> 0;
 end;
 
-function CefRegisterExtension(const name, code: ustring;
-  const Handler: ICefv8Handler): Boolean;
+function CefRegisterExtension(const name, code: ustring; const Handler: ICefv8Handler): Boolean;
 Var
   n, c: TCefString;
 begin
-  CefInitDefault;
+  { TODO : Hier wird doppelt initialisiert? }
+  //CefInitDefault;
   n := CefString(name);
   c := CefString(code);
   Result := cef_register_extension(@n, @c, CefGetData(handler)) <> 0;
@@ -615,19 +613,7 @@ begin
 end;
 {$ENDIF}
 
-{$NOTE duplicate? }
-function CefBrowserHostCreate(windowInfo: PCefWindowInfo; const client: ICefClient;
-  const url: ustring; const settings: PCefBrowserSettings; const requestContext: ICefRequestContext): Boolean;
-
-Var
-  u: TCefString;
-begin
-  CefInitDefault;
-  u := CefString(url);
-  Result := cef_browser_host_create_browser(windowInfo, CefGetData(client), @u, settings, CefGetData(requestContext)) <> 0;
-end;
-
-function CefBrowserHostCreateSync(windowInfo: PCefWindowInfo; const client: ICefClient;
+function CefBrowserHostCreateBrowserSync(windowInfo: PCefWindowInfo; const client: ICefClient;
   const url: ustring; const settings: PCefBrowserSettings; const requestContext: ICefRequestContext): ICefBrowser;
 Var
   u: TCefString;
@@ -767,4 +753,4 @@ Initialization
 Finalization
   CefShutDown;
 
-end.
+end.

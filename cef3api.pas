@@ -4567,7 +4567,6 @@ Var
   cef_api_hash: function(entry: Integer): PChar; cdecl;
 
 
-
 procedure CefLoadLibrary;
 procedure CefCloseLibrary;
 
