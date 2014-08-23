@@ -63,7 +63,7 @@ begin
 
   CefLoadLibrary;
 
-  ExitCode := cef_execute_process(@MainArgs, nil);
+  ExitCode := cef_execute_process(@MainArgs, nil, nil);
   If ExitCode >= 0 then Halt(ExitCode);
 
   Settings.multi_threaded_message_loop := False;
@@ -73,7 +73,7 @@ begin
   Settings.uncaught_exception_stack_size := 20;
   Settings.release_dcheck_enabled := TRUE;
 
-  cef_initialize(@MainArgs, @Settings, nil);
+  cef_initialize(@MainArgs, @Settings, nil, nil);
 
   gtk_init(nil, nil);
 

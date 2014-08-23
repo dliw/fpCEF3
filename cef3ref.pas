@@ -29,7 +29,8 @@ Unit cef3ref;
 Interface
 
 Uses
-  Classes, SysUtils, LCLProc,
+  Classes, SysUtils,
+  {$IFDEF DEBUG}LCLProc,{$ENDIF}
   cef3api, cef3types, cef3intf, cef3own;
 
 Type
@@ -78,18 +79,20 @@ Type
     function GetBrowser: ICefBrowser;
     procedure ParentWindowWillClose;
     procedure CloseBrowser(aForceClose: Boolean);
-    procedure SetFocus(enable: Boolean);
+    procedure SetFocus(focus: Boolean);
+    procedure SetWindowVisibility(visible: Boolean);
     function GetWindowHandle: TCefWindowHandle;
     function GetOpenerWindowHandle: TCefWindowHandle;
     function GetClient: ICefClient;
     function GetRequestContext: ICefRequestContext;
-    function GetDevToolsUrl(httpScheme: Boolean): ustring;
     function GetZoomLevel: Double;
     procedure SetZoomLevel(zoomLevel: Double);
     procedure StartDownload(const url: ustring);
     procedure Print;
     procedure Find(identifier: Integer; const searchText: ustring; forward_, matchCase, findNext: Boolean);
     procedure StopFinding(clearSelection: Boolean);
+    procedure ShowDevTools(var windowInfo: TCefWindowInfo; client: ICefClient; var settings: TCefBrowserSettings);
+    procedure CloseDevTools;
     procedure SetMouseCursorChangeDisabled(disabled: Boolean);
     function GetIsMouseCursorChangeDisabled: Boolean;
     function GetIsWindowRenderingDisabled: Boolean;
@@ -565,6 +568,7 @@ Type
     function Seek(offset: Int64; whence: Integer): Integer;
     function Tell: Int64;
     function Eof: Boolean;
+    function MayBlock: Boolean;
   public
     class function UnWrap(data: Pointer): ICefStreamReader;
     class function CreateForFile(const filename: ustring): ICefStreamReader;
@@ -1097,9 +1101,14 @@ begin
   PCefBrowserHost(FData)^.close_browser(FData, Ord(aForceClose));
 end;
 
-procedure TCefBrowserHostRef.SetFocus(enable : Boolean);
+procedure TCefBrowserHostRef.SetFocus(focus: Boolean);
 begin
-  PCefBrowserHost(FData)^.set_focus(FData, Ord(enable));
+  PCefBrowserHost(FData)^.set_focus(FData, Ord(focus));
+end;
+
+procedure TCefBrowserHostRef.SetWindowVisibility(visible : Boolean);
+begin
+  PCefBrowserHost(FData)^.set_window_visibility(FData, Ord(visible));
 end;
 
 function TCefBrowserHostRef.GetWindowHandle : TCefWindowHandle;
@@ -1125,11 +1134,6 @@ end;
 function TCefBrowserHostRef.GetRequestContext : ICefRequestContext;
 begin
   Result:=TCefRequestContextRef.UnWrap(PCefBrowserHost(FData)^.get_request_context(PCefBrowserHost(FData)));
-end;
-
-function TCefBrowserHostRef.GetDevToolsUrl(httpScheme : Boolean) : ustring;
-begin
-  Result := CefStringFreeAndGet(PCefBrowserHost(FData)^.get_dev_tools_url(FData, Ord(httpScheme)));
 end;
 
 function TCefBrowserHostRef.GetZoomLevel : Double;
@@ -1168,6 +1172,17 @@ end;
 procedure TCefBrowserHostRef.StopFinding(clearSelection : Boolean);
 begin
   PCefBrowserHost(FData)^.stop_finding(PCefBrowserHost(FData),Ord(clearSelection));
+end;
+
+procedure TCefBrowserHostRef.ShowDevTools(var windowInfo : TCefWindowInfo; client : ICefClient;
+  var settings : TCefBrowserSettings);
+begin
+  PCefBrowserHost(FData)^.show_dev_tools(FData, @windowInfo, CefGetData(client), @settings);
+end;
+
+procedure TCefBrowserHostRef.CloseDevTools;
+begin
+  PCefBrowserHost(FData)^.close_dev_tools(FData);
 end;
 
 procedure TCefBrowserHostRef.SetMouseCursorChangeDisabled(disabled : Boolean);
@@ -1216,13 +1231,14 @@ begin
   PCefBrowserHost(FData)^.send_mouse_click_event(FData, @event, aType, Ord(mouseUp), clickCount);
 end;
 
-procedure TCefBrowserHostRef.SendMouseMoveEvent(event : TCefMouseEvent; mouseLeave : Boolean);
+procedure TCefBrowserHostRef.SendMouseMoveEvent(event : TCefMouseEvent;
+  mouseLeave : boolean);
 begin
   PCefBrowserHost(FData)^.send_mouse_move_event(FData, @event, Ord(mouseLeave));
 end;
 
 procedure TCefBrowserHostRef.SendMouseWheelEvent(const event : TCefMouseEvent;
-  deltaX : integer; deltaY : integer);
+  deltaX, deltaY : Integer);
 begin
   PCefBrowserHost(FData)^.send_mouse_wheel_event(FData, @event, deltaX, deltaY);
 end;
@@ -1614,11 +1630,11 @@ begin
   c.value := CefString(value);
   c.domain := CefString(domain);
   c.path := CefString(path);
-  c.secure := secure;
-  c.httponly := httponly;
+  c.secure := Ord(secure);
+  c.httponly := Ord(httponly);
   c.creation := DateTimeToCefTime(creation);
   c.last_access := DateTimeToCefTime(lastAccess);
-  c.has_expires := hasExpires;
+  c.has_expires := Ord(hasExpires);
 
   If hasExpires then c.expires := DateTimeToCefTime(expires)
   Else FillChar(c.expires, SizeOf(TCefTime), 0);
@@ -3134,6 +3150,11 @@ end;
 function TCefStreamReaderRef.Eof : Boolean;
 begin
   Result := PCefStreamReader(FData)^.eof(FData) <> 0;
+end;
+
+function TCefStreamReaderRef.MayBlock : Boolean;
+begin
+  Result := True;
 end;
 
 class function TCefStreamReaderRef.UnWrap(data : Pointer) : ICefStreamReader;

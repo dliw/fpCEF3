@@ -41,9 +41,10 @@ function TMyHandler.Execute(const name : ustring; const obj : ICefv8Value;
   const arguments : TCefv8ValueArray; var retval : ICefv8Value;
   var exception : ustring) : Boolean;
 begin
-  Result := False;
+  // return a value
+  retval := TCefv8ValueRef.NewString('TMyHandler');
 
-  Writeln('Execute');
+  Result := True;
 end;
 
 { TCustomRenderProcessHandler }

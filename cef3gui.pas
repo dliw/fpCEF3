@@ -173,7 +173,6 @@ Type
     FImageShrinkStandaloneToFit: TCefState;
     FTextAreaResize: TCefState;
     FTabToLinks: TCefState;
-    FAuthorAndUserStyles: TCefState;
     FLocalStorage: TCefState;
     FDatabases: TCefState;
     FApplicationCache: TCefState;
@@ -195,7 +194,6 @@ Type
     property ImageShrinkStandaloneToFit: TCefState read FImageShrinkStandaloneToFit write FImageShrinkStandaloneToFit default STATE_DEFAULT;
     property TextAreaResize: TCefState read FTextAreaResize write FTextAreaResize default STATE_DEFAULT;
     property TabToLinks: TCefState read FTabToLinks write FTabToLinks default STATE_DEFAULT;
-    property AuthorAndUserStyles: TCefState read FAuthorAndUserStyles write FAuthorAndUserStyles default STATE_DEFAULT;
     property LocalStorage: TCefState read FLocalStorage write FLocalStorage default STATE_DEFAULT;
     property Databases: TCefState read FDatabases write FDatabases default STATE_DEFAULT;
     property ApplicationCache: TCefState read FApplicationCache write FApplicationCache default STATE_DEFAULT;

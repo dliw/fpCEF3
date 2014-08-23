@@ -17,12 +17,12 @@ begin
   {$IFDEF WINDOWS}
   Args.instance := HINSTANCE();
 
-  Halt(cef_execute_process(@Args, nil));
+  Halt(cef_execute_process(@Args, nil, nil));
   {$ELSE}
   Args.argc := argc;
   Args.argv := argv;
 
-  Halt(cef_execute_process(@Args, nil));
+  Halt(cef_execute_process(@Args, nil, nil));
   {$ENDIF}
 end.
 

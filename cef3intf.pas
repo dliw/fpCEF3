@@ -93,7 +93,7 @@ Type
   ICefStringVisitor = interface;
   ICefTask = interface;
   ICefTaskRunner = interface;
-  ICefTraceClient = interface;
+  ICefEndTracingCallback = interface;
   ICefUrlRequest = interface;
   ICefUrlRequestClient = interface;
   ICefV8Context = interface;
@@ -187,12 +187,12 @@ Type
     function GetBrowser: ICefBrowser;
     procedure ParentWindowWillClose;
     procedure CloseBrowser(aForceClose: Boolean);
-    procedure SetFocus(enable: Boolean);
+    procedure SetFocus(focus: Boolean);
+    procedure SetWindowVisibility(visible: Boolean);
     function GetWindowHandle: TCefWindowHandle;
     function GetOpenerWindowHandle: TCefWindowHandle;
     function GetClient: ICefClient;
     function GetRequestContext: ICefRequestContext;
-    function GetDevToolsUrl(httpScheme: Boolean): ustring;
     function GetZoomLevel: Double;
     procedure SetZoomLevel(zoomLevel: Double);
     procedure RunFileDialog(mode: TCefFileDialogMode; const title, defaultFileName: ustring;
@@ -201,6 +201,8 @@ Type
     procedure Print;
     procedure Find(identifier: Integer; const searchText: ustring; forward_, matchCase, findNext: Boolean);
     procedure StopFinding(clearSelection: Boolean);
+    procedure ShowDevTools(var windowInfo: TCefWindowInfo; client: ICefClient; var settings: TCefBrowserSettings);
+    procedure CloseDevTools;
     procedure SetMouseCursorChangeDisabled(disabled: Boolean);
     function GetIsMouseCursorChangeDisabled: Boolean;
     function GetIsWindowRenderingDisabled: Boolean;
@@ -617,7 +619,7 @@ Type
   ICefLifeSpanHandler = interface(ICefBase) ['{0A3EB782-A319-4C35-9B46-09B2834D7169}']
     function OnBeforePopup(const parentBrowser: ICefBrowser; const frame: ICefFrame;
       var target_url: ustring; const targetFrameName: ustring;
-      var popupFeatures: TCefPopupFeatures; var windowInfo:TCefWindowInfo; var client: ICefClient;
+      var popupFeatures: TCefPopupFeatures; var windowInfo: TCefWindowInfo; var client: ICefClient;
       var settings: TCefBrowserSettings; var no_javascript_access: Boolean): Boolean;
     procedure OnAfterCreated(const browser: ICefBrowser);
     function RunModal(const browser: ICefBrowser): Boolean;
@@ -867,6 +869,7 @@ Type
     function Seek(offset: Int64; whence: Integer): Integer;
     function Tell: Int64;
     function Eof: Boolean;
+    function MayBlock: Boolean;
   end;
 
   {$NOTE ICefReadHandler, ICefStreamWriter}
@@ -875,6 +878,7 @@ Type
     function Seek(offset: Int64; whence: Integer): Integer;
     function Tell: Int64;
     function Eof: Boolean;
+    function MayBlock: Boolean;
   end;
 
   ICefStringVisitor = interface(ICefBase) ['{63ED4D6C-2FC8-4537-964B-B84C008F6158}']
@@ -893,10 +897,8 @@ Type
     function PostDelayedTask(task: ICefTask; delayMs: Int64): Integer;
   end;
 
-  ICefTraceClient = interface(ICefBase) ['{B6995953-A56A-46AC-B3D1-D644AEC480A5}']
-    procedure OnTraceDataCollected(const fragment: PAnsiChar; fragmentSize: TSize);
-    procedure OnTraceBufferPercentFullReply(percentFull: Single);
-    procedure OnEndTracingComplete;
+  ICefEndTracingCallback = interface(ICefBase) ['{B6995953-A56A-46AC-B3D1-D644AEC480A5}']
+    procedure OnEndTracingComplete(const tracingFile: ustring);
   end;
 
   ICefUrlRequest = interface(ICefBase) ['{59226AC1-A0FA-4D59-9DF4-A65C42391A67}']

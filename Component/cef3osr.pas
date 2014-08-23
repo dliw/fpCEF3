@@ -23,6 +23,7 @@ Interface
 
 Uses
   Classes, SysUtils, fpTimer,
+  {$IFDEF DEBUG}LCLProc,{$ENDIF}
   cef3types, cef3lib, cef3intf, cef3gui;
 
 Type
@@ -115,9 +116,9 @@ Type
     FOnRenderProcessTerminated: TOnRenderProcessTerminated;
 
     FOptions: TChromiumOptions;
-    FUserStyleSheetLocation: ustring;
     FDefaultEncoding: ustring;
     FFontOptions: TChromiumFontOptions;
+    FBackgroundColor: TCefColor;
 
     procedure GetSettings(var settings: TCefBrowserSettings);
     procedure CreateBrowser;
@@ -325,7 +326,7 @@ Type
     property Options: TChromiumOptions read FOptions write FOptions;
     property FontOptions: TChromiumFontOptions read FFontOptions;
     property DefaultEncoding: ustring read FDefaultEncoding write FDefaultEncoding;
-    property UserStyleSheetLocation: ustring read FUserStyleSheetLocation write FUserStyleSheetLocation;
+    property BackgroundColor: TCefColor read FBackgroundColor write FBackgroundColor;
     property BrowserId: Integer read FBrowserId;
     property Browser: ICefBrowser read FBrowser;
   public
@@ -411,7 +412,7 @@ Type
     property Options;
     property FontOptions;
     property DefaultEncoding;
-    property UserStyleSheetLocation;
+    property BackgroundColor;
   end;
 
 procedure Register;
@@ -446,6 +447,7 @@ end;
 
 class procedure TOSRClientHandler.OnTimer(Sender : TObject);
 begin
+  {$IFNDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
   If Looping then Exit;
   If CefInstances > 0 then
   begin
@@ -456,6 +458,7 @@ begin
       Looping := False;
     end;
   end;
+  {$ENDIF}
 end;
 
 constructor TOSRClientHandler.Create(const crm : IChromiumEvents);
@@ -510,9 +513,11 @@ end;
 
 procedure TOSRClientHandler.StartTimer;
 begin
+  {$IFNDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
   If not Assigned(Timer) then Exit;
 
   Timer.Enabled := True;
+  {$ENDIF}
 end;
 
 { TCustomChromiumOSR }
@@ -532,7 +537,6 @@ begin
   settings.minimum_logical_font_size := FFontOptions.MinimumLogicalFontSize;
   settings.remote_fonts := FFontOptions.RemoteFonts;
   settings.default_encoding := CefString(FDefaultEncoding);
-  settings.user_style_sheet_location := CefString(FUserStyleSheetLocation);
 
   settings.javascript := FOptions.Javascript;
   settings.javascript_open_windows := FOptions.JavascriptOpenWindows;
@@ -549,12 +553,12 @@ begin
   settings.image_shrink_standalone_to_fit := FOptions.ImageShrinkStandaloneToFit;
   settings.text_area_resize := FOptions.TextAreaResize;
   settings.tab_to_links := FOptions.TabToLinks;
-  settings.author_and_user_styles := FOptions.AuthorAndUserStyles;
   settings.local_storage := FOptions.LocalStorage;
   settings.databases := FOptions.Databases;
   settings.application_cache := FOptions.ApplicationCache;
   settings.webgl := FOptions.Webgl;
   settings.accelerated_compositing := FOptions.AcceleratedCompositing;
+  settings.background_color := FBackgroundColor;
 end;
 
 procedure TCustomChromiumOSR.CreateBrowser;
@@ -565,8 +569,8 @@ begin
   If not (csDesigning in ComponentState) then
   begin
     FillChar(info, SizeOf(info), 0);
-    info.window_rendering_disabled := True;
-    // info.transparent_painting := ???;
+    info.window_rendering_disabled := Ord(True);
+    info.transparent_painting := Ord(True);
 
     FillChar(settings, SizeOf(TCefBrowserSettings), 0);
     settings.size := SizeOf(TCefBrowserSettings);
@@ -973,7 +977,7 @@ begin
   FOptions := TChromiumOptions.Create;
   FFontOptions := TChromiumFontOptions.Create;
 
-  FUserStyleSheetLocation := '';
+  FBackgroundColor := CefColorSetARGB(255, 255, 255, 255);
   FDefaultEncoding := '';
   FBrowserId := 0;
   FBrowser := nil;

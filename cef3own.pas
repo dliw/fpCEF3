@@ -29,7 +29,8 @@ Unit cef3own;
 Interface
 
 Uses
-  Classes, SysUtils, Math, LCLProc,
+  Classes, SysUtils, Math,
+  {$IFDEF DEBUG}LCLProc,{$ENDIF}
   cef3api, cef3types, cef3intf;
 
 Type
@@ -430,6 +431,7 @@ Type
     function Seek(offset: Int64; whence: Integer): Integer; virtual;
     function Tell: Int64; virtual;
     function Eof: Boolean; virtual;
+    function MayBlock: Boolean; virtual;
   public
     constructor Create(Stream: TStream; Owned: Boolean); overload; virtual;
     constructor Create(const filename: string); overload; virtual;
@@ -672,7 +674,7 @@ end;
 destructor TCefBaseOwn.Destroy;
 begin
   {$IFDEF DEBUG}
-  DebugLn(Self.ClassName, '.Destroy; RefCount: ', Self.RefCount);
+  DebugLn(Self.ClassName + '.Destroy; RefCount: ' + IntToStr(Self.RefCount));
   {$ENDIF}
 
   Dec(FData, SizeOf(Pointer));
@@ -1080,11 +1082,11 @@ Var
   exp    : TDateTime;
 begin
   delete := False;
-  If cookie^.has_expires then exp := CefTimeToDateTime(cookie^.expires)
+  If (cookie^.has_expires <> 0) then exp := CefTimeToDateTime(cookie^.expires)
   Else exp := 0;
   Result := Ord(TCefCookieVisitorOwn(CefGetObject(self)).visit(CefString(@cookie^.name),
     CefString(@cookie^.value), CefString(@cookie^.domain), CefString(@cookie^.path),
-    cookie^.secure, cookie^.httponly, cookie^.has_expires, CefTimeToDateTime(cookie^.creation),
+    cookie^.secure <> 0, cookie^.httponly <> 0, cookie^.has_expires <> 0, CefTimeToDateTime(cookie^.creation),
     CefTimeToDateTime(cookie^.last_access), exp, count, total, delete));
   deleteCookie^ := Ord(delete);
 end;
@@ -2602,6 +2604,11 @@ end;
 function TCefCustomStreamReader.Eof : Boolean;
 begin
   Result := FStream.Position = FStream.Size;
+end;
+
+function TCefCustomStreamReader.MayBlock : Boolean;
+begin
+  Result := True;
 end;
 
 constructor TCefCustomStreamReader.Create(Stream : TStream; Owned : Boolean);

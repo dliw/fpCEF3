@@ -31,7 +31,7 @@ Interface
 Uses
   {$IFDEF WINDOWS}Windows,{$ENDIF}
   {$IFDEF LINUX}Dynlibs,{$ENDIF}
-  sysutils, LCLProc, ctypes,
+  sysutils, ctypes, {$IFDEF DEBUG}LCLProc,{$ENDIF}
   cef3types;
 
 Type
@@ -140,7 +140,7 @@ Type
   PCefTask = ^TCefTask;
   PCefTaskRunner = ^TCefTaskRunner;
 
-  PCefTraceClient = ^TCefTraceClient;
+  PCefEndTracingCallback = ^TCefEndTracingCallback;
 
   PCefUrlRequest = ^TCefUrlRequest;
 
@@ -361,9 +361,12 @@ Type
     // information.
     close_browser: procedure(self: PCefBrowserHost; force_close: Integer); cconv;
 
-    // Set focus for the browser window. If |enable| is true (1) focus will be set
-    // to the window. Otherwise, focus will be removed.
-    set_focus: procedure(self : PCefBrowserHost; enable : Integer); cconv;
+    // Set whether the browser is focused.
+    set_focus: procedure(self: PCefBrowserHost; focus: Integer); cconv;
+
+    // Set whether the window containing the browser is visible
+    // (minimized/unminimized, app hidden/unhidden, etc). Only used on Mac OS X.
+    set_window_visibility: procedure(self: PCefBrowserHost; visible: Integer); cconv;
 
     // Retrieve the window handle for this browser.
     get_window_handle: function(self: PCefBrowserHost): TCefWindowHandle; cconv;
@@ -378,16 +381,6 @@ Type
 
     // Returns the request context for this browser.
     get_request_context: function(self: PCefBrowserHost): PCefRequestContext; cconv;
-
-    // Returns the DevTools URL for this browser. If |http_scheme| is true (1) the
-    // returned URL will use the http scheme instead of the chrome-devtools
-    // scheme. Remote debugging can be enabled by specifying the "remote-
-    // debugging-port" command-line flag or by setting the
-    // CefSettings.remote_debugging_port value. If remote debugging is not enabled
-    // this function will return an NULL string.
-    ///
-    // The resulting string must be freed by calling cef_string_userfree_free().
-    get_dev_tools_url: function(self: PCefBrowserHost; http_scheme: Integer): PCefStringUserFree; cconv;
 
     // Get the current zoom level. The default zoom level is 0.0. This function
     // can only be called on the UI thread.
@@ -428,6 +421,14 @@ Type
 
     // Cancel all searches that are currently going on.
     stop_finding: procedure(self: PCefBrowserHost; clearSelection: Integer); cconv;
+
+    // Open developer tools in its own window.
+    show_dev_tools: procedure(self: PCefBrowserHost; const windowInfo: PCefWindowInfo; client: PCefClient;
+      const settings: PCefBrowserSettings); cconv;
+
+    // Explicitly close the developer tools window if one exists for this browser
+    // instance.
+    close_dev_tools: procedure(self: PCefBrowserHost); cconv;
 
     // Set whether mouse cursor change is disabled.
     set_mouse_cursor_change_disabled: procedure(self: PCefBrowserHost; disabled: Integer); cconv;
@@ -2673,6 +2674,11 @@ Type
 
     // Return non-zero if at end of file.
     eof: function(self: PCefReadHandler): Integer; cconv;
+
+    // Return true (1) if this handler performs work like accessing the file
+    // system which may block. Used as a hint for determining the thread to access
+    // the handler from.
+    may_block: function(self: PCefReadHandler): Integer; cconv;
   end;
 
 
@@ -2694,6 +2700,11 @@ Type
 
     // Return non-zero if at end of file.
     eof: function(self: PCefStreamReader): Integer; cconv;
+
+    // Returns true (1) if this reader performs work like accessing the file
+    // system which may block. Used as a hint for determining the thread to access
+    // the reader from.
+    may_block: function(self: PCefStreamReader): Integer; cconv;
   end;
 
 
@@ -2715,6 +2726,11 @@ Type
 
     // Flush the stream.
     flush: function(self: PCefWriteHandler): Integer; cconv;
+
+    // Return true (1) if this handler performs work like accessing the file
+    // system which may block. Used as a hint for determining the thread to access
+    // the handler from.
+    may_block: function(self: PCefWriteHandler): Integer; cconv;
   end;
 
 
@@ -2736,6 +2752,11 @@ Type
 
     // Flush the stream.
     flush: function(self: PCefStreamWriter): Integer; cconv;
+
+    // Returns true (1) if this writer performs work like accessing the file
+    // system which may block. Used as a hint for determining the thread to access
+    // the writer from.
+    may_block: function(self: PCefStreamWriter): Integer; cconv;
   end;
 
 
@@ -2800,23 +2821,17 @@ Type
 
 
 { ***  cef_trace_capi.h  *** }
-  // Implement this structure to receive trace notifications. The functions of
-  // this structure will be called on the browser process UI thread.
-  TCefTraceClient = record
+  // Implement this structure to receive notification when tracing has completed.
+  // The functions of this structure will be called on the browser process UI
+  // thread.
+  TCefEndTracingCallback = record
     // Base structure.
     base: TCefBase;
 
-    // Called 0 or more times between CefBeginTracing and OnEndTracingComplete
-    // with a UTF8 JSON |fragment| of the specified |fragment_size|. Do not keep a
-    // reference to |fragment|.
-    on_trace_data_collected: procedure(self: PCefTraceClient; const fragment: PAnsiChar;
-      fragment_size: csize_t); cconv;
-
-    // Called in response to CefGetTraceBufferPercentFullAsync.
-    on_trace_buffer_percent_full_reply: procedure(self: PCefTraceClient; percent_full: Single); cconv;
-
-    // Called after all processes have sent their trace data.
-    on_end_tracing_complete: procedure(self: PCefTraceClient); cconv;
+    // Called after all processes have sent their trace data. |tracing_file| is
+    // the path at which tracing data was written. The client is responsible for
+    // deleting |tracing_file|.
+    on_end_tracing_complete: procedure(self: PCefEndTracingCallback; const tracing_file: PCefString); cconv;
   end;
 
 
@@ -3849,14 +3864,18 @@ Var
   // called for the browser process (identified by no "type" command-line value)
   // it will return immediately with a value of -1. If called for a recognized
   // secondary process it will block until the process should exit and then return
-  // the process exit code. The |application| parameter may be NULL.
-  cef_execute_process: function(const args: PCefMainArgs; application: PCefApp): Integer; cdecl;
+  // the process exit code. The |application| parameter may be NULL. The
+  // |windows_sandbox_info| parameter is only used on Windows and may be NULL (see
+  // cef_sandbox_win.h for details).
+  cef_execute_process: function(const args: PCefMainArgs; application: PCefApp; windows_sandbox_info: Pointer): Integer; cdecl;
 
   // This function should be called on the main application thread to initialize
   // the CEF browser process. The |application| parameter may be NULL. A return
   // value of true (1) indicates that it succeeded and false (0) indicates that it
-  // failed.
-  cef_initialize: function(const args: PCefMainArgs; const settings: PCefSettings; application: PCefApp): Integer; cdecl;
+  // failed. The |windows_sandbox_info| parameter is only used on Windows and may
+  // be NULL (see cef_sandbox_win.h for details).
+  cef_initialize: function(const args: PCefMainArgs; const settings: PCefSettings; application: PCefApp;
+      windows_sandbox_info: Pointer): Integer; cdecl;
 
   // This function should be called on the main application thread to shut down
   // the CEF browser process before the application exits.
@@ -4112,21 +4131,7 @@ Var
   // "-excluded_category1,-excluded_category2"
   //
   // This function must be called on the browser process UI thread.
-  cef_begin_tracing: function(client: PCefTraceClient; const categories: PCefString): Integer; cdecl;
-
-
-  // Get the maximum trace buffer percent full state across all processes.
-  //
-  // cef_trace_client_t::OnTraceBufferPercentFullReply will be called
-  // asynchronously after the value is determined. When any child process reaches
-  // 100% full tracing will end automatically and
-  // cef_trace_client_t::OnEndTracingComplete will be called. This function fails
-  // and returns false (0) if trace is ending or disabled, no cef_trace_client_t
-  // was passed to CefBeginTracing, or if a previous call to
-  // CefGetTraceBufferPercentFullAsync is pending.
-  //
-  // This function must be called on the browser process UI thread.
-  cef_get_trace_buffer_percent_full_async: function: Integer; cdecl;
+  cef_begin_tracing: function(const categories: PCefString): Integer; cdecl;
 
 
   // Stop tracing events on all processes.
@@ -4134,8 +4139,13 @@ Var
   // This function will fail and return false (0) if a previous call to
   // CefEndTracingAsync is already pending or if CefBeginTracing was not called.
   //
+  // |tracing_file| is the path at which tracing data will be written and
+  // |callback| is the callback that will be executed once all processes have sent
+  // their trace data. If |tracing_file| is NULL a new temporary file path will be
+  // used. If |callback| is NULL no trace data will be written.
+  //
   // This function must be called on the browser process UI thread.
-  cef_end_tracing_async: function: Integer; cdecl;
+  cef_end_tracing_async: function(const tracing_file: PCefString; callback: PCefEndTracingCallback): Integer; cdecl;
 
 
   // Returns the current system trace time or, if none is defined, the current
@@ -4154,6 +4164,12 @@ Var
   // or a non-NULL host and path (at a minimum), but not both. Returns false (0)
   // if |parts| isn't initialized as described.
   cef_create_url: function(const parts: PCefUrlParts; url: PCefString): Integer; cdecl;
+
+  // Returns the mime type for the specified file extension or an NULL string if
+  // unknown.
+  ///
+  // The resulting string must be freed by calling cef_string_userfree_free().
+  cef_get_mime_type: function(const extension: PCefString): PCefStringUserFree; cdecl;
 
 
 { ***  cef_urlrequest_capi.h  *** }
@@ -4567,7 +4583,7 @@ Var
   cef_api_hash: function(entry: Integer): PChar; cdecl;
 
 
-procedure CefLoadLibrary;
+function CefLoadLibrary: Boolean;
 procedure CefCloseLibrary;
 
 Implementation
@@ -4604,7 +4620,7 @@ begin
 end;
 { ***                     *** }
 
-procedure CefLoadLibrary;
+function CefLoadLibrary: Boolean;
 begin
   {$IFDEF DEBUG}
   Debugln('CefLoadLibrary');
@@ -4716,6 +4732,7 @@ begin
     Pointer(cef_post_delayed_task)                   := GetProcAddress(LibHandle, 'cef_post_delayed_task');
     Pointer(cef_parse_url)                           := GetProcAddress(LibHandle, 'cef_parse_url');
     Pointer(cef_create_url)                          := GetProcAddress(LibHandle, 'cef_create_url');
+    Pointer(cef_get_mime_type)                       := GetProcAddress(LibHandle, 'cef_get_mime_type');
     Pointer(cef_browser_host_create_browser)         := GetProcAddress(LibHandle, 'cef_browser_host_create_browser');
     Pointer(cef_browser_host_create_browser_sync)    := GetProcAddress(LibHandle, 'cef_browser_host_create_browser_sync');
     Pointer(cef_request_create)                      := GetProcAddress(LibHandle, 'cef_request_create');
@@ -4796,7 +4813,6 @@ begin
     Pointer(cef_task_runner_get_for_thread)          := GetProcAddress(LibHandle, 'cef_task_runner_get_for_thread');
 
     Pointer(cef_begin_tracing)                       := GetProcAddress(LibHandle, 'cef_begin_tracing');
-    Pointer(cef_get_trace_buffer_percent_full_async) := GetProcAddress(LibHandle, 'cef_get_trace_buffer_percent_full_async');
     Pointer(cef_end_tracing_async)                   := GetProcAddress(LibHandle, 'cef_end_tracing_async');
 
     If not (
@@ -4856,6 +4872,7 @@ begin
       Assigned(cef_post_delayed_task) and
       Assigned(cef_parse_url) and
       Assigned(cef_create_url) and
+      Assigned(cef_get_mime_type) and
       Assigned(cef_browser_host_create_browser) and
       Assigned(cef_browser_host_create_browser_sync) and
       Assigned(cef_request_create) and
@@ -4920,19 +4937,23 @@ begin
       Assigned(cef_task_runner_get_for_current_thread) and
       Assigned(cef_task_runner_get_for_thread) and
       Assigned(cef_begin_tracing) and
-      Assigned(cef_get_trace_buffer_percent_full_async) and
       Assigned(cef_end_tracing_async)
-    ) then raise Exception.Create('Invalid CEF Library version');
-    //) then raise ECefException.Create('Invalid CEF Library version');
+    ) then raise Exception.Create('Unsupported CEF library version');
 
     {$IFDEF DEBUG}
-    Debugln('   : Loaded');
+    Debugln('-> loaded');
     {$ENDIF}
+
+    Result := True;
   end
-  {$IFDEF DEBUG}
-  Else Debugln('   : already loaded')
-  {$ENDIF}
-  ;
+  Else
+  begin
+    {$IFDEF DEBUG}
+    Debugln('-> already loaded');
+    {$ENDIF}
+
+    Result := False;
+  end;
 end;
 
 procedure CefCloseLibrary;
@@ -4943,17 +4964,15 @@ begin
   If LibHandle <> 0 then
   begin
     {$IFDEF DEBUG}
-    Debugln('   : Freed');
+    Debugln('-> Freed');
     {$ENDIF}
 
     FreeLibrary(LibHandle);
     LibHandle := 0;
   end
-  Else
   {$IFDEF DEBUG}
-  Debugln('   : already freed.')
+  Else Debugln('-> not loaded.');
   {$ENDIF}
-  ;
 end;
 
 Finalization

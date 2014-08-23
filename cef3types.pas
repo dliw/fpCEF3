@@ -182,13 +182,13 @@ Type
       // |parent_window| to be used for identifying monitor info
       // (MonitorFromWindow). If |parent_window| is not provided the main screen
       // monitor will be used.
-      window_rendering_disabled : BOOL;
+      window_rendering_disabled : Integer;
 
       // Set to true to enable transparent painting.
       // If window rendering is disabled and |transparent_painting| is set to true
       // WebKit rendering will draw on a transparent background (RGBA=0x00000000).
       // When this value is false the background will be white and opaque.
-      transparent_painting : BOOL;
+      transparent_painting : Integer;
 
       // Handle for the new browser window.
       window : TCefWindowHandle;
@@ -200,10 +200,10 @@ Type
       // If window rendering is disabled no browser window will be created. Set
       // |parent_widget| to the window that will act as the parent for popup menus,
       // dialog boxes, etc.
-      window_rendering_disabled : Boolean;
+      window_rendering_disabled : Integer;
 
       // Set to true to enable transparent painting.
-      transparent_painting : Boolean;
+      transparent_painting : Integer;
 
       // Pointer for the new browser widget.
       widget : TCefWindowHandle;
@@ -218,10 +218,10 @@ Type
       // If window rendering is disabled no browser window will be created. Set
       // |parent_view| to the window that will act as the parent for popup menus,
       // dialog boxes, etc.
-      window_rendering_disabled : Boolean;
+      window_rendering_disabled : Integer;
 
       // Set to true to enable transparent painting.
-      transparent_painting : Boolean;
+      transparent_painting : Integer;
 
       // NSView pointer for the new browser view.
       view : TCefWindowHandle;
@@ -299,7 +299,12 @@ Type
     // run mode is not officially supported by Chromium and is less stable than
     // the multi-process default. Also configurable using the "single-process"
     // command-line switch.
-    single_process: Boolean;
+    single_process: Integer;
+
+    // Set to true (1) to disable the sandbox for sub-processes. See
+    // cef_sandbox_win.h for requirements to enable the sandbox on Windows. Also
+    // configurable using the "no-sandbox" command-line switch.
+    no_sandbox: Integer;
 
     // The path to a separate executable that will be launched for sub-processes.
     // By default the browser process executable is used. See the comments on
@@ -310,13 +315,13 @@ Type
     // Set to true (1) to have the browser process message loop run in a separate
     // thread. If false (0) than the CefDoMessageLoopWork() function must be
     // called from your application message loop.
-    multi_threaded_message_loop: Boolean;
+    multi_threaded_message_loop: Integer;
 
     // Set to true (1) to disable configuration of browser process features using
     // standard CEF and Chromium command-line arguments. Configuration can still
     // be specified using CEF data structures or via the
     // CefApp::OnBeforeCommandLineProcessing() method.
-    command_line_args_disabled: Boolean;
+    command_line_args_disabled: Integer;
 
     // The location where cache data will be stored on disk. If empty an in-memory
     // cache will be used for some features and a temporary disk cache for others.
@@ -330,7 +335,7 @@ Type
     // browsers do not persist them. A |cache_path| value must also be specified to
     // enable this feature. Also configurable using the "persist-session-cookies"
     // command-line switch.
-    persist_session_cookies: Boolean;
+    persist_session_cookies: Integer;
 
     // Value that will be returned as the User-Agent HTTP header. If empty the
     // default User-Agent string will be used. Also configurable using the
@@ -362,7 +367,7 @@ Type
 
     // Enable DCHECK in release mode to ease debugging. Also configurable using the
     // "enable-release-dcheck" command-line switch.
-    release_dcheck_enabled: Boolean;
+    release_dcheck_enabled: Integer;
 
     // Custom flags that will be used when initializing the V8 JavaScript engine.
     // The consequences of using custom flags may not be well tested. Also
@@ -388,7 +393,7 @@ Type
     // processes via CefApp::GetResourceBundleHandler() if loading of pack files
     // is disabled. Also configurable using the "disable-pack-loading" command-
     // line switch.
-    pack_loading_disabled: Boolean;
+    pack_loading_disabled: Integer;
 
     // Set to a value between 1024 and 65535 to enable remote debugging on the
     // specified port. For example, if 8080 is specified the remote debugging URL
@@ -429,10 +434,12 @@ Type
     // "man in the middle" attacks. Applications that load content from the
     // internet should not enable this setting. Also configurable using the
     // "ignore-certificate-errors" command-line switch.
-    ignore_certificate_error: Boolean;
+    ignore_certificate_error: Integer;
 
-    // Used on Mac OS X to specify the background color for hardware accelerated
-    // content.
+    // Opaque background color used for accelerated content. By default the
+    // background color will be white. Only the RGB compontents of the specified
+    // value will be used. The alpha component must greater than 0 to enable use
+    // of the background color but will be otherwise ignored.
     background_color: TCefColor;
   end;
 
@@ -462,12 +469,6 @@ Type
     // Default encoding for Web content. If empty "ISO-8859-1" will be used. Also
     // configurable using the "default-encoding" command-line switch.
     default_encoding: TCefString;
-
-    // Location of the user style sheet that will be used for all pages. This must
-    // be a data URL of the form "data:text/css;charset=utf-8;base64,csscontent"
-    // where "csscontent" is the base64 encoded contents of the CSS file. Also
-    // configurable using the "user-style-sheet-location" command-line switch.
-    user_style_sheet_location: TCefString;
 
     // Controls the loading of fonts from remote sources. Also configurable using
     // the "disable-remote-fonts" command-line switch.
@@ -542,10 +543,6 @@ Type
     // using the "disable-tab-to-links" command-line switch.
     tab_to_links: TCefState;
 
-    // Controls whether style sheets can be used. Also configurable using the
-    // "disable-author-and-user-styles" command-line switch.
-    author_and_user_styles: TCefState;
-
     // Controls whether local storage can be used. Also configurable using the
     // "disable-local-storage" command-line switch.
     local_storage: TCefState;
@@ -568,6 +565,13 @@ Type
     // not work on all systems even when enabled. Also configurable using the
     // "disable-accelerated-compositing" command-line switch.
     accelerated_compositing: TCefState;
+
+    // Opaque background color used for the browser before a document is loaded
+    // and when no document color is specified. By default the background color
+    // will be the same as CefSettings.background_color. Only the RGB compontents
+    // of the specified value will be used. The alpha component must greater than
+    // 0 to enable use of the background color but will be otherwise ignored.
+    background_color: TCefColor;
   end;
 
   // URL component parts.
@@ -591,6 +595,12 @@ Type
 
     // Port number component.
     port: TCefString;
+
+    // Origin contains just the scheme, host, and port from a URL. Equivalent to
+    // clearing any username and password, replacing the path with a slash, and
+    // clearing everything after that. This value will be empty for non-standard
+    // URLs.
+    origin: TCefString;
 
     // Path component including the first slash following the host.
     path: TCefString;
@@ -618,10 +628,10 @@ Type
     path: TCefString;
 
     // If |secure| is true the cookie will only be sent for HTTPS requests.
-    secure: Boolean;
+    secure: Integer;
 
     // If |httponly| is true the cookie will only be sent for HTTP requests.
-    httponly: Boolean;
+    httponly: Integer;
 
     // The cookie creation date. This is automatically populated by the system on
     // cookie creation.
@@ -632,7 +642,7 @@ Type
     last_access: TCefTime;
 
     // The cookie expiration date is only valid if |has_expires| is true.
-    has_expires: Boolean;
+    has_expires: Integer;
     expires: TCefTime;
   end;
 
@@ -1014,7 +1024,7 @@ Type
     depth_per_component: Integer;
 
     // This can be true for black and white printers.
-    is_monochrome: Boolean;
+    is_monochrome: Integer;
 
     // This is set from the rcMonitor member of MONITORINFOEX, to whit:
     //   "A RECT structure that specifies the display monitor rectangle,
@@ -1223,7 +1233,7 @@ Type
     // Indicates whether the event is considered a "system key" event (see
     // http://msdn.microsoft.com/en-us/library/ms646286(VS.85).aspx for details).
     // This value will always be false on non-Windows platforms.
-    is_system_key: Boolean;
+    is_system_key: Integer;
 
     // The character generated by the keystroke.
     character: Char16;
@@ -1234,7 +1244,7 @@ Type
 
     // True if the focus is currently on an editable field on the page. This is
     // useful for determining if standard key events should be intercepted.
-    focus_on_editable_field: Boolean;
+    focus_on_editable_field: Integer;
   end;
 
   // Focus sources.
@@ -1286,23 +1296,23 @@ Type
   PCefPopupFeatures = ^TCefPopupFeatures;
   TCefPopupFeatures = record
     x: Integer;
-    xSet: Boolean;
+    xSet: Integer;
     y: Integer;
-    ySet: Boolean;
+    ySet: Integer;
     width: Integer;
-    widthSet: Boolean;
+    widthSet: Integer;
     height: Integer;
-    heightSet: Boolean;
+    heightSet: Integer;
 
-    menuBarVisible: Boolean;
-    statusBarVisible: Boolean;
-    toolBarVisible: Boolean;
-    locationBarVisible: Boolean;
-    scrollbarsVisible: Boolean;
-    resizable: Boolean;
+    menuBarVisible: Integer;
+    statusBarVisible: Integer;
+    toolBarVisible: Integer;
+    locationBarVisible: Integer;
+    scrollbarsVisible: Integer;
+    resizable: Integer;
 
-    fullscreen: Boolean;
-    dialog: Boolean;
+    fullscreen: Integer;
+    dialog: Integer;
     additionalFeatures: TCefStringList;
   end;
 

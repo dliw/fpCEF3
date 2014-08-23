@@ -64,7 +64,7 @@ end;
 // JavaScript executes TMyHandler.Execute
 procedure TMainform.Button3Click(Sender : TObject);
 begin
-  Chromium.Browser.MainFrame.ExecuteJavaScript('cef.test.test_object().GetMessage();', 'about:blank', 0);
+  Chromium.Browser.MainFrame.ExecuteJavaScript('alert(cef.test.test_param);', 'about:blank', 0);
 end;
 
 procedure TMainform.ChromiumTitleChange(Sender : TObject; const Browser : ICefBrowser; const title : ustring);

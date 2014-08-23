@@ -41,8 +41,8 @@ function CefInitialize(const Cache: ustring = ''; const UserAgent: ustring = '';
   const BrowserSubprocessPath: ustring = '';
   LogSeverity: TCefLogSeverity = LOGSEVERITY_DISABLE;
   JavaScriptFlags: ustring = ''; ResourcesDirPath: ustring = ''; LocalesDirPath: ustring = '';
-  SingleProcess: Boolean = False; CommandLineArgsDisabled: Boolean = False; PackLoadingDisabled: Boolean = False;
-  RemoteDebuggingPort: Integer = 0; ReleaseDCheck: Boolean = False;
+  SingleProcess: Boolean = False; NoSandbox: Boolean = False; CommandLineArgsDisabled: Boolean = False;
+  PackLoadingDisabled: Boolean = False; RemoteDebuggingPort: Integer = 0; ReleaseDCheck: Boolean = False;
   UncaughtExceptionStackSize: Integer = 0; ContextSafetyImplementation: Integer = 0): Boolean;
 procedure CefShutDown;
 
@@ -113,9 +113,8 @@ function CefRequestCreate: ICefRequest;
 function CefPostDataCreate: ICefPostData;
 function CefPostDataElementCreate: ICefPostDataElement;
 
-function CefBeginTracing(const client: ICefTraceClient; const categories: ustring): Boolean;
-function CefGetTraceBufferPercentFullAsync: Integer;
-function CefEndTracingAsync: Boolean;
+function CefBeginTracing(const categories: ustring): Boolean;
+function CefEndTracingAsync(const tracingFile: ustring; callback: ICefEndTracingCallback): Boolean;
 
 function CefGetGeolocation(const callback: ICefGetGeolocationCallback): Boolean;
 
@@ -142,6 +141,7 @@ Var
   CefLocalesDirPath: ustring = '';
   CefPackLoadingDisabled: Boolean = False;
   CefSingleProcess: Boolean = False;
+  CefNoSandbox: Boolean = True;
   CefBrowserSubprocessPath: ustring = '';
   CefCommandLineArgsDisabled: Boolean = False;
   CefRemoteDebuggingPort: Integer = 0;
@@ -193,14 +193,14 @@ begin
 
   Result := CefInitialize(CefCache, CefUserAgent, CefProductVersion, CefLocale, CefLogFile,
     CefBrowserSubprocessPath, CefLogSeverity,
-    CefJavaScriptFlags, CefResourcesDirPath, CefLocalesDirPath, CefSingleProcess,
+    CefJavaScriptFlags, CefResourcesDirPath, CefLocalesDirPath, CefSingleProcess, CefNoSandbox,
     CefCommandLineArgsDisabled, CefPackLoadingDisabled, CefRemoteDebuggingPort,
     CefReleaseDCheck, CefUncaughtExceptionStackSize, CefContextSafetyImplementation);
 end;
 
 function CefInitialize(const Cache, UserAgent, ProductVersion, Locale, LogFile, BrowserSubprocessPath: ustring;
   LogSeverity: TCefLogSeverity; JavaScriptFlags, ResourcesDirPath, LocalesDirPath: ustring;
-  SingleProcess, CommandLineArgsDisabled, PackLoadingDisabled: Boolean; RemoteDebuggingPort: Integer;
+  SingleProcess, NoSandbox, CommandLineArgsDisabled, PackLoadingDisabled: Boolean; RemoteDebuggingPort: Integer;
   ReleaseDCheck: Boolean; UncaughtExceptionStackSize: Integer; ContextSafetyImplementation: Integer): Boolean;
 Var
   Settings: TCefSettings;
@@ -213,28 +213,24 @@ begin
   Debugln('CefInitialize');
   {$ENDIF}
 
-  If CefIsMainProcess then
+  If not CefLoadLibrary then
   begin
-    {$IFDEF DEBUG}
-    Debugln('Already loaded.');
-    {$ENDIF}
-
-    Result := true;
+    Result := True;
     Exit;
   end;
-  CefLoadLibrary;
 
   FillChar(settings, SizeOf(settings), 0);
 
   settings.size           := SizeOf(settings);
-  settings.single_process := SingleProcess;
+  settings.single_process := Ord(SingleProcess);
+  settings.no_sandbox     := Ord(NoSandbox);
   settings.browser_subprocess_path := CefString(BrowserSubprocessPath);
 {$IFDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
-  settings.multi_threaded_message_loop := True;
+  settings.multi_threaded_message_loop := Ord(True);
 {$ELSE}
-  settings.multi_threaded_message_loop := False;
+  settings.multi_threaded_message_loop := Ord(False);
 {$ENDIF}
-  settings.command_line_args_disabled := CommandLineArgsDisabled;
+  settings.command_line_args_disabled := Ord(CommandLineArgsDisabled);
   settings.cache_path := CefString(Cache);
   //settings.persist_session_cookies := ;
   settings.user_agent := CefString(UserAgent);
@@ -242,11 +238,11 @@ begin
   settings.locale := CefString(Locale);
   settings.log_file := CefString(LogFile);
   settings.log_severity := LogSeverity;
-  settings.release_dcheck_enabled := ReleaseDCheck;
+  settings.release_dcheck_enabled := Ord(ReleaseDCheck);
   settings.javascript_flags := CefString(JavaScriptFlags);
   settings.resources_dir_path := CefString(ResourcesDirPath);
   settings.locales_dir_path := CefString(LocalesDirPath);
-  settings.pack_loading_disabled := PackLoadingDisabled;
+  settings.pack_loading_disabled := Ord(PackLoadingDisabled);
   settings.remote_debugging_port := RemoteDebuggingPort;
   settings.uncaught_exception_stack_size := UncaughtExceptionStackSize;
   settings.context_safety_implementation := ContextSafetyImplementation;
@@ -257,21 +253,17 @@ begin
   {$IFDEF WINDOWS}
   Args.instance := HINSTANCE();
 
-  ErrCode := cef_execute_process(@Args, CefGetData(app));
+  ErrCode := cef_execute_process(@Args, CefGetData(app), nil);
   {$ELSE}
   Args.argc := argc;
   Args.argv := argv;
 
-  ErrCode := cef_execute_process(@Args, CefGetData(app));
+  ErrCode := cef_execute_process(@Args, CefGetData(app), nil);
   {$ENDIF}
-  If ErrCode >= 0 then
-  begin
-    Result := False;
-    Exit;
-  end;
 
+  If ErrCode >= 0 then Halt(ErrCode);
 
-  ErrCode := cef_initialize(@Args, @settings, CefGetData(app));
+  ErrCode := cef_initialize(@Args, @settings, CefGetData(app), nil);
   If ErrCode <> 1 then
   begin
     Result := False;
@@ -393,10 +385,7 @@ begin
   s := CefString(SchemeName);
   h := CefString(HostName);
   Result := cef_register_scheme_handler_factory(
-    @s,
-    @h,
-    CefGetData(TCefSchemeHandlerFactoryOwn.Create(handler, SyncMainThread) as ICefBase)
-    ) <> 0;
+    @s, @h, CefGetData(TCefSchemeHandlerFactoryOwn.Create(handler, SyncMainThread) as ICefBase)) <> 0;
 end;
 
 function CefClearSchemeHandlerFactories: Boolean;
@@ -444,8 +433,7 @@ function CefRegisterExtension(const name, code: ustring; const Handler: ICefv8Ha
 Var
   n, c: TCefString;
 begin
-  { TODO : Hier wird doppelt initialisiert? }
-  //CefInitDefault;
+  CefInitDefault;
   n := CefString(name);
   c := CefString(code);
   Result := cef_register_extension(@n, @c, CefGetData(handler)) <> 0;
@@ -651,22 +639,20 @@ begin
   Result := TCefPostDataElementRef.UnWrap(cef_post_data_element_create());
 end;
 
-function CefBeginTracing(const client: ICefTraceClient; const categories: ustring): Boolean;
+function CefBeginTracing(const categories: ustring): Boolean;
 Var
   c: TCefString;
 begin
   c := CefString(categories);
-  Result := cef_begin_tracing(CefGetData(client), @c) <> 0;
+  Result := cef_begin_tracing(@c) <> 0;
 end;
 
-function CefGetTraceBufferPercentFullAsync: Integer;
+function CefEndTracingAsync(const tracingFile: ustring; callback: ICefEndTracingCallback): Boolean;
+Var
+  t: TCefString;
 begin
-  Result := cef_get_trace_buffer_percent_full_async();
-end;
-
-function CefEndTracingAsync: Boolean;
-begin
-  Result := cef_end_tracing_async() <> 0;
+  t := CefString(tracingFile);
+  Result := cef_end_tracing_async(@t, CefGetData(callback)) <> 0;
 end;
 
 function CefGetGeolocation(const callback: ICefGetGeolocationCallback): Boolean;
