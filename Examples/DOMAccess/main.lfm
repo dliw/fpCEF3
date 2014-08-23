@@ -8,7 +8,7 @@ object Mainform: TMainform
   ClientHeight = 587
   ClientWidth = 921
   OnCreate = FormCreate
-  LCLVersion = '1.2.2.0'
+  LCLVersion = '1.2.4.0'
   object Chromium: TChromium
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Side = asrBottom
@@ -23,9 +23,9 @@ object Mainform: TMainform
     DefaultUrl = 'www.google.de'
     TabOrder = 0
     OnProcessMessageReceived = ChromiumProcessMessageReceived
-    OnLoadEnd = ChromiumLoadEnd
-    OnKeyEvent = ChromiumKeyEvent
     OnTitleChange = ChromiumTitleChange
+    OnKeyEvent = ChromiumKeyEvent
+    OnLoadEnd = ChromiumLoadEnd
   end
   object BGo: TButton
     AnchorSideTop.Control = Owner

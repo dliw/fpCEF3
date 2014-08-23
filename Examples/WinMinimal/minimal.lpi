@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
     <Version Value="9"/>
@@ -59,9 +59,11 @@
             </CompilerMessages>
             <CompilerPath Value="$(CompPath)"/>
           </Other>
-          <LCLWidgetType Value="win32"/>
         </CompilerOptions>
       </Item2>
+      <SharedMatrixOptions Count="1">
+        <Item1 ID="086285476382" Modes="Win32,Win64" Type="IDEMacro" MacroName="LCLWidgetType" Value="win32"/>
+      </SharedMatrixOptions>
     </BuildModes>
     <PublishOptions>
       <Version Value="2"/>
@@ -71,7 +73,6 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
-        <LaunchingApplication PathPlusParams="/usr/bin/xterm -T 'Lazarus Run Output' -e $(LazarusDir)/tools/runwait.sh $(TargetCmdLine)"/>
       </local>
     </RunParams>
     <RequiredPackages Count="1">
@@ -117,7 +118,6 @@
       </CompilerMessages>
       <CompilerPath Value="$(CompPath)"/>
     </Other>
-    <LCLWidgetType Value="win32"/>
   </CompilerOptions>
   <Debugging>
     <Exceptions Count="3">

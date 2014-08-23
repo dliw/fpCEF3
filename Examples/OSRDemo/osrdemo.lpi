@@ -28,7 +28,7 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="simple32"/>
+            <Filename Value="osrdemo32"/>
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
@@ -71,7 +71,7 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="simple64"/>
+            <Filename Value="osrdemo64"/>
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
