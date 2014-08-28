@@ -2986,7 +2986,7 @@ end;
 
 constructor TCefStringMapOwn.Create;
 begin
-  FStringMap := cef_string_map_alloc;
+  FStringMap := cef_string_map_alloc();
 end;
 
 destructor TCefStringMapOwn.Destroy;
@@ -3059,7 +3059,7 @@ end;
 
 constructor TCefStringMultimapOwn.Create;
 begin
-  FStringMap := cef_string_multimap_alloc;
+  FStringMap := cef_string_multimap_alloc();
 end;
 
 destructor TCefStringMultimapOwn.Destroy;

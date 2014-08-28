@@ -1058,7 +1058,7 @@ Var
   i    : Integer;
   str  : TCefString;
 begin
-  list := cef_string_list_alloc;
+  list := cef_string_list_alloc();
   try
     PCefBrowser(FData)^.get_frame_names(FData, list);
 
@@ -1264,7 +1264,7 @@ Var
 begin
   t := CefString(title);
   f := CefString(defaultFileName);
-  list := cef_string_list_alloc;
+  list := cef_string_list_alloc();
 
   try
     For i := 0 to acceptTypes.Count - 1 do
@@ -1350,7 +1350,7 @@ Var
   i   : Integer;
   str : TCefString;
 begin
-  list := cef_string_list_alloc;
+  list := cef_string_list_alloc();
   try
     PCefCommandLine(FData)^.get_argv(FData, list);
     FillChar(str, SizeOf(str), 0);
@@ -1436,7 +1436,7 @@ Var
   i   : Integer;
   str : TCefString;
 begin
-  list := cef_string_list_alloc;
+  list := cef_string_list_alloc();
   try
     PCefCommandLine(FData)^.get_arguments(FData, list);
     FillChar(str, SizeOf(str), 0);
@@ -1474,12 +1474,12 @@ end;
 
 class function TCefCommandLineRef.New : ICefCommandLine;
 begin
-  Result := UnWrap(cef_command_line_create);
+  Result := UnWrap(cef_command_line_create());
 end;
 
 class function TCefCommandLineRef.Global : ICefCommandLine;
 begin
-  Result := UnWrap(cef_command_line_get_global);
+  Result := UnWrap(cef_command_line_get_global());
 end;
 
 { TCefContextMenuParamsRef }
@@ -1578,7 +1578,7 @@ Var
   i    : Integer;
   item : TCefString;
 begin
-  list := cef_string_list_alloc;
+  list := cef_string_list_alloc();
   try
     If (schemes <> nil) then
       For i := 0 to schemes.Count - 1 do
@@ -1673,7 +1673,7 @@ end;
 
 class function TCefCookieManagerRef.Global : ICefCookieManager;
 begin
-  Result := UnWrap(cef_cookie_manager_get_global_manager);
+  Result := UnWrap(cef_cookie_manager_get_global_manager());
 end;
 
 class function TCefCookieManagerRef.New(const path : ustring; persistSessionCookies : Boolean) : ICefCookieManager;
@@ -1692,7 +1692,7 @@ Var
   i    : Integer;
   item : TCefString;
 begin
-  list := cef_string_list_alloc;
+  list := cef_string_list_alloc();
   try
     For i := 0 to filePaths.Count - 1 do
     begin
@@ -2194,7 +2194,7 @@ Var
   i   : Integer;
   str : TCefString;
 begin
-  list := cef_string_list_alloc;
+  list := cef_string_list_alloc();
   try
     Result := PCefDragData(FData)^.get_file_names(FData, list) <> 0;
     FillChar(str, SizeOf(str), 0);
@@ -2850,7 +2850,7 @@ end;
 
 class function TCefRequestRef.New : ICefRequest;
 begin
-  Result := UnWrap(cef_request_create);
+  Result := UnWrap(cef_request_create());
 end;
 
 { TCefPostDataRef }
@@ -2906,7 +2906,7 @@ end;
 
 class function TCefPostDataRef.New : ICefPostData;
 begin
-  Result := UnWrap(cef_post_data_create);
+  Result := UnWrap(cef_post_data_create());
 end;
 
 { TCefPostDataElementRef }
@@ -2962,7 +2962,7 @@ end;
 
 class function TCefPostDataElementRef.New : ICefPostDataElement;
 begin
-  Result := UnWrap(cef_post_data_element_create);
+  Result := UnWrap(cef_post_data_element_create());
 end;
 
 { TCefRequestContextRef }
@@ -3110,7 +3110,7 @@ end;
 
 class function TCefResponseRef.New : ICefResponse;
 begin
-  Result := UnWrap(cef_response_create);
+  Result := UnWrap(cef_response_create());
 end;
 
 { TCefSchemeRegistrarRef }
@@ -3241,7 +3241,7 @@ end;
 
 class function TCefTaskRunnerRef.GetForCurrentThread : ICefTaskRunner;
 begin
-  Result := UnWrap(cef_task_runner_get_for_current_thread);
+  Result := UnWrap(cef_task_runner_get_for_current_thread());
 end;
 
 { TCefUrlRequestRef }
@@ -3396,12 +3396,12 @@ end;
 
 class function TCefv8ContextRef.Current : ICefv8Context;
 begin
-  Result := UnWrap(cef_v8context_get_current_context);
+  Result := UnWrap(cef_v8context_get_current_context());
 end;
 
 class function TCefv8ContextRef.Entered : ICefv8Context;
 begin
-  Result := UnWrap(cef_v8context_get_entered_context);
+  Result := UnWrap(cef_v8context_get_entered_context());
 end;
 
 { TCefv8HandlerRef }
@@ -3701,7 +3701,7 @@ Var
   i    : Integer;
   item : TCefString;
 begin
-  list := cef_string_list_alloc;
+  list := cef_string_list_alloc();
   try
     Result := PCefV8Value(FData)^.get_keys(FData, list);
     FillChar(item, SizeOf(item), 0);
@@ -3794,12 +3794,12 @@ end;
 
 class function TCefv8ValueRef.NewUndefined : ICefv8Value;
 begin
-  Result := UnWrap(cef_v8value_create_undefined);
+  Result := UnWrap(cef_v8value_create_undefined());
 end;
 
 class function TCefv8ValueRef.NewNull : ICefv8Value;
 begin
-  Result := UnWrap(cef_v8value_create_null);
+  Result := UnWrap(cef_v8value_create_null());
 end;
 
 class function TCefv8ValueRef.NewBool(value : Boolean) : ICefv8Value;
@@ -4023,7 +4023,7 @@ Var
   i    : Integer;
   item : TCefString;
 begin
-  list := cef_string_list_alloc;
+  list := cef_string_list_alloc();
   try
     Result := PCefDictionaryValue(FData)^.get_keys(FData, list) <> 0;
     FillChar(item, SizeOf(item), 0);
@@ -4186,7 +4186,7 @@ end;
 
 class function TCefDictionaryValueRef.New : ICefDictionaryValue;
 begin
-  Result := UnWrap(cef_dictionary_value_create);
+  Result := UnWrap(cef_dictionary_value_create());
 end;
 
 { TCefListValueRef }
@@ -4322,7 +4322,7 @@ end;
 
 class function TCefListValueRef.New : ICefListValue;
 begin
-  Result := UnWrap(cef_list_value_create);
+  Result := UnWrap(cef_list_value_create());
 end;
 
 { TCefWebPluginInfoRef }
