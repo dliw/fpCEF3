@@ -66,12 +66,12 @@ begin
   ExitCode := cef_execute_process(@MainArgs, nil, nil);
   If ExitCode >= 0 then Halt(ExitCode);
 
-  Settings.multi_threaded_message_loop := False;
-  Settings.single_process := False;
+  Settings.multi_threaded_message_loop := Ord(False);
+  Settings.single_process := Ord(False);
   Settings.context_safety_implementation := 0;
   Settings.log_severity := LOGSEVERITY_INFO;
   Settings.uncaught_exception_stack_size := 20;
-  Settings.release_dcheck_enabled := TRUE;
+  Settings.release_dcheck_enabled := Ord(True);
 
   cef_initialize(@MainArgs, @Settings, nil, nil);
 
