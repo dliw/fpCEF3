@@ -32,7 +32,7 @@ This will trigger a SIGSEGV in pthread_mutex_lock, which is a bug in either CEF3
 
 If crashes occur too often, you might try to turn off runtime checks in the project settings (mainly `-Ct` and `-CR`).
 
-If you're using openSUSE (maybe some other distros, too) and your program crashes immidiately after being started, you could try to execute
+If you're using openSUSE (maybe some other distros, too) and your program crashes immediately after being started, you could try to execute
 ```shell
 echo 1073741824 > /proc/sys/kernel/shmmax
 ```
@@ -40,7 +40,7 @@ and see if the crash goes away.
 That is a known bug in Chromium, which still isn't fixed.
 
 If the browser goes "blank" (e.g. when loading a page), the render process crashed.
-Most ot the time it seems to be related to JavaScript/V8, see **Debugging**  on how to debug the render process.  
+Most of the time it seems to be related to JavaScript/V8, see **Debugging**  on how to debug the render process.  
 Please note, that the render process will be automatically restarted on the next page request.
 
 
@@ -48,7 +48,7 @@ Please note, that the render process will be automatically restarted on the next
 When initialising CEF for the first time (mostly in your main app) a subprocess is started. By default a second instance of the main program is used as the subprocess.
 The preferred way however is to define an own (minimal) subprocess executable.
 
-You can achive this in fpCEF3 by setting `CefBrowserSubprocessPath` to the **path** of your subprocess executable.
+You can achieve this in fpCEF3 by setting `CefBrowserSubprocessPath` to the **path** of your subprocess executable.
 In the `LCLSimple` example this can be done by changing `TMainform.FormCreate` at the end of `main.pas`.
 
 A minimal subprocess can be found in `/Examples/SubProcess`. It should work for any use case.
