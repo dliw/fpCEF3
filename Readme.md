@@ -5,14 +5,16 @@ Chromium Embedded Framework for Free Pascal
 
 ## How to get started on
 ### Windows
-Download CEF3 from [here][1] and copy all .dll files from either `Debug` or `Release` to the directory your .exe is / will be in.
+Download CEF3 from [here][1a] or [here][1b] and copy all .dll files from either `Debug` or `Release` to the directory your .exe is / will be in.
 
 Install `cef3.lpk` into Lazarus
 
 Look into the examples
 
 ### Linux
-Download CEF3 from [here][1] and copy / link _libcef.so_ (and maybe _libffmpegsumo.so_),  
+You will need a build of CEF3 with `tcmalloc` disabled. The official downloads provided __won't__ work!
+
+Copy / link _libcef.so_,  
   a) to a default library location, eg. `/usr/lib(64)`, `/usr/local/lib(64)` __OR__  
   b) somewhere and set `LD_LIBRARY_PATH` accordingly
 
@@ -30,15 +32,6 @@ Also libcef.so needs the resources (folder `locales` and `cef.pak`, you can find
 Don't use `--single-process` and don't change `CefSingleProcess` to `True`.  
 This will trigger a SIGSEGV in pthread_mutex_lock, which is a bug in either CEF3 or Chromium itself: You can find more details [here][4]
 
-If crashes occur too often, you might try to turn off runtime checks in the project settings (mainly `-Ct` and `-CR`).
-
-If you're using openSUSE (maybe some other distros, too) and your program crashes immediately after being started, you could try to execute
-```shell
-echo 1073741824 > /proc/sys/kernel/shmmax
-```
-and see if the crash goes away.  
-That is a known bug in Chromium, which still isn't fixed.
-
 If the browser goes "blank" (e.g. when loading a page), the render process crashed.
 Most of the time it seems to be related to JavaScript/V8, see **Debugging**  on how to debug the render process.  
 Please note, that the render process will be automatically restarted on the next page request.
@@ -51,8 +44,7 @@ The preferred way however is to define an own (minimal) subprocess executable.
 You can achieve this in fpCEF3 by setting `CefBrowserSubprocessPath` to the **path** of your subprocess executable.
 In the `LCLSimple` example this can be done by changing `TMainform.FormCreate` at the end of `main.pas`.
 
-A minimal subprocess can be found in `/Examples/SubProcess`. It should work for any use case.
-Note, that the subprocess also needs the CEF3 library and resources in its path, so the easiest way is to put the subprocess executable in the same folder as the main exe.
+A minimal subprocess can be found in `/Examples/SubProcess`. Note, that the subprocess also needs the CEF3 library and resources in its path, so the easiest way is to put the subprocess executable in the same folder as the main exe.
 
 More details [here][5]
 
@@ -74,13 +66,9 @@ See changelog for the latest supported version, older ones usually don't work, n
 ### Which platforms are supported?
 
 - Windows
-- Linux with GTK2
+- Linux with GTK2 or QT
 
-The plain header should be ready for Mac (maybe with small changes), but the component needs to be adopted.
-
-### How stable is fpCEF?
-Overall it looks good now, especially the Windows part.
-Unfortunately there seem to be bugs in Chromium / CEF3 itself as far as Linux is concerned.
+The plain header is ready for Mac, but the component needs to be adopted.
 
 ### Is there a documentation for fpCEF?
 No, but you can find information in
@@ -92,12 +80,6 @@ No, but you can find information in
 
 If you feel like contributing some more Pascal examples - please do.
 
-### What are the differences to dcef3?
-- compatibility with Free Pascal / Lazarus
-- reworked unit layout - more modular
-- slightly changed mechanism for loading the library
-- _removed_ VLC and FMX component
-
 ### Can I help?
 Of course - patches are always welcome :)
 
@@ -105,15 +87,16 @@ Of course - patches are always welcome :)
 To a certain amount - yes.
 
 ## Links:
- *  [Chromium Embedded Framework](http://code.google.com/p/chromiumembedded)
- *  [Delphi CEF](http://code.google.com/p/dcef3)
+ *  [Chromium Embedded Framework](https://bitbucket.org/chromiumembedded/cef)
+ *  [Delphi CEF](https://github.com/hgourvest/dcef3)
  *  [WACEF](https://bitbucket.org/WaspAce/wacef)
 
  *  [fpCEF3](http://github.com/dliw/fpCEF3)
 
-[1]:http://www.magpcss.net/cef_downloads
+[1a]:http://www.magpcss.net/cef_downloads
+[1b]:http://www.cefbuilds.com
 [2]:http://magpcss.org/ceforum/apidocs3/
-[3]:http://code.google.com/p/chromiumembedded/source/browse/#svn%2Ftrunk%2Fcef3%2Ftests%2Fcefclient
+[3]:https://bitbucket.org/chromiumembedded/cef/src/936e595fe5e9aa5e7641abf72e1f872f9d0ceb73/tests/cefclient/?at=master
 [4]:https://code.google.com/p/chromiumembedded/issues/detail?id=976
-[5]:https://code.google.com/p/chromiumembedded/wiki/Architecture#CEF3
-[6]:https://code.google.com/p/chromium/wiki/LinuxDebugging
+[5]:https://bitbucket.org/chromiumembedded/cef/wiki/Architecture#markdown-header-cef3
+[6]:https://chromium.googlesource.com/chromium/src/+/master/docs/linux_debugging.md

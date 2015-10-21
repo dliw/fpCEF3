@@ -46,7 +46,6 @@
       <Unit0>
         <Filename Value="minimal.lpr"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="minimal"/>
       </Unit0>
     </Units>
   </ProjectOptions>
@@ -75,12 +74,6 @@
         </Win32>
       </Options>
     </Linking>
-    <Other>
-      <CompilerMessages>
-        <UseMsgFile Value="True"/>
-      </CompilerMessages>
-      <CompilerPath Value="$(CompPath)"/>
-    </Other>
   </CompilerOptions>
   <Debugging>
     <Exceptions Count="3">

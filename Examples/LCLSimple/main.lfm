@@ -1,35 +1,18 @@
 object Mainform: TMainform
-  Left = 415
-  Height = 475
-  Top = 118
-  Width = 762
+  Left = 521
+  Height = 476
+  Top = 284
+  Width = 810
   Caption = 'Browser -'
-  ClientHeight = 475
-  ClientWidth = 762
+  ClientHeight = 476
+  ClientWidth = 810
   OnCreate = FormCreate
-  LCLVersion = '1.2.4.0'
-  object Chromium: TChromium
-    AnchorSideLeft.Control = Owner
-    AnchorSideTop.Side = asrBottom
-    AnchorSideRight.Control = Owner
-    AnchorSideRight.Side = asrBottom
-    AnchorSideBottom.Control = Owner
-    AnchorSideBottom.Side = asrBottom
-    Left = 0
-    Height = 427
-    Top = 48
-    Width = 762
-    Anchors = [akTop, akLeft, akRight, akBottom]
-    DefaultUrl = 'www.google.de'
-    TabOrder = 0
-    OnTitleChange = ChromiumTitleChange
-    OnLoadEnd = ChromiumLoadEnd
-  end
+  LCLVersion = '1.4.2.0'
   object BGo: TButton
     AnchorSideTop.Control = Owner
     AnchorSideRight.Control = Owner
     AnchorSideRight.Side = asrBottom
-    Left = 678
+    Left = 726
     Height = 25
     Top = 10
     Width = 79
@@ -48,8 +31,6 @@ object Mainform: TMainform
     Width = 25
     BorderSpacing.Top = 12
     Caption = 'Url:'
-    Font.Style = [fsBold]
-    ParentFont = False
     TabOrder = 2
   end
   object EUrl: TEdit
@@ -60,14 +41,30 @@ object Mainform: TMainform
     Left = 38
     Height = 25
     Top = 10
-    Width = 635
+    Width = 683
     Anchors = [akTop, akLeft, akRight]
     AutoSize = False
     BorderSpacing.Left = 5
     BorderSpacing.Top = 10
     BorderSpacing.Right = 5
     OnKeyDown = EUrlKeyDown
-    TabOrder = 3
+    TabOrder = 0
     Text = 'http://'
+  end
+  object Chromium: TChromium
+    AnchorSideLeft.Control = Owner
+    AnchorSideTop.Side = asrBottom
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    AnchorSideBottom.Control = Owner
+    AnchorSideBottom.Side = asrBottom
+    Left = 0
+    Height = 428
+    Top = 48
+    Width = 810
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    OnTitleChange = ChromiumTitleChange
+    OnLoadEnd = ChromiumLoadEnd
+    DefaultUrl = 'about:blank'
   end
 end

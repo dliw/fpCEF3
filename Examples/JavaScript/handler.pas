@@ -17,9 +17,9 @@ Type
   { Custom handler for the render process }
   TCustomRenderProcessHandler = class(TCefRenderProcessHandlerOwn)
   protected
-    // Für Test Window Bindings
+    // Test Window Bindings
     procedure OnContextCreated(const browser: ICefBrowser; const frame: ICefFrame; const context: ICefv8Context); override;
-    // Für Test Extension
+    // Test Extension
     procedure OnWebKitInitialized; override;
   end;
 
@@ -58,7 +58,7 @@ Var
 begin
   myWin := context.GetGlobal;
   mystr := 'a test string';
-  SetLength(args,1);
+  SetLength(args, 1);
   args[0] := TCefv8ValueRef.NewString(mystr);
   myWin.SetValueByKey('myval', args[0], V8_PROPERTY_ATTRIBUTE_NONE);
 end;

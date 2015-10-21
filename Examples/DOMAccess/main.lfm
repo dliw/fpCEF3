@@ -1,32 +1,14 @@
 object Mainform: TMainform
-  Left = 370
+  Left = 482
   Height = 587
-  Top = 38
+  Top = 207
   Width = 921
   Anchors = []
   Caption = 'Browser -'
   ClientHeight = 587
   ClientWidth = 921
   OnCreate = FormCreate
-  LCLVersion = '1.2.4.0'
-  object Chromium: TChromium
-    AnchorSideLeft.Control = Owner
-    AnchorSideTop.Side = asrBottom
-    AnchorSideRight.Control = Owner
-    AnchorSideRight.Side = asrBottom
-    AnchorSideBottom.Control = Log
-    Left = 0
-    Height = 400
-    Top = 48
-    Width = 921
-    Anchors = [akTop, akLeft, akRight, akBottom]
-    DefaultUrl = 'www.google.de'
-    TabOrder = 0
-    OnProcessMessageReceived = ChromiumProcessMessageReceived
-    OnTitleChange = ChromiumTitleChange
-    OnKeyEvent = ChromiumKeyEvent
-    OnLoadEnd = ChromiumLoadEnd
-  end
+  LCLVersion = '1.4.2.0'
   object BGo: TButton
     AnchorSideTop.Control = Owner
     AnchorSideRight.Control = Owner
@@ -40,7 +22,7 @@ object Mainform: TMainform
     BorderSpacing.Right = 5
     Caption = 'Go'
     OnClick = BGoClick
-    TabOrder = 1
+    TabOrder = 0
   end
   object LUrl: TStaticText
     AnchorSideTop.Control = Owner
@@ -52,7 +34,7 @@ object Mainform: TMainform
     Caption = 'Url:'
     Font.Style = [fsBold]
     ParentFont = False
-    TabOrder = 2
+    TabOrder = 1
   end
   object EUrl: TEdit
     AnchorSideLeft.Control = LUrl
@@ -69,7 +51,7 @@ object Mainform: TMainform
     BorderSpacing.Top = 10
     BorderSpacing.Right = 5
     OnKeyDown = EUrlKeyDown
-    TabOrder = 3
+    TabOrder = 2
     Text = 'http://'
   end
   object Log: TMemo
@@ -85,5 +67,22 @@ object Mainform: TMainform
     Anchors = [akLeft, akRight, akBottom]
     ScrollBars = ssAutoVertical
     TabOrder = 4
+  end
+  object Chromium: TChromium
+    AnchorSideLeft.Control = Owner
+    AnchorSideTop.Side = asrBottom
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    AnchorSideBottom.Control = Log
+    Left = 0
+    Height = 400
+    Top = 48
+    Width = 921
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    OnProcessMessageReceived = ChromiumProcessMessageReceived
+    OnTitleChange = ChromiumTitleChange
+    OnKeyEvent = ChromiumKeyEvent
+    OnLoadEnd = ChromiumLoadEnd
+    DefaultUrl = 'www.google.de'
   end
 end

@@ -8,12 +8,10 @@
  * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
  * the specific language governing rights and limitations under the License.
  *
- * Author: d.l.i.w <dev.dliw@gmail.com>
+ * Author: dliw <dev.dliw@gmail.com>
  * Repository: http://github.com/dliw/fpCEF3
  *
- *
  * Based on 'Delphi Chromium Embedded' by: Henri Gourvest <hgourvest@gmail.com>
- * Repository : http://code.google.com/p/delphichromiumembedded/
  *
  * Embarcadero Technologies, Inc is not permitted to use or redistribute
  * this source code without explicit permission.

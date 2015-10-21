@@ -2,7 +2,8 @@
 <CONFIG>
   <Package Version="4">
     <Name Value="CEF3"/>
-    <Author Value="d.l.i.w &lt;dev.dliw@gmail.com>"/>
+    <Type Value="RunAndDesignTime"/>
+    <Author Value="dliw &lt;dev.dliw@gmail.com>"/>
     <CompilerOptions>
       <Version Value="11"/>
       <SearchPaths>
@@ -16,23 +17,24 @@
         </SyntaxOptions>
       </Parsing>
       <CodeGeneration>
-        <Checks>
-          <IOChecks Value="True"/>
-        </Checks>
+        <SmartLinkUnit Value="True"/>
         <Optimizations>
-          <OptimizationLevel Value="2"/>
+          <OptimizationLevel Value="3"/>
         </Optimizations>
       </CodeGeneration>
+      <Linking>
+        <Debugging>
+          <GenerateDebugInfo Value="False"/>
+        </Debugging>
+      </Linking>
       <Other>
         <CompilerMessages>
           <IgnoredMessages idx5024="True"/>
-          <MsgFileName Value=""/>
         </CompilerMessages>
-        <CompilerPath Value="$(CompPath)"/>
       </Other>
     </CompilerOptions>
     <Description Value="Chromium component for Lazarus"/>
-    <Version Minor="1" Release="2"/>
+    <Version Major="3" Minor="2454"/>
     <Files Count="10">
       <Item1>
         <Filename Value="../cef.inc"/>
@@ -77,10 +79,10 @@
         <UnitName Value="cef3osr"/>
       </Item10>
     </Files>
-    <Type Value="RunAndDesignTime"/>
     <RequiredPkgs Count="3">
       <Item1>
         <PackageName Value="LCL"/>
+        <MinVersion Major="1" Minor="4" Valid="True"/>
       </Item1>
       <Item2>
         <PackageName Value="LCLBase"/>

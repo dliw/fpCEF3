@@ -7,7 +7,7 @@ Interface
 Uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls, LCLType, ExtCtrls,
   BGRABitmap, BGRABitmapTypes,
-  cef3types, cef3lib, cef3intf, cef3lcl, cef3osr, types;
+  cef3types, cef3lib, cef3intf, cef3osr;
 
 Type
 
@@ -126,7 +126,7 @@ begin
   Rect.Right := awidth;
 
   PaintBox.Canvas.Lock;
-  BGRABitmapDraw(PaintBox.Canvas, Rect, buffer, False, awidth, aheight, True);
+  BGRABitmapDraw(PaintBox.Canvas, Rect, buffer, False, awidth, aheight, False);
   PaintBox.Canvas.Unlock;
 end;
 

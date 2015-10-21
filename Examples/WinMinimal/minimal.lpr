@@ -25,7 +25,7 @@ Var
   handl: ICefClient = nil;
   brows: ICefBrowser = nil;
   browserId: Integer = 0;
-  navigateto: ustring = 'http://www.google.com';
+  navigateto: ustring = 'http://www.example.com';
 
 function CefWndProc(Wnd: HWND; message: UINT; wParam: Integer; lParam: Integer): Integer; stdcall;
 Var
@@ -88,7 +88,7 @@ begin
     WM_CLOSE:
       begin
         if brows <> nil then
-          brows.Host.ParentWindowWillClose;
+          brows.Host.CloseBrowser(True);
         result := DefWindowProc(Wnd, message, wParam, lParam);
       end
   else
@@ -131,7 +131,7 @@ Var
 begin
   // multi process
   CefSingleProcess := False;
-  If not CefInitDefault then
+  If not CefInitialize then
   begin
     Debugln('CefInitDefault failed.');
     Exit;

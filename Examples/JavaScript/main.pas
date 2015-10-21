@@ -45,39 +45,39 @@ Implementation
 
 { TMainform }
 
-procedure TMainform.BGoClick(Sender : TObject);
+procedure TMainform.BGoClick(Sender: TObject);
 begin
   Chromium.Load(EUrl.Text);
 end;
 
-procedure TMainform.Button1Click(Sender : TObject);
+procedure TMainform.Button1Click(Sender: TObject);
 begin
   Chromium.Load('about:blank');
 end;
 
 // JavaScript shows value of window.myval
-procedure TMainform.Button2Click(Sender : TObject);
+procedure TMainform.Button2Click(Sender: TObject);
 begin
   Chromium.Browser.MainFrame.ExecuteJavaScript('alert(window.myval);', 'about:blank', 0);
 end;
 
 // JavaScript executes TMyHandler.Execute
-procedure TMainform.Button3Click(Sender : TObject);
+procedure TMainform.Button3Click(Sender: TObject);
 begin
   Chromium.Browser.MainFrame.ExecuteJavaScript('alert(cef.test.test_param);', 'about:blank', 0);
 end;
 
-procedure TMainform.ChromiumTitleChange(Sender : TObject; const Browser : ICefBrowser; const title : ustring);
+procedure TMainform.ChromiumTitleChange(Sender: TObject; const Browser: ICefBrowser; const title: ustring);
 begin
   Caption := 'Browser - ' + UTF8Encode(title);
 end;
 
-procedure TMainform.EUrlKeyDown(Sender : TObject; var Key : Word; Shift : TShiftState);
+procedure TMainform.EUrlKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
   If Key = VK_RETURN then BGoClick(Sender);
 end;
 
-procedure TMainform.FormCreate(Sender : TObject);
+procedure TMainform.FormCreate(Sender: TObject);
 begin
   // No subprocess here
   // If you want to use a subprocess, this CefRenderProcessHandler has to be registered in subprocess

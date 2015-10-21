@@ -42,24 +42,6 @@ begin
   ActiveBrowser.SendProcessMessage(PID_BROWSER, message);
 end;
 
-procedure clickListener(const event: ICefDomEvent);
-Var
-  message: ICefProcessMessage;
-begin
-  message := TCefProcessMessageRef.New('click');
-  With message.ArgumentList do
-  begin
-    SetString(0, event.Target.Name);
-  end;
-
-  ActiveBrowser.SendProcessMessage(PID_BROWSER, message);
-end;
-
-procedure registerListener(const document: ICefDomDocument);
-begin
-  document.Body.AddEventListenerProc('click', False, @clickListener);
-end;
-
 { TCustomRenderProcessHandler }
 
 function TCustomRenderProcessHandler.OnProcessMessageReceived(const browser : ICefBrowser;
@@ -70,11 +52,6 @@ begin
    'visitdom':
        begin
          browser.MainFrame.VisitDomProc(@visitDOM);
-         Result := True;
-       end;
-   'addListener':
-       begin
-         browser.MainFrame.VisitDomProc(@registerListener);
          Result := True;
        end;
   Else

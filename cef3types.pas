@@ -8,12 +8,10 @@
  * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
  * the specific language governing rights and limitations under the License.
  *
- * Author: d.l.i.w <dev.dliw@gmail.com>
+ * Author: dliw <dev.dliw@gmail.com>
  * Repository: http://github.com/dliw/fpCEF3
  *
- *
  * Based on 'Delphi Chromium Embedded' by: Henri Gourvest <hgourvest@gmail.com>
- * Repository : http://code.google.com/p/delphichromiumembedded/
  *
  * Embarcadero Technologies, Inc is not permitted to use or redistribute
  * this source code without explicit permission.
@@ -30,6 +28,8 @@ Interface
 
 Uses
   {$IFDEF WINDOWS}Windows,{$ENDIF}
+  {$IFDEF UNIX}BaseUnix,{$ENDIF}
+  {$IFDEF DARWIN}CocoaAll,{$ENDIF}
   ctypes;
 
 Type
@@ -43,6 +43,7 @@ Type
     password: ustring;
     host: ustring;
     port: ustring;
+    origin: ustring;
     path: ustring;
     query: ustring;
   end;
@@ -150,9 +151,43 @@ Type
 
 { ***  platform specific types  *** }
 
-  TCefWindowHandle = {$IFDEF WINDOWS}HWND   {$ELSE}Pointer {PGtkWidget}{$ENDIF};
-  TCefCursorHandle = {$IFDEF WINDOWS}HCURSOR{$ELSE}Pointer {PGdkCursor}{$ENDIF};
-  TCefEventHandle  = {$IFDEF WINDOWS}PMSG   {$ELSE}Pointer {PGdkEvent}{$ENDIF};
+  {$IFDEF WINDOWS}
+  Const
+    kNullCursorHandle = nil;
+    kNullEventHandle = nil;
+    kNullWindowHandle = nil;
+
+  Type
+    TCefCursorHandle = HCURSOR;
+    TCefEventHandle  = PMSG;
+    TCefWindowHandle = HWND;
+  {$ENDIF}
+  {$IFDEF LINUX}
+  Const
+    kNullCursorHandle = 0;
+    kNullEventHandle = nil;
+    kNullWindowHandle = 0;
+
+  Type
+    PXEvent = Pointer; // ^XEvent;
+
+    TCefCursorHandle = culong;
+    TCefEventHandle = PXEvent;
+    TCefWindowHandle = culong;
+  {$ENDIF}
+  {$IFDEF DARWIN}
+  Const
+    kNullCursorHandle = nil;
+    kNullEventHandle = nil;
+    kNullWindowHandle = nil;
+
+  Type
+    TCefCursorHandle = TNSCursorPtr;
+    TCefEventHandle = TNSEventPtr;
+    TCefWindowHandle = TNSViewPtr;
+    TCefTextInputContext = TNSTextInputContextPtr;
+  {$ENDIF}
+
   TCefTextInputContext = Pointer;
 
   // Structure representing CefExecuteProcess arguments.
@@ -178,55 +213,94 @@ Type
       parent_window : TCefWindowHandle;
       menu : HMENU;
 
-      // If window rendering is disabled no browser window will be created. Set
-      // |parent_window| to be used for identifying monitor info
-      // (MonitorFromWindow). If |parent_window| is not provided the main screen
-      // monitor will be used.
-      window_rendering_disabled : Integer;
+      // Set to true (1) to create the browser using windowless (off-screen)
+      // rendering. No window will be created for the browser and all rendering will
+      // occur via the CefRenderHandler interface. The |parent_window| value will be
+      // used to identify monitor info and to act as the parent window for dialogs,
+      // context menus, etc. If |parent_window| is not provided then the main screen
+      // monitor will be used and some functionality that requires a parent window
+      // may not function correctly. In order to create windowless browsers the
+      // CefSettings.windowless_rendering_enabled value must be set to true.
+      windowless_rendering_enabled: Integer;
 
-      // Set to true to enable transparent painting.
-      // If window rendering is disabled and |transparent_painting| is set to true
-      // WebKit rendering will draw on a transparent background (RGBA=0x00000000).
-      // When this value is false the background will be white and opaque.
-      transparent_painting : Integer;
+      // Set to true (1) to enable transparent painting in combination with
+      // windowless rendering. When this value is true a transparent background
+      // color will be used (RGBA=0x00000000). When this value is false the
+      // background will be white and opaque.
+      transparent_painting_enabled: Integer;
 
-      // Handle for the new browser window.
-      window : TCefWindowHandle;
+      // Handle for the new browser window. Only used with windowed rendering.
+      window: TCefWindowHandle;
     {$ENDIF}
     {$IFDEF LINUX}
-      // Pointer for the parent GtkBox widget.
-      parent_widget : TCefWindowHandle;
+      x: cuint;
+      y: cuint;
+      width: cuint;
+      height: cuint;
 
-      // If window rendering is disabled no browser window will be created. Set
-      // |parent_widget| to the window that will act as the parent for popup menus,
-      // dialog boxes, etc.
-      window_rendering_disabled : Integer;
+      // Pointer for the parent window.
+      parent_window: TCefWindowHandle;
 
-      // Set to true to enable transparent painting.
-      transparent_painting : Integer;
+      // Set to true (1) to create the browser using windowless (off-screen)
+      // rendering. No window will be created for the browser and all rendering will
+      // occur via the CefRenderHandler interface. The |parent_window| value will be
+      // used to identify monitor info and to act as the parent window for dialogs,
+      // context menus, etc. If |parent_window| is not provided then the main screen
+      // monitor will be used and some functionality that requires a parent window
+      // may not function correctly. In order to create windowless browsers the
+      // CefSettings.windowless_rendering_enabled value must be set to true.
+      windowless_rendering_enabled: Integer;
 
-      // Pointer for the new browser widget.
-      widget : TCefWindowHandle;
+      // Set to true (1) to enable transparent painting in combination with
+      // windowless rendering. When this value is true a transparent background
+      // color will be used (RGBA=0x00000000). When this value is false the
+      // background will be white and opaque.
+      transparent_painting_enabled: Integer;
+
+      // Pointer for the new browser window. Only used with windowed rendering.
+      window: TCefWindowHandle;
     {$ENDIF}
-    {$IFDEF MACOS}
-      window_name : TCefString;
-      x, y, width, height, hidden : Integer;
+    {$IFDEF DARWIN}
+      window_name: TCefString;
+      x, y, width, height: Integer;
+
+      // Set to true (1) to create the view initially hidden.
+      hidden: Integer;
 
       // NSView pointer for the parent view.
-      parent_view : TCefWindowHandle;
+      parent_view: TCefWindowHandle;
 
-      // If window rendering is disabled no browser window will be created. Set
-      // |parent_view| to the window that will act as the parent for popup menus,
-      // dialog boxes, etc.
-      window_rendering_disabled : Integer;
+      // Set to true (1) to create the browser using windowless (off-screen)
+      // rendering. No view will be created for the browser and all rendering will
+      // occur via the CefRenderHandler interface. The |parent_view| value will be
+      // used to identify monitor info and to act as the parent view for dialogs,
+      // context menus, etc. If |parent_view| is not provided then the main screen
+      // monitor will be used and some functionality that requires a parent view
+      // may not function correctly. In order to create windowless browsers the
+      // CefSettings.windowless_rendering_enabled value must be set to true.
+      windowless_rendering_enabled: Integer;
 
-      // Set to true to enable transparent painting.
-      transparent_painting : Integer;
+      // Set to true (1) to enable transparent painting in combination with
+      // windowless rendering. When this value is true a transparent background
+      // color will be used (RGBA=0x00000000). When this value is false the
+      // background will be white and opaque.
+      transparent_painting_enabled: Integer;
 
-      // NSView pointer for the new browser view.
-      view : TCefWindowHandle;
+      // NSView pointer for the new browser view. Only used with windowed rendering.
+      view: TCefWindowHandle;
     {$ENDIF}
   end;
+
+
+{ *** cef_thread_internal.h *** }
+  {$IFDEF WINDOWS}
+    TCefPlatformThreadId = DWord;
+    TCefPlatformThreadHandle = DWord;
+  {$ELSE}
+    TCefPlatformThreadId = pid_t;
+    TCefPlatformThreadHandle = pthread_t;
+  {$ENDIF}
+
 
 { ***  cef_time.h  *** }
   // Time information. Values should always be in UTC.
@@ -243,9 +317,11 @@ Type
     millisecond: Integer;   // Milliseconds within the current second (0-999)
   end;
 
+
 { ***  cef_types.h  *** }
   // 32-bit ARGB color value, not premultiplied. The color components are always
   // in a known order. Equivalent to the SkColor type.
+  PCefColor = ^TCefColor;
   TCefColor = UInt32;
 
 function CefColorGetA(color: TCefColor): Byte;
@@ -261,16 +337,19 @@ Type
   TCefLogSeverity = (
     // Default logging (currently INFO logging).
     LOGSEVERITY_DEFAULT,
+
     // Verbose logging.
     LOGSEVERITY_VERBOSE,
+
     // INFO logging.
     LOGSEVERITY_INFO,
+
     // WARNING logging.
     LOGSEVERITY_WARNING,
+
     // ERROR logging.
-    LOGSEVERITY_ERROR,
-    // ERROR_REPORT logging.
     LOGSEVERITY_ERROR_REPORT,
+
     // Disables logging completely.
     LOGSEVERITY_DISABLE = 99
   );
@@ -314,8 +393,14 @@ Type
 
     // Set to true (1) to have the browser process message loop run in a separate
     // thread. If false (0) than the CefDoMessageLoopWork() function must be
-    // called from your application message loop.
+    // called from your application message loop. This option is only supported on
+    // Windows.
     multi_threaded_message_loop: Integer;
+
+    // Set to true (1) to enable windowless (off-screen) rendering support. Do not
+    // enable this value if the application does not use windowless rendering as
+    // it may reduce rendering performance on some systems.
+    windowless_rendering_enabled: Integer;
 
     // Set to true (1) to disable configuration of browser process features using
     // standard CEF and Chromium command-line arguments. Configuration can still
@@ -323,18 +408,30 @@ Type
     // CefApp::OnBeforeCommandLineProcessing() method.
     command_line_args_disabled: Integer;
 
-    // The location where cache data will be stored on disk. If empty an in-memory
-    // cache will be used for some features and a temporary disk cache for others.
-    // HTML5 databases such as localStorage will only persist across sessions if a
-    // cache path is specified.
+    // The location where cache data will be stored on disk. If empty then
+    // browsers will be created in "incognito mode" where in-memory caches are
+    // used for storage and no data is persisted to disk. HTML5 databases such as
+    // localStorage will only persist across sessions if a cache path is
+    // specified. Can be overridden for individual CefRequestContext instances via
+    // the CefRequestContextSettings.cache_path value.
     cache_path: TCefString;
+
+    // The location where user data such as spell checking dictionary files will
+    // be stored on disk. If empty then the default platform-specific user data
+    // directory will be used ("~/.cef_user_data" directory on Linux,
+    // "~/Library/Application Support/CEF/User Data" directory on Mac OS X,
+    // "Local Settings\Application Data\CEF\User Data" directory under the user
+    // profile directory on Windows).
+    user_data_path: TCefString;
 
     // To persist session cookies (cookies without an expiry date or validity
     // interval) by default when using the global cookie manager set this value to
     // true. Session cookies are generally intended to be transient and most Web
-    // browsers do not persist them. A |cache_path| value must also be specified to
-    // enable this feature. Also configurable using the "persist-session-cookies"
-    // command-line switch.
+    // browsers do not persist them. A |cache_path| value must also be specified
+    // to enable this feature. Also configurable using the
+    // "persist-session-cookies" command-line switch. Can be overridden for
+    // individual CefRequestContext instances via the
+    // CefRequestContextSettings.persist_session_cookies value.
     persist_session_cookies: Integer;
 
     // Value that will be returned as the User-Agent HTTP header. If empty the
@@ -364,10 +461,6 @@ Type
     // The log severity. Only messages of this severity level or higher will be
     // logged.
     log_severity: TCefLogSeverity;
-
-    // Enable DCHECK in release mode to ease debugging. Also configurable using the
-    // "enable-release-dcheck" command-line switch.
-    release_dcheck_enabled: Integer;
 
     // Custom flags that will be used when initializing the V8 JavaScript engine.
     // The consequences of using custom flags may not be well tested. Also
@@ -403,7 +496,7 @@ Type
     remote_debugging_port: Integer;
 
     // The number of stack trace frames to capture for uncaught exceptions.
-    // Specify a positive value to enable the CefV8ContextHandler::
+    // Specify a positive value to enable the CefRenderProcessHandler::
     // OnUncaughtException() callback. Specify 0 (default value) and
     // OnUncaughtException() will not be called. Also configurable using the
     // "uncaught-exception-stack-size" command-line switch.
@@ -433,7 +526,9 @@ Type
     // Enabling this setting can lead to potential security vulnerabilities like
     // "man in the middle" attacks. Applications that load content from the
     // internet should not enable this setting. Also configurable using the
-    // "ignore-certificate-errors" command-line switch.
+    // "ignore-certificate-errors" command-line switch. Can be overridden for
+    // individual CefRequestContext instances via the
+    // CefRequestContextSettings.ignore_certificate_errors value.
     ignore_certificate_error: Integer;
 
     // Opaque background color used for accelerated content. By default the
@@ -441,6 +536,54 @@ Type
     // value will be used. The alpha component must greater than 0 to enable use
     // of the background color but will be otherwise ignored.
     background_color: TCefColor;
+
+    // Comma delimited ordered list of language codes without any whitespace that
+    // will be used in the "Accept-Language" HTTP header. May be overridden on a
+    // per-browser basis using the CefBrowserSettings.accept_language_list value.
+    // If both values are empty then "en-US,en" will be used. Can be overridden
+    // for individual CefRequestContext instances via the
+    // CefRequestContextSettings.accept_language_list value.
+    accept_language_list: TCefString;
+  end;
+
+  // Request context initialization settings. Specify NULL or 0 to get the
+  // recommended default values.
+  PCefRequestContextSettings = ^TCefRequestContextSettings;
+  TCefRequestContextSettings = record
+    // Size of this structure.
+    size: csize_t;
+
+    // The location where cache data will be stored on disk. If empty then
+    // browsers will be created in "incognito mode" where in-memory caches are
+    // used for storage and no data is persisted to disk. HTML5 databases such as
+    // localStorage will only persist across sessions if a cache path is
+    // specified. To share the global browser cache and related configuration set
+    // this value to match the CefSettings.cache_path value.
+    cache_path: TCefString;
+
+    // To persist session cookies (cookies without an expiry date or validity
+    // interval) by default when using the global cookie manager set this value to
+    // true. Session cookies are generally intended to be transient and most Web
+    // browsers do not persist them. Can be set globally using the
+    // CefSettings.persist_session_cookies value. This value will be ignored if
+    // |cache_path| is empty or if it matches the CefSettings.cache_path value.
+    persist_session_cookies: Integer;
+
+    // Set to true (1) to ignore errors related to invalid SSL certificates.
+    // Enabling this setting can lead to potential security vulnerabilities like
+    // "man in the middle" attacks. Applications that load content from the
+    // internet should not enable this setting. Can be set globally using the
+    // CefSettings.ignore_certificate_errors value. This value will be ignored if
+    // |cache_path| matches the CefSettings.cache_path value.
+    ignore_certificate_errors: Integer;
+
+    // Comma delimited ordered list of language codes without any whitespace that
+    // will be used in the "Accept-Language" HTTP header. Can be set globally
+    // using the CefSettings.accept_language_list value or overridden on a per-
+    // browser basis using the CefBrowserSettings.accept_language_list value. If
+    // all values are empty then "en-US,en" will be used. This value will be
+    // ignored if |cache_path| matches the CefSettings.cache_path value.
+    accept_language_list: TCefString;
   end;
 
   // Browser initialization settings. Specify NULL or 0 to get the recommended
@@ -451,6 +594,14 @@ Type
   TCefBrowserSettings = record
     // Size of this structure.
     size: csize_t;
+
+    // The maximum rate in frames per second (fps) that CefRenderHandler::OnPaint
+    // will be called for a windowless browser. The actual fps may be lower if
+    // the browser cannot generate frames at the requested rate. The minimum
+    // value is 1 and the maximum value is 60 (default 30). This value can also be
+    // changed dynamically via CefBrowserHost::SetWindowlessFrameRate.
+    windowless_frame_rate: Integer;
+
 
     // The below values map to WebPreferences settings.
 
@@ -485,8 +636,9 @@ Type
 
     // Controls whether JavaScript can be used to close windows that were not
     // opened via JavaScript. JavaScript can still be used to close windows that
-    // were opened via JavaScript. Also configurable using the
-    // "disable-javascript-close-windows" command-line switch.
+    // were opened via JavaScript or that have no back/forward history. Also
+    // configurable using the "disable-javascript-close-windows" command-line
+    // switch.
     javascript_close_windows: TCefState;
 
     // Controls whether JavaScript can access the clipboard. Also configurable
@@ -560,19 +712,30 @@ Type
     // configurable using the "disable-webgl" command-line switch.
     webgl: TCefState;
 
-    // Controls whether content that depends on accelerated compositing can be
-    // used. Note that accelerated compositing requires hardware support and may
-    // not work on all systems even when enabled. Also configurable using the
-    // "disable-accelerated-compositing" command-line switch.
-    accelerated_compositing: TCefState;
-
     // Opaque background color used for the browser before a document is loaded
     // and when no document color is specified. By default the background color
     // will be the same as CefSettings.background_color. Only the RGB compontents
     // of the specified value will be used. The alpha component must greater than
     // 0 to enable use of the background color but will be otherwise ignored.
     background_color: TCefColor;
+
+    // Comma delimited ordered list of language codes without any whitespace that
+    // will be used in the "Accept-Language" HTTP header. May be set globally
+    // using the CefBrowserSettings.accept_language_list value. If both values are
+    // empty then "en-US,en" will be used.
+    accept_language_list: TCefString;
   end;
+
+  TCefReturnValue = (
+    // Cancel immediately.
+    RV_CANCEL = 0,
+
+    // Continue immediately.
+    RV_CONTINUE,
+
+    // Continue asynchronously (usually via a callback).
+    RV_CONTINUE_ASYNC
+  );
 
   // URL component parts.
   PCefUrlParts = ^TCefUrlParts;
@@ -650,8 +813,10 @@ Type
   TCefTerminationStatus = (
     // Non-zero exit status.
     TS_ABNORMAL_TERMINATION,
+
     // SIGKILL or task manager kill.
     TS_PROCESS_WAS_KILLED,
+
     // Segmentation fault.
     TS_PROCESS_CRASHED
   );
@@ -660,17 +825,30 @@ Type
   TCefPathKey = (
     // Current directory.
     PK_DIR_CURRENT,
+
     // Directory containing PK_FILE_EXE.
     PK_DIR_EXE,
+
     // Directory containing PK_FILE_MODULE.
     PK_DIR_MODULE,
+
     // Temporary directory.
     PK_DIR_TEMP,
+
     // Path and filename of the current executable.
     PK_FILE_EXE,
+
     // Path and filename of the module containing the CEF code (usually the libcef
     // module).
-    PK_FILE_MODULE
+    PK_FILE_MODULE,
+
+    // "Local Settings\Application Data" directory under the user profile
+    // directory on Windows.
+    PK_LOCAL_APP_DATA,
+
+    // "Application Data" directory under the user profile directory on Windows
+    // and "~/Library/Application Support" directory on Mac OS X.
+    PK_USER_DATA
   );
 
   // Storage types.
@@ -734,6 +912,20 @@ Type
     ERR_RESPONSE_HEADERS_TOO_BIG = -325,
     ERR_CACHE_MISS = -400,
     ERR_INSECURE_RESPONSE = -501
+  );
+
+  TCefWindowOpenDisposition = (
+    WOD_UNKNOWN,
+    WOD_SUPPRESS_OPEN,
+    WOD_CURRENT_TAB,
+    WOD_SINGLETON_TAB,
+    WOD_NEW_FOREGROUND_TAB,
+    WOD_NEW_BACKGROUND_TAB,
+    WOD_NEW_POPUP,
+    WOD_NEW_WINDOW,
+    WOD_SAVE_TO_DISK,
+    WOD_OFF_THE_RECORD,
+    WOD_IGNORE_ACTION
   );
 
 Type
@@ -819,7 +1011,13 @@ Type
     RT_FAVICON,
 
     // XMLHttpRequest.
-    RT_XHR
+    RT_XHR,
+
+    // A request for a <ping>
+    RT_PING,
+
+    // Main resource of a service worker.
+    RT_SERVICE_WORKER
   );
 
   // Transition type for a request. Made up of one source value and 0 or more
@@ -829,7 +1027,6 @@ Type
     // also the default value for requests like sub-resource loads that are not
     // navigations.
     TT_LINK = 0,
-
 
     // Source is some other "explicit" navigation action such as creating a new
     // browser or using the LoadURL function. This is also the default value
@@ -896,21 +1093,23 @@ Type
   TCefUrlRequestFlag = (
     // Default behavior.
     UR_FLAG_NONE                      = 0,
+
     // If set the cache will be skipped when handling the request.
     UR_FLAG_SKIP_CACHE                = 1 shl 0,
-    // If set user name, password, and cookies may be sent with the request.
+
+    // If set user name, password, and cookies may be sent with the request, and
+    // cookies may be saved from the response.
     UR_FLAG_ALLOW_CACHED_CREDENTIALS  = 1 shl 1,
-    // If set cookies may be sent with the request and saved from the response.
-    // UR_FLAG_ALLOW_CACHED_CREDENTIALS must also be set.
-    UR_FLAG_ALLOW_COOKIES             = 1 shl 2,
+
     // If set upload progress events will be generated when a request has a body.
     UR_FLAG_REPORT_UPLOAD_PROGRESS    = 1 shl 3,
-    // If set load timing info will be collected for the request.
-    UR_FLAG_REPORT_LOAD_TIMING        = 1 shl 4,
+
     // If set the headers sent and received for the request will be recorded.
     UR_FLAG_REPORT_RAW_HEADERS        = 1 shl 5,
+
     // If set the CefURLRequestClient::OnDownloadData method will not be called.
     UR_FLAG_NO_DOWNLOAD_DATA          = 1 shl 6,
+
     // If set 5XX redirect errors will be propagated to the observer instead of
     // automatically re-tried. This currently only applies for requests
     // originated in the browser process.
@@ -922,16 +1121,27 @@ Type
   TCefUrlRequestStatus = (
     // Unknown status.
     UR_UNKNOWN = 0,
+
     // Request succeeded.
     UR_SUCCESS,
+
     // An IO request is pending, and the caller will be informed when it is
     // completed.
     UR_IO_PENDING,
+
     // Request was canceled programatically.
     UR_CANCELED,
+
     // Request failed for some reason.
     UR_FAILED
   );
+
+  // Structure representing a point.
+  PCefPoint = ^TCefPoint;
+  TCefPoint = record
+    x: Integer;
+    y: Integer;
+  end;
 
   // Structure representing a rectangle.
   PCefRect = ^TCefRect;
@@ -945,6 +1155,27 @@ Type
   TCefRectArray = array[0..(High(Integer) div SizeOf(TCefRect))-1] of TCefRect;
   PCefRectArray = ^TCefRectArray;
 
+  // Structure representing a size.
+  PCefSize = ^TCefSize;
+  TCefSize = record
+    width: Integer;
+    height: Integer;
+  end;
+
+  // Structure representing a draggable region.
+  PCefDraggableRegion = ^TCefDraggableRegion;
+  TCefDraggableRegion = record
+    // Bounds of the region.
+    bounds: TCefRect;
+
+    // True (1) this this region is draggable and false (0) otherwise.
+    draggable: Integer;
+  end;
+
+  {$NOTE check twice}
+  TCefDraggableRegionArray = array of TCefDraggableRegion;
+  PCefDraggableRegionArray = ^TCefDraggableRegionArray;
+
   // Existing process IDs.
   TCefProcessId = (
     // Browser process.
@@ -955,11 +1186,10 @@ Type
 
   // Existing thread IDs.
   TCefThreadId = (
-  // BROWSER PROCESS THREADS -- Only available in the browser process.
+    // BROWSER PROCESS THREADS -- Only available in the browser process.
     // The main thread in the browser. This will be the same as the main
     // application thread if CefInitialize() is called with a
     // CefSettings.multi_threaded_message_loop value of false.
-    ///
     TID_UI,
 
     // Used to interact with the database.
@@ -1075,6 +1305,21 @@ Type
     MENU_ID_PRINT               = 131,
     MENU_ID_VIEW_SOURCE         = 132,
 
+    // Spell checking word correction suggestions.
+    MENU_ID_SPELLCHECK_SUGGESTION_0    = 200,
+    MENU_ID_SPELLCHECK_SUGGESTION_1    = 201,
+    MENU_ID_SPELLCHECK_SUGGESTION_2    = 202,
+    MENU_ID_SPELLCHECK_SUGGESTION_3    = 203,
+    MENU_ID_SPELLCHECK_SUGGESTION_4    = 204,
+    MENU_ID_SPELLCHECK_SUGGESTION_LAST = 204,
+    MENU_ID_NO_SPELLING_SUGGESTIONS    = 205,
+    MENU_ID_ADD_TO_DICTIONARY          = 206,
+
+    // Custom menu items originating from the renderer process. For example,
+    // plugin placeholder menu items or Flash menu items.
+    MENU_ID_CUSTOM_FIRST        = 220,
+    MENU_ID_CUSTOM_LAST         = 250,
+
     // All user-defined menu IDs should come between MENU_ID_USER_FIRST and
     // MENU_ID_USER_LAST to avoid overlapping the Chromium and CEF ID ranges
     // defined in the tools/gritsettings/resource_ids file.
@@ -1105,6 +1350,7 @@ Type
     EVENTFLAG_LEFT_MOUSE_BUTTON,   //= 1 shl 4,
     EVENTFLAG_MIDDLE_MOUSE_BUTTON, //= 1 shl 5,
     EVENTFLAG_RIGHT_MOUSE_BUTTON,  //= 1 shl 6,
+
     // Mac OS-X command key.
     EVENTFLAG_COMMAND_DOWN,        //= 1 shl 7,
     EVENTFLAG_NUM_LOCK_ON,         //= 1 shl 8,
@@ -1142,16 +1388,22 @@ Type
   TCefContextMenuTypeFlag = (
     // No node is selected.
     CM_TYPEFLAG_NONE        = 0,
+
     // The top page is selected.
     CM_TYPEFLAG_PAGE        = 1 shl 0,
+
     // A subframe page is selected.
     CM_TYPEFLAG_FRAME       = 1 shl 1,
+
     // A link is selected.
     CM_TYPEFLAG_LINK        = 1 shl 2,
+
     // A media node is selected.
     CM_TYPEFLAG_MEDIA       = 1 shl 3,
+
     // There is a textual or mixed selection that is selected.
     CM_TYPEFLAG_SELECTION   = 1 shl 4,
+
     // An editable element is selected.
     CM_TYPEFLAG_EDITABLE    = 1 shl 5
   );
@@ -1161,14 +1413,19 @@ Type
   TCefContextMenuMediaType = (
     // No special node is in context.
     CM_MEDIATYPE_NONE,
+
     // An image node is selected.
     CM_MEDIATYPE_IMAGE,
+
     // A video node is selected.
     CM_MEDIATYPE_VIDEO,
+
     // An audio node is selected.
     CM_MEDIATYPE_AUDIO,
+
     // A file node is selected.
     CM_MEDIATYPE_FILE,
+
     // A plugin node is selected.
     CM_MEDIATYPE_PLUGIN
   );
@@ -1205,9 +1462,20 @@ Type
 
   // Key event types.
   TCefKeyEventType = (
+    // Notification that a key transitioned from "up" to "down".
     KEYEVENT_RAWKEYDOWN = 0,
+
+    // Notification that a key was pressed. This does not necessarily correspond
+    // to a character depending on the key and language. Use KEYEVENT_CHAR for
+    // character input.
     KEYEVENT_KEYDOWN,
+
+    // Notification that a key was released.
     KEYEVENT_KEYUP,
+
+    // Notification that a character was typed. Use this for text input. Key
+    // down events may generate 0, 1, or more than one character event depending
+    // on the key, locale, and operating system.
     KEYEVENT_CHAR
   );
 
@@ -1345,7 +1613,6 @@ Const
   DOM_EVENT_CATEGORY_POPSTATE                = $2000;
   DOM_EVENT_CATEGORY_PROGRESS                = $4000;
   DOM_EVENT_CATEGORY_XMLHTTPREQUEST_PROGRESS = $8000;
-  DOM_EVENT_CATEGORY_BEFORE_LOAD             = $10000;
 
 Type
   // DOM event processing phases.
@@ -1363,14 +1630,11 @@ Type
     DOM_NODE_TYPE_ATTRIBUTE,
     DOM_NODE_TYPE_TEXT,
     DOM_NODE_TYPE_CDATA_SECTION,
-    DOM_NODE_TYPE_ENTITY,
     DOM_NODE_TYPE_PROCESSING_INSTRUCTIONS,
     DOM_NODE_TYPE_COMMENT,
     DOM_NODE_TYPE_DOCUMENT,
     DOM_NODE_TYPE_DOCUMENT_TYPE,
-    DOM_NODE_TYPE_DOCUMENT_FRAGMENT,
-    DOM_NODE_TYPE_NOTATION,
-    DOM_NODE_TYPE_XPATH_NAMESPACE
+    DOM_NODE_TYPE_DOCUMENT_FRAGMENT
   );
 
   // Supported file dialog modes.
@@ -1381,9 +1645,26 @@ Type
     // Like Open, but allows picking multiple files to open.
     FILE_DIALOG_OPEN_MULTIPLE,
 
+    // Like Open, but selects a folder to open.
+    FILE_DIALOG_OPEN_FOLDER,
+
     // Allows picking a nonexistent file, and prompts to overwrite if the file
     // already exists.
-    FILE_DIALOG_SAVE
+    FILE_DIALOG_SAVE,
+
+    // General mask defining the bits used for the type values.
+    FILE_DIALOG_TYPE_MASK = $FF,
+
+    // Qualifiers.
+    // Any of the type values above can be augmented by one or more qualifiers.
+    // These qualifiers further define the dialog behavior.
+
+    // Prompt to overwrite if the user selects an existing file with the Save
+    // dialog.
+    FILE_DIALOG_OVERWRITEPROMPT_FLAG = $01000000,
+
+    // Do not display read-only files.
+    FILE_DIALOG_HIDEREADONLY_FLAG = $02000000
   );
 
   // Geoposition error codes.
@@ -1420,7 +1701,7 @@ Type
     // Horizontal component of device velocity in meters per second.
     speed: Double;
 
-    // Time of position measurement in miliseconds since Epoch in UTC time. This
+    // Time of position measurement in milliseconds since Epoch in UTC time. This
     // is taken from the host computer's system clock.
     timestamp: TCefTime;
 
@@ -1431,34 +1712,311 @@ Type
     error_message: TCefString;
   end;
 
+  // Print job color mode values.
+  TCefColorModel = (
+    COLOR_MODEL_UNKNOWN,
+    COLOR_MODEL_GRAY,
+    COLOR_MODEL_COLOR,
+    COLOR_MODEL_CMYK,
+    COLOR_MODEL_CMY,
+    COLOR_MODEL_KCMY,
+    COLOR_MODEL_CMY_K, // CMY_K represents CMY+K.
+    COLOR_MODEL_BLACK,
+    COLOR_MODEL_GRAYSCALE,
+    COLOR_MODEL_RGB,
+    COLOR_MODEL_RGB16,
+    COLOR_MODEL_RGBA,
+    COLOR_MODEL_COLORMODE_COLOR,             // Used in samsung printer ppds.
+    COLOR_MODEL_COLORMODE_MONOCHROME,        // Used in samsung printer ppds.
+    COLOR_MODEL_HP_COLOR_COLOR,              // Used in HP color printer ppds.
+    COLOR_MODEL_HP_COLOR_BLACK,              // Used in HP color printer ppds.
+    COLOR_MODEL_PRINTOUTMODE_NORMAL,         // Used in foomatic ppds.
+    COLOR_MODEL_PRINTOUTMODE_NORMAL_GRAY,    // Used in foomatic ppds.
+    COLOR_MODEL_PROCESSCOLORMODEL_CMYK,      // Used in canon printer ppds.
+    COLOR_MODEL_PROCESSCOLORMODEL_GREYSCALE, // Used in canon printer ppds.
+    COLOR_MODEL_PROCESSCOLORMODEL_RGB        // Used in canon printer ppds
+  );
+
+  // Print job duplex mode values.
+  TCefDuplexMode = (
+    DUPLEX_MODE_UNKNOWN = -1,
+    DUPLEX_MODE_SIMPLEX,
+    DUPLEX_MODE_LONG_EDGE,
+    DUPLEX_MODE_SHORT_EDGE
+  );
+
+  // Structure representing a print job page range.
+  PCefPageRange = ^TCefPageRange;
+  TCefPageRange = record
+    from: Integer;
+    to_: Integer;
+  end;
+
+  TCefPageRangeArray = array of TCefPageRange;
+  PCefPageRangeArray = ^TCefPageRangeArray;
+
+  // Cursor type values.
+  TCefCursorType = (
+    CT_POINTER = 0,
+    CT_CROSS,
+    CT_HAND,
+    CT_IBEAM,
+    CT_WAIT,
+    CT_HELP,
+    CT_EASTRESIZE,
+    CT_NORTHRESIZE,
+    CT_NORTHEASTRESIZE,
+    CT_NORTHWESTRESIZE,
+    CT_SOUTHRESIZE,
+    CT_SOUTHEASTRESIZE,
+    CT_SOUTHWESTRESIZE,
+    CT_WESTRESIZE,
+    CT_NORTHSOUTHRESIZE,
+    CT_EASTWESTRESIZE,
+    CT_NORTHEASTSOUTHWESTRESIZE,
+    CT_NORTHWESTSOUTHEASTRESIZE,
+    CT_COLUMNRESIZE,
+    CT_ROWRESIZE,
+    CT_MIDDLEPANNING,
+    CT_EASTPANNING,
+    CT_NORTHPANNING,
+    CT_NORTHEASTPANNING,
+    CT_NORTHWESTPANNING,
+    CT_SOUTHPANNING,
+    CT_SOUTHEASTPANNING,
+    CT_SOUTHWESTPANNING,
+    CT_WESTPANNING,
+    CT_MOVE,
+    CT_VERTICALTEXT,
+    CT_CELL,
+    CT_CONTEXTMENU,
+    CT_ALIAS,
+    CT_PROGRESS,
+    CT_NODROP,
+    CT_COPY,
+    CT_NONE,
+    CT_NOTALLOWED,
+    CT_ZOOMIN,
+    CT_ZOOMOUT,
+    CT_GRAB,
+    CT_GRABBING,
+    CT_CUSTOM
+  );
+
+  // Structure representing cursor information. |buffer| will be
+  // |size.width|*|size.height|*4 bytes in size and represents a BGRA image with
+  // an upper-left origin.
+  PCefCursorInfo = ^TCefCursorInfo;
+  TCefCursorInfo = record
+    hotspot: TCefPoint;
+    image_scale_factor: Single;
+    buffer: Pointer;
+    size: TCefSize;
+  end;
+
+  // URI unescape rules passed to CefURIDecode().
+  TCefUriUnescapeRule = (
+    // Don't unescape anything at all.
+    UU_NONE = 0,
+
+    // Don't unescape anything special, but all normal unescaping will happen.
+    // This is a placeholder and can't be combined with other flags (since it's
+    // just the absence of them). All other unescape rules imply "normal" in
+    // addition to their special meaning. Things like escaped letters, digits,
+    // and most symbols will get unescaped with this mode.
+    UU_NORMAL = 1,
+
+    // Convert %20 to spaces. In some places where we're showing URLs, we may
+    // want this. In places where the URL may be copied and pasted out, then
+    // you wouldn't want this since it might not be interpreted in one piece
+    // by other applications.
+    UU_SPACES = 2,
+
+    // Unescapes various characters that will change the meaning of URLs,
+    // including '%', '+', '&', '/', '#'. If we unescaped these characters, the
+    // resulting URL won't be the same as the source one. This flag is used when
+    // generating final output like filenames for URLs where we won't be
+    // interpreting as a URL and want to do as much unescaping as possible.
+    UU_URL_SPECIAL_CHARS = 4,
+
+    // Unescapes control characters such as %01. This INCLUDES NULLs. This is
+    // used for rare cases such as data: URL decoding where the result is binary
+    // data. This flag also unescapes BiDi control characters.
+    //
+    // DO NOT use CONTROL_CHARS if the URL is going to be displayed in the UI
+    // for security reasons.
+    UU_CONTROL_CHARS = 8,
+
+    // URL queries use "+" for space. This flag controls that replacement.
+    UU_REPLACE_PLUS_WITH_SPACE = 16
+  );
+
+  // Options that can be passed to CefParseJSON.
+  TCefJsonParserOptions = (
+    // Parses the input strictly according to RFC 4627. See comments in Chromium's
+    // base/json/json_reader.h file for known limitations/deviations from the RFC.
+    JSON_PARSER_RFC = 0,
+
+    // Allows commas to exist after the last element in structures.
+    JSON_PARSER_ALLOW_TRAILING_COMMAS = 1 shl 0
+  );
+
+  // Error codes that can be returned from CefParseJSONAndReturnError.
+  PCefJsonParserError = ^TCefJsonParserError;
+  TCefJsonParserError = (
+    JSON_NO_ERROR = 0,
+    JSON_INVALID_ESCAPE,
+    JSON_SYNTAX_ERROR,
+    JSON_UNEXPECTED_TOKEN,
+    JSON_TRAILING_COMMA,
+    JSON_TOO_MUCH_NESTING,
+    JSON_UNEXPECTED_DATA_AFTER_ROOT,
+    JSON_UNSUPPORTED_ENCODING,
+    JSON_UNQUOTED_DICTIONARY_KEY,
+    JSON_PARSE_ERROR_COUNT
+  );
+
+  // Options that can be passed to CefWriteJSON.
+  TCefJsonWriterOptions = (
+    // Default behavior.
+    JSON_WRITER_DEFAULT = 0,
+
+    // This option instructs the writer that if a Binary value is encountered,
+    // the value (and key if within a dictionary) will be omitted from the
+    // output, and success will be returned. Otherwise, if a binary value is
+    // encountered, failure will be returned.
+    JSON_WRITER_OMIT_BINARY_VALUES = 1 shl 0,
+
+    // This option instructs the writer to write doubles that have no fractional
+    // part as a normal integer (i.e., without using exponential notation
+    // or appending a '.0') as long as the value is within the range of a
+    // 64-bit int.
+    JSON_WRITER_OMIT_DOUBLE_TYPE_PRESERVATION = 1 shl 1,
+
+    // Return a slightly nicer formatted json string (pads with whitespace to
+    // help with readability).
+    JSON_WRITER_PRETTY_PRINT = 1 shl 2
+  );
+
+  // Margin type for PDF printing.
+  TCefPdfPrintMarginType = (
+    // Default margins.
+    PDF_PRINT_MARGIN_DEFAULT,
+
+    // No margins.
+    PDF_PRINT_MARGIN_NONE,
+
+    // Minimum margins.
+    PDF_PRINT_MARGIN_MINIMUM,
+
+    // Custom margins using the |margin_*| values from cef_pdf_print_settings_t.
+    PDF_PRINT_MARGIN_CUSTOM
+  );
+
+  // Structure representing PDF print settings.
+  PCefPdfPrintSettings = ^TCefPdfPrintSettings;
+  TCefPdfPrintSettings = record
+    // Page title to display in the header. Only used if |header_footer_enabled|
+    // is set to true (1).
+    header_footer_title: TCefString;
+
+    // URL to display in the footer. Only used if |header_footer_enabled| is set
+    // to true (1).
+    header_footer_url: TCefString;
+
+    // Output page size in microns. If either of these values is less than or
+    // equal to zero then the default paper size (A4) will be used.
+    page_width: Integer;
+    page_height: Integer;
+
+    // Margins in millimeters. Only used if |margin_type| is set to
+    // PDF_PRINT_MARGIN_CUSTOM.
+    margin_top: Double;
+    margin_right: Double;
+    margin_bottom: Double;
+    margin_left: Double;
+
+    // Margin type.
+    margin_type: TCefPdfPrintMarginType;
+
+    // Set to true (1) to print headers and footers or false (0) to not print
+    // headers and footers.
+    header_footer_enabled: Integer;
+
+    // Set to true (1) to print the selection only or false (0) to print all.
+    selection_only: Integer;
+
+    // Set to true (1) for landscape mode or false (0) for portrait mode.
+    landscape: Integer;
+
+    // Set to true (1) to print background graphics or false (0) to not print
+    // background graphics.
+    backgrounds_enabled: Integer;
+  end;
+
+  // Supported UI scale factors for the platform. SCALE_FACTOR_NONE is used for
+  // density independent resources such as string, html/js files or an image that
+  // can be used for any scale factors (such as wallpapers).
+  TCefScaleFactor =  (
+    SCALE_FACTOR_NONE = 0,
+    SCALE_FACTOR_100P,
+    SCALE_FACTOR_125P,
+    SCALE_FACTOR_133P,
+    SCALE_FACTOR_140P,
+    SCALE_FACTOR_150P,
+    SCALE_FACTOR_180P,
+    SCALE_FACTOR_200P,
+    SCALE_FACTOR_250P,
+    SCALE_FACTOR_300P
+  );
+
+  // Plugin policies supported by CefRequestContextHandler::OnBeforePluginLoad.
+  PCefPluginPolicy = ^TCefPluginPolicy;
+  TCefPluginPolicy = (
+    // Allow the content.
+    PLUGIN_POLICY_ALLOW,
+
+    // Allow important content and block unimportant content based on heuristics.
+    // The user can manually load blocked content.
+    PLUGIN_POLICY_DETECT_IMPORTANT,
+
+    // Block the content. The user can manually load blocked content.
+    PLUGIN_POLICY_BLOCK,
+
+    // Disable the content. The user cannot load disabled content.
+    PLUGIN_POLICY_DISABLE
+  );
+
   // Callbacks
+  TGetLocalizedString = function(stringId: Integer; out stringVal: ustring): Boolean;
   TGetDataResource = function(resourceId: Integer; out data: Pointer; out dataSize: TSize): Boolean;
-  TGetLocalizedString = function(messageId: Integer; out stringVal: ustring): Boolean;
+  TGetDataResourceForScale = function(resourceId: Integer; scaleFactor: TCefScaleFactor; out data: Pointer; out dataSize: TSize): Boolean;
+  TCefGetGeolocationCallbackProc = procedure(const position: TCefGeoposition);
   TCefWebPluginIsUnstableProc = procedure(const path: ustring; unstable: Boolean);
 
 Implementation
 
-function CefColorGetA(color : TCefColor) : Byte;
+function CefColorGetA(color: TCefColor): Byte;
 begin
   Result := (color shr 24) and $FF;
 end;
 
-function CefColorGetR(color : TCefColor) : Byte;
+function CefColorGetR(color: TCefColor): Byte;
 begin
   Result := (color shr 16) and $FF;
 end;
 
-function CefColorGetG(color : TCefColor) : Byte;
+function CefColorGetG(color: TCefColor): Byte;
 begin
   Result := (color shr 8) and $FF;
 end;
 
-function CefColorGetB(color : TCefColor) : Byte;
+function CefColorGetB(color: TCefColor): Byte;
 begin
   Result := (color shr 0) and $FF;
 end;
 
-function CefColorSetARGB(a, r, g, b : Byte) : TCefColor;
+function CefColorSetARGB(a, r, g, b: Byte): TCefColor;
 begin
   Result := (a shl 24) or (r shl 16) or (g shl 8) or (b shl 0);
 end;

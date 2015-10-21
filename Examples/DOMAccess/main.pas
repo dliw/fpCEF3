@@ -88,10 +88,6 @@ begin
            end;
            Result := True;
          end;
-    'click':
-         begin
-           Log.Append('Clicked: ' + message.ArgumentList.GetString(0));
-         end;
   Else
     Log.Append('Unhandled message: ' + message.Name);
     inherited;
