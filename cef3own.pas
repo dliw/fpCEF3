@@ -646,7 +646,7 @@ end;
 
 function cef_base_release(self: PCefBase): Integer; cconv;
 begin
-  Result := TCefBaseOwn(CefGetObject(self))._Release;
+  Result := Ord(TCefBaseOwn(CefGetObject(self))._Release = 0);
 end;
 
 function cef_base_has_one_ref(self: PCefBase): Integer; cconv;
@@ -671,6 +671,10 @@ end;
 
 constructor TCefBaseOwn.CreateData(size: TSize; owned: Boolean);
 begin
+  {$IFDEF DEBUG}
+  DebugLn(Self.ClassName + '.CreateData; RefCount: ' + IntToStr(Self.RefCount));
+  {$ENDIF}
+
   GetMem(FData, size + SizeOf(Pointer));
   PPointer(FData)^ := Self;
   Inc(FData, SizeOf(Pointer));

@@ -104,7 +104,6 @@ Type
   TCefStringUserFreeUtf16 = type TCefStringUtf16;
 
 { ***  cef_string.h  *** }
-  (*
   {$IFDEF CEF_STRING_TYPE_UTF8}
     TCefChar = AnsiChar;
     PCefChar = PAnsiChar;
@@ -113,7 +112,6 @@ Type
     TCefString = TCefStringUtf8;
     PCefString = PCefStringUtf8;
   {$ENDIF}
-  *)
 
   {$IFDEF CEF_STRING_TYPE_UTF16}
     TCefChar = Char16;
@@ -124,7 +122,6 @@ Type
     PCefString = PCefStringUtf16;
   {$ENDIF}
 
-  (*
   {$IFDEF CEF_STRING_TYPE_WIDE}
     TCefChar = WideChar;
     PCefChar = PWideChar;
@@ -133,7 +130,6 @@ Type
     TCefString = TCefStringWide;
     PCefString = PCefStringWide;
   {$ENDIF}
-  *)
 
 { ***  cef_string_list.h  *** }
   // CEF string maps are a set of key/value string pairs.

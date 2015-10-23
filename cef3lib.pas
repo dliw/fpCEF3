@@ -478,6 +478,10 @@ end;
 
 procedure CefShutDown;
 begin
+  {$IFDEF DEBUG}
+  Debugln('CefShutDown');
+  {$ENDIF}
+
   If CefIsMainProcess then
   begin
     cef_shutdown();
@@ -540,7 +544,7 @@ end;
 
 function CefGetGeolocationProc(const callback: TCefGetGeolocationCallbackProc): Boolean;
 begin
-  CefGetGeolocation(TCefFastGetGeolocationCallback.Create(callback));
+  Result := CefGetGeolocation(TCefFastGetGeolocationCallback.Create(callback));
 end;
 
 function CefAddCrossOriginWhitelistEntry(const SourceOrigin, TargetProtocol, TargetDomain: ustring;

@@ -1058,7 +1058,7 @@ Uses cef3lib;
 
 { TCefBaseRef }
 
-constructor TCefBaseRef.Create(data : Pointer);
+constructor TCefBaseRef.Create(data: Pointer);
 begin
   Assert(data <> nil);
   fData := Data;
@@ -1071,13 +1071,13 @@ begin
   inherited;
 end;
 
-function TCefBaseRef.Wrap : Pointer;
+function TCefBaseRef.Wrap: Pointer;
 begin
   Result := fData;
   If Assigned(PCefBase(fData)^.add_ref) then PCefBase(fData)^.add_ref(fData);
 end;
 
-class function TCefBaseRef.UnWrap(data : Pointer) : ICefBase;
+class function TCefBaseRef.UnWrap(data: Pointer): ICefBase;
 begin
   If data <> nil then Result := Create(data) as ICefBase
   Else Result := nil;
@@ -1085,7 +1085,7 @@ end;
 
 { TCefBrowserRef }
 
-function TCefBrowserRef.GetHost : ICefBrowserHost;
+function TCefBrowserRef.GetHost: ICefBrowserHost;
 begin
   Result := TCefBrowserHostRef.UnWrap(PCefBrowser(fData)^.get_host(fData));
 end;

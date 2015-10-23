@@ -381,8 +381,8 @@ Type
 
     property DefaultUrl: String read fDefaultUrl write fDefaultUrl;
 
-    property Options: TChromiumOptions read FOptions write FOptions;
-    property FontOptions: TChromiumFontOptions read FFontOptions;
+    property Options: TChromiumOptions read fOptions write fOptions;
+    property FontOptions: TChromiumFontOptions read fFontOptions write fFontOptions;
     property WindowlessFrameRate: Integer read fWindowlessFramerate write SetWindowlessFrameRate;
     property DefaultEncoding: String read fDefaultEncoding write fDefaultEncoding;
     property BackgroundColor: TColor read GetBackgroundColor write SetBackgroundColor;
@@ -390,7 +390,7 @@ Type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    procedure Load(const url: ustring);
+    procedure Load(const url: String);
   end;
 
   TChromiumOSR = class(TCustomChromiumOSR)
@@ -1174,7 +1174,7 @@ begin
   inherited;
 end;
 
-procedure TCustomChromiumOSR.Load(const url : ustring);
+procedure TCustomChromiumOSR.Load(const url: String);
 Var
   Frame : ICefFrame;
 begin
@@ -1185,7 +1185,7 @@ begin
     If frame <> nil then
     begin
       fBrowser.StopLoad;
-      frame.LoadUrl(url);
+      frame.LoadUrl(UTF8Decode(url));
     end;
   end;
 end;

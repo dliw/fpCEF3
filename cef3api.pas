@@ -5621,12 +5621,12 @@ Var
 { ***  cef_string_types.h *** }
 
 // Convenience macros for copying values.
-function cef_string_wide_copy(const src: PWideChar; src_len: csize_t;  output: PCefStringWide): Integer;
+function cef_string_wide_copy(const src: PWideChar; src_len: csize_t;  output: PCefStringWide): Integer; cdecl;
 begin
   Result := cef_string_wide_set(src, src_len, output, ord(True))
 end;
 
-function cef_string_utf8_copy(const src: PAnsiChar; src_len: csize_t; output: PCefStringUtf8): Integer;
+function cef_string_utf8_copy(const src: PAnsiChar; src_len: csize_t; output: PCefStringUtf8): Integer; cdecl;
 begin
   Result := cef_string_utf8_set(src, src_len, output, ord(True))
 end;
@@ -5685,9 +5685,9 @@ begin
     cef_string_clear          := cef_string_utf8_clear;
     cef_string_userfree_alloc := cef_string_userfree_utf8_alloc;
     cef_string_userfree_free  := cef_string_userfree_utf8_free;
-    cef_string_from_ascii     := cef_string_utf8_copy;
-    cef_string_to_utf8        := cef_string_utf8_copy;
-    cef_string_from_utf8      := cef_string_utf8_copy;
+    cef_string_from_ascii     := @cef_string_utf8_copy;
+    cef_string_to_utf8        := @cef_string_utf8_copy;
+    cef_string_from_utf8      := @cef_string_utf8_copy;
     cef_string_to_utf16       := cef_string_utf8_to_utf16;
     cef_string_from_utf16     := cef_string_utf16_to_utf8;
     cef_string_to_wide        := cef_string_utf8_to_wide;
@@ -5717,8 +5717,8 @@ begin
     cef_string_from_utf8      := cef_string_utf8_to_wide;
     cef_string_to_utf16       := cef_string_wide_to_utf16;
     cef_string_from_utf16     := cef_string_utf16_to_wide;
-    cef_string_to_wide        := cef_string_wide_copy;
-    cef_string_from_wide      := cef_string_wide_copy;
+    cef_string_to_wide        := @cef_string_wide_copy;
+    cef_string_from_wide      := @cef_string_wide_copy;
 {$ENDIF}
 
     Pointer(cef_string_list_alloc)                   := GetProcAddress(LibHandle, 'cef_string_list_alloc');

@@ -71,7 +71,7 @@ end;
 
 function idle(widget: PGtkWidget): gboolean; cdecl;
 begin
-  cef_do_message_loop_work;
+  cef_do_message_loop_work();
 
   Result := true;
 end;
@@ -103,12 +103,13 @@ begin
   ExitCode := cef_execute_process(@MainArgs, nil, nil);
   If ExitCode >= 0 then Halt(ExitCode);
 
-  Settings.multi_threaded_message_loop := Ord(False);
+  Settings.size := SizeOf(Settings);
   Settings.single_process := Ord(False);
-  Settings.context_safety_implementation := 0;
+  Settings.no_sandbox := Ord(True);
+  Settings.multi_threaded_message_loop := Ord(False);
   Settings.log_severity := LOGSEVERITY_INFO;
   Settings.uncaught_exception_stack_size := 20;
-  Settings.no_sandbox := Ord(True);
+  Settings.context_safety_implementation := 0;
 
   cef_initialize(@MainArgs, @Settings, nil, nil);
 
@@ -149,5 +150,5 @@ begin
   Release(Host^.base);
   Release(Browser^.base);
 
-  cef_shutdown;
+  cef_shutdown();
 end.

@@ -228,15 +228,18 @@ Type
     fDefaultFixedFontSize: Integer;
     fMinimumFontSize: Integer;
     fMinimumLogicalFontSize: Integer;
+
+    function GetFontFamily(AIndex: Integer): String;
+    procedure SetFontFamily(AIndex: Integer; AValue: String);
   public
     constructor Create; virtual;
   published
-    property StandardFontFamily: ustring read fStandardFontFamily;
-    property FixedFontFamily: ustring read fFixedFontFamily write fFixedFontFamily;
-    property SerifFontFamily: ustring read fSerifFontFamily write fSerifFontFamily;
-    property SansSerifFontFamily: ustring read fSansSerifFontFamily write fSansSerifFontFamily;
-    property CursiveFontFamily: ustring read fCursiveFontFamily write fCursiveFontFamily;
-    property FantasyFontFamily: ustring read fFantasyFontFamily write fFantasyFontFamily;
+    property StandardFontFamily: String index 1 read GetFontFamily write SetFontFamily;
+    property FixedFontFamily: String index 2 read GetFontFamily write SetFontFamily;
+    property SerifFontFamily: String index 3 read GetFontFamily write SetFontFamily;
+    property SansSerifFontFamily: String index 4 read GetFontFamily write SetFontFamily;
+    property CursiveFontFamily: String index 5 read GetFontFamily write SetFontFamily;
+    property FantasyFontFamily: String index 6 read GetFontFamily write SetFontFamily;
     property DefaultFontSize: Integer read fDefaultFontSize write fDefaultFontSize default 0;
     property DefaultFixedFontSize: Integer read fDefaultFixedFontSize write fDefaultFixedFontSize default 0;
     property MinimumFontSize: Integer read fMinimumFontSize write fMinimumFontSize default 0;
@@ -632,6 +635,30 @@ Type
 Implementation
 
 { TChromiumFontOptions }
+
+function TChromiumFontOptions.GetFontFamily(AIndex: Integer): String;
+begin
+  Case AIndex of
+    1: Result := fStandardFontFamily;
+    2: Result := fFixedFontFamily;
+    3: Result := fSerifFontFamily;
+    4: Result := fSansSerifFontFamily;
+    5: Result := fCursiveFontFamily;
+    6: Result := fFantasyFontFamily;
+  end;
+end;
+
+procedure TChromiumFontOptions.SetFontFamily(AIndex: Integer; AValue: String);
+begin
+  Case AIndex of
+    1: fStandardFontFamily := AValue;
+    2: fFixedFontFamily := AValue;
+    3: fSerifFontFamily := AValue;
+    4: fSansSerifFontFamily := AValue;
+    5: fCursiveFontFamily := AValue;
+    6: fFantasyFontFamily := AValue;
+  end;
+end;
 
 constructor TChromiumFontOptions.Create;
 begin

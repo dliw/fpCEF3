@@ -405,13 +405,13 @@ Type
       property DefaultUrl: String read fDefaultUrl write fDefaultUrl;
 
       property Options: TChromiumOptions read fOptions write fOptions;
-      property FontOptions: TChromiumFontOptions read fFontOptions;
+      property FontOptions: TChromiumFontOptions read fFontOptions write fFontOptions;
       property DefaultEncoding: String read fDefaultEncoding write fDefaultEncoding;
       property AcceptLanguageList: String read fAcceptLanguageList write fAcceptLanguageList;
     public
       constructor Create(TheOwner : TComponent); override;
       destructor Destroy; override;
-      procedure Load(const url: ustring);
+      procedure Load(const url: String);
   end;
 
   TChromium = class(TCustomChromium)
@@ -692,7 +692,7 @@ begin
     GetSettings(settings);
 
 {$IFDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
-    CefBrowserHostCreateBrowser(@info, FHandler, fDefaultUrl, @settings, nil);
+    CefBrowserHostCreateBrowser(@info, FHandler, UTF8Decode(fDefaultUrl), @settings, nil);
 {$ELSE}
     fBrowser := CefBrowserHostCreateBrowserSync(@info, FHandler, '', @settings, nil);
     fBrowserId := fBrowser.Identifier;
@@ -814,9 +814,9 @@ begin
 
   If not (csDesigning in ComponentState) then
   begin
-    FHandler := TLCLClientHandler.Create(Self);
+    fHandler := TLCLClientHandler.Create(Self);
 
-    If not Assigned(FHandler) then raise Exception.Create('FHandler is nil');
+    If not Assigned(fHandler) then raise Exception.Create('fHandler is nil');
   end
   Else
   begin
@@ -842,23 +842,23 @@ begin
   begin
     fBrowser.StopLoad;
     fBrowser.Host.CloseBrowser(True);
+    fBrowser := nil;
   end;
 
-  If FHandler <> nil then
+  If fHandler <> nil then
   begin
-    (FHandler as TLCLClientHandler).Cleanup;
-    (FHandler as ICefClientHandler).Disconnect;
+    (fHandler as TLCLClientHandler).Cleanup;
+    (fHandler as ICefClientHandler).Disconnect;
+    fHandler := nil;
   end;
 
-  FHandler := nil;
-  fBrowser := nil;
-  FFontOptions.Free;
-  FOptions.Free;
+  fFontOptions.Free;
+  fOptions.Free;
 
   inherited;
 end;
 
-procedure TCustomChromium.Load(const url : ustring);
+procedure TCustomChromium.Load(const url: String);
 Var
   Frame : ICefFrame;
 begin
@@ -869,7 +869,7 @@ begin
     If Frame <> nil then
     begin
       fBrowser.StopLoad;
-      Frame.LoadUrl(url);
+      Frame.LoadUrl(UTF8Decode(url));
     end;
   end;
 end;
