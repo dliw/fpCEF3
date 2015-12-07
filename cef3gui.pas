@@ -639,24 +639,24 @@ Implementation
 function TChromiumFontOptions.GetFontFamily(AIndex: Integer): String;
 begin
   Case AIndex of
-    1: Result := fStandardFontFamily;
-    2: Result := fFixedFontFamily;
-    3: Result := fSerifFontFamily;
-    4: Result := fSansSerifFontFamily;
-    5: Result := fCursiveFontFamily;
-    6: Result := fFantasyFontFamily;
+    1: Result := UTF8Encode(fStandardFontFamily);
+    2: Result := UTF8Encode(fFixedFontFamily);
+    3: Result := UTF8Encode(fSerifFontFamily);
+    4: Result := UTF8Encode(fSansSerifFontFamily);
+    5: Result := UTF8Encode(fCursiveFontFamily);
+    6: Result := UTF8Encode(fFantasyFontFamily);
   end;
 end;
 
 procedure TChromiumFontOptions.SetFontFamily(AIndex: Integer; AValue: String);
 begin
   Case AIndex of
-    1: fStandardFontFamily := AValue;
-    2: fFixedFontFamily := AValue;
-    3: fSerifFontFamily := AValue;
-    4: fSansSerifFontFamily := AValue;
-    5: fCursiveFontFamily := AValue;
-    6: fFantasyFontFamily := AValue;
+    1: fStandardFontFamily := UTF8Decode(AValue);
+    2: fFixedFontFamily := UTF8Decode(AValue);
+    3: fSerifFontFamily := UTF8Decode(AValue);
+    4: fSansSerifFontFamily := UTF8Decode(AValue);
+    5: fCursiveFontFamily := UTF8Decode(AValue);
+    6: fFantasyFontFamily := UTF8Decode(AValue);
   end;
 end;
 

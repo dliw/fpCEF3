@@ -160,6 +160,7 @@ function CefApiHash(entry: Integer): String;
 {$IFDEF LINUX}
   procedure CefXWindowResize(const ABrowser: ICefBrowser; const Top, Left, Width, Height: Integer);
   procedure CefXLooseFocus(const ABrowser: ICefBrowser);
+  procedure CefXSetVisibility(const ABrowser: ICefBrowser; const Value: Boolean);
 {$ENDIF}
 
 
@@ -999,10 +1000,17 @@ end;
 
   procedure CefXLooseFocus(const ABrowser: ICefBrowser);
   begin
-    XSetInputFocus(cef_get_xdisplay(), None, RevertToParent, CurrentTime);
+    XSetInputFocus(cef_get_xdisplay(), X.None, RevertToParent, CurrentTime);
 
     ABrowser.Host.SendCaptureLostEvent;
   end;
+
+  procedure CefXSetVisibility(const ABrowser: ICefBrowser; const Value: Boolean);
+  begin
+    If Value then XMapWindow(cef_get_xdisplay(), ABrowser.Host.WindowHandle)
+    Else XUnmapWindow(cef_get_xdisplay(), ABrowser.Host.WindowHandle);
+  end;
+
 {$ENDIF}
 
 { TC }

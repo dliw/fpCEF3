@@ -74,6 +74,8 @@ Type
 
   TCustomChromium = class(TWinControl, IChromiumEvents)
     private
+      fParentForm: TCustomForm;
+
       fHandler: ICefClient;
       fBrowser: ICefBrowser;
       fBrowserId: Integer;
@@ -177,8 +179,9 @@ Type
         procedure WndProc(var Message : TLMessage); override;
       {$ENDIF}
       {$IFDEF LINUX}
-        procedure CMExit(var Message: TLMessage); message CM_EXIT;
-        procedure CMEnter(var Message: TLMessage); message CM_ENTER;
+        procedure DoExit; override;
+        procedure DoEnter; override;
+        procedure SetVisible(Value: Boolean); override;
       {$ENDIF}
 
       procedure Resize; override;
@@ -409,7 +412,7 @@ Type
       property DefaultEncoding: String read fDefaultEncoding write fDefaultEncoding;
       property AcceptLanguageList: String read fAcceptLanguageList write fAcceptLanguageList;
     public
-      constructor Create(TheOwner : TComponent); override;
+      constructor Create(TheOwner: TComponent); override;
       destructor Destroy; override;
       procedure Load(const url: String);
   end;
@@ -549,7 +552,7 @@ begin
   {$ENDIF}
 end;
 
-constructor TLCLClientHandler.Create(const crm : IChromiumEvents);
+constructor TLCLClientHandler.Create(const crm: IChromiumEvents);
 begin
   inherited Create(crm);
 
@@ -674,11 +677,13 @@ begin
       info.height := rect.Bottom - rect.Top;
     {$ENDIF}
     {$IFDEF LINUX}
+      fParentForm := GetParentForm(Self);
+
       {$IFDEF LCLGTK2}
-        info.parent_window := gdk_window_xwindow(PGtkWidget(Parent.Handle)^.window);
+        info.parent_window := gdk_window_xwindow(PGtkWidget(fParentForm.Handle)^.window);
       {$ENDIF}
       {$IFDEF LCLQT}
-        info.parent_window := QWidget_winId(TQtWidget(Parent.Handle).Widget);
+        info.parent_window := QWidget_winId(TQtWidget(fParentForm.Handle).Widget);
       {$ENDIF}
 
       info.x := Left;
@@ -761,18 +766,25 @@ end;
 {$ENDIF}
 
 {$IFDEF LINUX}
-procedure TCustomChromium.CMExit(var Message: TLMessage);
+procedure TCustomChromium.DoExit;
 begin
-  inherited;
-
   If (not (csDesigning in ComponentState)) and Assigned(fBrowser) then CefXLooseFocus(fBrowser);
+
+  inherited;
 end;
 
-procedure TCustomChromium.CMEnter(var Message: TLMessage);
+procedure TCustomChromium.DoEnter;
 begin
-  inherited;
-
   If (not (csDesigning in ComponentState)) and Assigned(fBrowser) then fBrowser.Host.SetFocus(True);
+
+  inherited;
+end;
+
+procedure TCustomChromium.SetVisible(Value: Boolean);
+begin
+  inherited SetVisible(Value);
+
+  If (not (csDesigning in ComponentState)) and Assigned(fBrowser) then CefXSetVisibility(fBrowser, Value);
 end;
 {$ENDIF}
 
@@ -781,6 +793,10 @@ procedure TCustomChromium.Resize;
 Var
   Hand: THandle;
   Rect: TRect;
+{$ENDIF}
+{$IFDEF LINUX}
+Var
+  Offset: TPoint;
 {$ENDIF}
 begin
   inherited Resize;
@@ -801,7 +817,9 @@ begin
       end;
     {$ENDIF}
     {$IFDEF LINUX}
-      CefXWindowResize(fBrowser, Top, Left, Width, Height);
+      Offset := ClientToParent(Point(0, 0), fParentForm);
+
+      CefXWindowResize(fBrowser, Offset.Y, Offset.X, Width, Height);
     {$ENDIF}
   end;
 end;
@@ -1010,7 +1028,7 @@ begin
   // Make Chromium the active control
   GetParentForm(Self).ActiveControl := Self;
 
-  If Assigned(FOnGotFocus) then FOnGotFocus(Self, Browser)
+  If Assigned(fOnGotFocus) then fOnGotFocus(Self, Browser)
 end;
 
 function TCustomChromium.doOnRequestGeolocationPermission(const browser: ICefBrowser;
@@ -1180,7 +1198,7 @@ end;
 function TCustomChromium.doOnStartDragging(const browser: ICefBrowser;
   const dragData: ICefDragData; allowedOps: TCefDragOperationsMask; x, y: Integer): Boolean;
 begin
-  { empty }
+  Result := False;
 end;
 
 procedure TCustomChromium.doOnUpdateDragCursor(const browser: ICefBrowser;
