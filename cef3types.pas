@@ -1381,7 +1381,7 @@ Type
   );
 
   // Supported context menu type flags.
-  TCefContextMenuTypeFlag = (
+  TCefContextMenuTypeFlags = (
     // No node is selected.
     CM_TYPEFLAG_NONE        = 0,
 
@@ -1403,7 +1403,6 @@ Type
     // An editable element is selected.
     CM_TYPEFLAG_EDITABLE    = 1 shl 5
   );
-  TCefContextMenuTypeFlags = set of TCefContextMenuTypeFlag;
 
   // Supported context menu media types.
   TCefContextMenuMediaType = (

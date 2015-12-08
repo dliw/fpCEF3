@@ -1,0 +1,127 @@
+object FMain: TFMain
+  Left = 566
+  Height = 533
+  Top = 347
+  Width = 1201
+  Caption = 'LCLCefClient'
+  ClientHeight = 533
+  ClientWidth = 1201
+  OnCreate = FormCreate
+  LCLVersion = '1.4.4.0'
+  object LUrl: TStaticText
+    AnchorSideTop.Control = Owner
+    Left = 8
+    Height = 22
+    Top = 12
+    Width = 25
+    BorderSpacing.Top = 12
+    Caption = 'Url:'
+    TabOrder = 0
+  end
+  object EUrl: TEdit
+    AnchorSideLeft.Control = LUrl
+    AnchorSideLeft.Side = asrBottom
+    AnchorSideTop.Control = Owner
+    AnchorSideRight.Control = BGo
+    Left = 38
+    Height = 25
+    Top = 10
+    Width = 954
+    Anchors = [akTop, akLeft, akRight]
+    AutoSize = False
+    BorderSpacing.Left = 5
+    BorderSpacing.Top = 10
+    BorderSpacing.Right = 5
+    OnKeyDown = EUrlKeyDown
+    TabOrder = 1
+    Text = 'http://'
+  end
+  object BGo: TButton
+    AnchorSideTop.Control = Owner
+    AnchorSideRight.Control = BNewTab
+    Left = 997
+    Height = 25
+    Top = 10
+    Width = 79
+    Anchors = [akTop, akRight]
+    BorderSpacing.Top = 10
+    BorderSpacing.Right = 5
+    Caption = 'Go'
+    OnClick = BGoClick
+    TabOrder = 2
+  end
+  object Tabs: TPageControl
+    AnchorSideLeft.Control = Owner
+    AnchorSideTop.Control = EUrl
+    AnchorSideTop.Side = asrBottom
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    AnchorSideBottom.Control = Owner
+    AnchorSideBottom.Side = asrBottom
+    Left = 0
+    Height = 488
+    Top = 45
+    Width = 1201
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    BorderSpacing.Top = 10
+    TabOrder = 3
+    OnChange = TabsChange
+  end
+  object BNewTab: TButton
+    AnchorSideTop.Control = Owner
+    AnchorSideRight.Control = BCloseTab
+    Left = 1081
+    Height = 25
+    Top = 10
+    Width = 32
+    Anchors = [akTop, akRight]
+    BorderSpacing.Top = 10
+    BorderSpacing.Right = 5
+    Caption = '+'
+    OnClick = BNewTabClick
+    TabOrder = 4
+  end
+  object BCloseTab: TButton
+    AnchorSideTop.Control = Owner
+    AnchorSideRight.Control = BMenu
+    Left = 1118
+    Height = 25
+    Top = 10
+    Width = 32
+    Anchors = [akTop, akRight]
+    BorderSpacing.Top = 10
+    BorderSpacing.Right = 10
+    Caption = '-'
+    Enabled = False
+    OnClick = BCloseTabClick
+    TabOrder = 5
+  end
+  object BMenu: TButton
+    AnchorSideTop.Control = Owner
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    Left = 1160
+    Height = 35
+    Top = 5
+    Width = 36
+    Anchors = [akTop, akLeft, akRight]
+    BorderSpacing.Top = 5
+    BorderSpacing.Right = 5
+    Caption = '☰'
+    OnClick = BMenuClick
+    PopupMenu = PMenu
+    TabOrder = 6
+  end
+  object PMenu: TPopupMenu
+    Alignment = paRight
+    left = 1152
+    top = 48
+    object ESplit: TMenuItem
+      Caption = '-'
+    end
+    object EExit: TMenuItem
+      Caption = 'Exit'
+      OnClick = EExitClick
+    end
+  end
+end

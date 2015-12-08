@@ -3,34 +3,29 @@ fpCEF3
 
 Chromium Embedded Framework for Free Pascal
 
-## How to get started on
+## How to get started
+Install cef3.lpk into Lazarus
+
 ### Windows
-Download CEF3 from [here][1a] or [here][1b] and copy all .dll files from either `Debug` or `Release` to the directory your .exe is / will be in.
-
-Install `cef3.lpk` into Lazarus
-
-Look into the examples
+Download CEF3 from [here][1a] or [here][1b] and copy all files from either `Debug` or `Release` to the folder your .exe is / will be in.
 
 ### Linux
-You will need a build of CEF3 with `tcmalloc` disabled. The official downloads provided __won't__ work!
+You need a build of CEF3 with `tcmalloc` disabled. The official downloads provided __won't__ work!
 
 Copy / link _libcef.so_,  
-  a) to a default library location, eg. `/usr/lib(64)`, `/usr/local/lib(64)` __OR__  
+  a) to a default library location, eg. `/usr/lib(64)`, `/usr/local/lib(64)` __or__  
   b) somewhere and set `LD_LIBRARY_PATH` accordingly
 
-Install `cef3.lpk` into Lazarus
+Make sure to include `cthreads` as the first unit in your main program.
 
-Look into the examples
-
-#### Notes
-Important: make sure you have `cthreads` as the first unit in your main program.
-
-Also libcef.so needs the resources (folder `locales` and `cef.pak`, you can find them in the CEF package) in the directory your executable is in.
+#### General notes
+Apart from the files in the `Debug` or `Release` folder, CEF needs the files / folders from the `Resources` folder. Unless you set `CefResourcesDirPath` and `CefLocalesDirPath`, CEF expects them to be in the folder your executable is in.  
+However in any case `icudtl.dat` __must__ be in the same folder as the CEF library!
 
 ## Hints
 
 Don't use `--single-process` and don't change `CefSingleProcess` to `True`.  
-This will trigger a SIGSEGV in pthread_mutex_lock, which is a bug in either CEF3 or Chromium itself: You can find more details [here][4]
+This will trigger a SIGSEGV in pthread_mutex_lock, which is a bug in either CEF3 or Chromium itself: You can find more details [here][4].
 
 If the browser goes "blank" (e.g. when loading a page), the render process crashed.
 Most of the time it seems to be related to JavaScript/V8, see **Debugging**  on how to debug the render process.  
@@ -55,7 +50,6 @@ Sometimes it is useful to debug the subprocesses spawned by cef. On Linux this c
 ```
 to the command line.  
 Further details can be found [here][6].
-
 
 ## FAQ:
 ### Which versions of CEF are supported?
