@@ -6,7 +6,7 @@ Interface
 
 Uses
   Classes, SysUtils, Controls, ComCtrls, FileUtil, Forms, LCLProc,
-  cef3types, cef3lib, cef3intf, cef3lcl;
+  cef3types, cef3lib, cef3intf, cef3own, cef3lcl;
 
 Type
 
@@ -21,6 +21,11 @@ Type
     procedure ChromiumOpenUrlFromTab(Sender: TObject; browser: ICefBrowser; frame: ICefFrame;
       const targetUrl: ustring; targetDisposition: TCefWindowOpenDisposition; useGesture: Boolean;
       out Result: Boolean);
+    procedure ChromiumBeforePopup(Sender: TObject; const browser: ICefBrowser;
+      const frame: ICefFrame; const targetUrl, targetFrameName: ustring;
+      targetDisposition: TCefWindowOpenDisposition; userGesture: Boolean;
+      var popupFeatures: TCefPopupFeatures; var windowInfo: TCefWindowInfo; var client: ICefClient;
+      var settings: TCefBrowserSettings; var noJavascriptAccess: Boolean; out Result: Boolean);
 
     procedure ChromiumBeforeContextMenu(Sender: TObject; const Browser: ICefBrowser;
       const Frame: ICefFrame; const params: ICefContextMenuParams; const model: ICefMenuModel);
@@ -50,6 +55,15 @@ Type
     CLIENT_ID_EXIT
   );
 
+  TCefNewTabTask = class(TCefTaskOwn)
+  protected
+    fTargetUrl: ustring;
+    procedure Execute; override;
+  public
+    constructor Create(targetURL: ustring);
+  end;
+
+
 Var Path: ustring;
 
 function VisitCookies(const cookie: TCefCookie; count, total: Integer;
@@ -74,6 +88,22 @@ begin
   Result := True;
 end;
 
+{ TCefNewTabTask }
+
+procedure TCefNewTabTask.Execute;
+begin
+  Assert(CefCurrentlyOn(TID_UI));
+
+  FMain.NewTab(UTF8Encode(fTargetUrl));
+end;
+
+constructor TCefNewTabTask.Create(targetURL: ustring);
+begin
+  inherited Create;
+
+  fTargetUrl := targetURL;
+end;
+
 { TWebPanel }
 
 procedure TWebPanel.ChromiumTitleChange(Sender: TObject; const Browser: ICefBrowser;
@@ -93,10 +123,24 @@ begin
   fUrl := UTF8Encode(Browser.MainFrame.Url);
 end;
 
+procedure TWebPanel.ChromiumBeforePopup(Sender: TObject; const browser: ICefBrowser;
+  const frame: ICefFrame; const targetUrl, targetFrameName: ustring;
+  targetDisposition: TCefWindowOpenDisposition; userGesture: Boolean;
+  var popupFeatures: TCefPopupFeatures; var windowInfo: TCefWindowInfo; var client: ICefClient;
+  var settings: TCefBrowserSettings; var noJavascriptAccess: Boolean; out Result: Boolean);
+begin
+  // Called on IO thread, must be executed on the UI thread
+  CefPostTask(TID_UI, TCefNewTabTask.Create(targetUrl));
+
+  Result := True;
+end;
+
 procedure TWebPanel.ChromiumOpenUrlFromTab(Sender: TObject; browser: ICefBrowser; frame: ICefFrame;
   const targetUrl: ustring; targetDisposition: TCefWindowOpenDisposition; useGesture: Boolean;
   out Result: Boolean);
 begin
+  Assert(CefCurrentlyOn(TID_UI));
+
   FMain.NewTab(UTF8Encode(targetUrl));
 
   Result := True;
@@ -162,6 +206,7 @@ begin
     fChromium.OnTitleChange := @ChromiumTitleChange;
 
     fChromium.OnOpenUrlFromTab := @ChromiumOpenUrlFromTab;
+    fChromium.OnBeforePopup := @ChromiumBeforePopup;
 
     fChromium.OnBeforeContextMenu := @ChromiumBeforeContextMenu;
     fChromium.OnContextMenuCommand := @ChromiumContextMenuCommand;

@@ -7,7 +7,7 @@ object FMain: TFMain
   ClientHeight = 533
   ClientWidth = 1201
   OnCreate = FormCreate
-  LCLVersion = '1.4.4.0'
+  LCLVersion = '1.6.0.4'
   object LUrl: TStaticText
     AnchorSideTop.Control = Owner
     Left = 8
@@ -26,7 +26,7 @@ object FMain: TFMain
     Left = 38
     Height = 25
     Top = 10
-    Width = 954
+    Width = 995
     Anchors = [akTop, akLeft, akRight]
     AutoSize = False
     BorderSpacing.Left = 5
@@ -39,7 +39,7 @@ object FMain: TFMain
   object BGo: TButton
     AnchorSideTop.Control = Owner
     AnchorSideRight.Control = BNewTab
-    Left = 997
+    Left = 1038
     Height = 25
     Top = 10
     Width = 79
@@ -70,7 +70,7 @@ object FMain: TFMain
   object BNewTab: TButton
     AnchorSideTop.Control = Owner
     AnchorSideRight.Control = BCloseTab
-    Left = 1081
+    Left = 1122
     Height = 25
     Top = 10
     Width = 32
@@ -83,8 +83,9 @@ object FMain: TFMain
   end
   object BCloseTab: TButton
     AnchorSideTop.Control = Owner
-    AnchorSideRight.Control = BMenu
-    Left = 1118
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrBottom
+    Left = 1159
     Height = 25
     Top = 10
     Width = 32
@@ -95,33 +96,5 @@ object FMain: TFMain
     Enabled = False
     OnClick = BCloseTabClick
     TabOrder = 5
-  end
-  object BMenu: TButton
-    AnchorSideTop.Control = Owner
-    AnchorSideRight.Control = Owner
-    AnchorSideRight.Side = asrBottom
-    Left = 1160
-    Height = 35
-    Top = 5
-    Width = 36
-    Anchors = [akTop, akLeft, akRight]
-    BorderSpacing.Top = 5
-    BorderSpacing.Right = 5
-    Caption = '☰'
-    OnClick = BMenuClick
-    PopupMenu = PMenu
-    TabOrder = 6
-  end
-  object PMenu: TPopupMenu
-    Alignment = paRight
-    left = 1152
-    top = 48
-    object ESplit: TMenuItem
-      Caption = '-'
-    end
-    object EExit: TMenuItem
-      Caption = 'Exit'
-      OnClick = EExitClick
-    end
   end
 end
