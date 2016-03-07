@@ -15,9 +15,9 @@ Type
     fChromium: TChromium;
     fUrl: String;
 
-    procedure ChromiumLoadEnd(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame;
-      httpStatusCode: Integer);
     procedure ChromiumTitleChange(Sender: TObject; const Browser: ICefBrowser; const title: ustring);
+    procedure ChromiumAddressChange(Sender: TObject; const Browser: ICefBrowser;
+      const Frame: ICefFrame; const url: ustring);
     procedure ChromiumOpenUrlFromTab(Sender: TObject; browser: ICefBrowser; frame: ICefFrame;
       const targetUrl: ustring; targetDisposition: TCefWindowOpenDisposition; useGesture: Boolean;
       out Result: Boolean);
@@ -117,10 +117,11 @@ begin
   Else Caption := UTF8Copy(NewTitle, 1, 12) + '...';
 end;
 
-procedure TWebPanel.ChromiumLoadEnd(Sender: TObject; const Browser: ICefBrowser;
-  const Frame: ICefFrame; httpStatusCode: Integer);
+procedure TWebPanel.ChromiumAddressChange(Sender: TObject; const Browser: ICefBrowser;
+  const Frame: ICefFrame; const url: ustring);
 begin
   fUrl := UTF8Encode(Browser.MainFrame.Url);
+  FMain.EUrl.Text := fUrl;
 end;
 
 procedure TWebPanel.ChromiumBeforePopup(Sender: TObject; const browser: ICefBrowser;
@@ -202,8 +203,8 @@ begin
     fChromium.AnchorAsAlign(alClient, 0);
 
     // Register callbacks
-    fChromium.OnLoadEnd := @ChromiumLoadEnd;
     fChromium.OnTitleChange := @ChromiumTitleChange;
+    fChromium.OnAddressChange := @ChromiumAddressChange;
 
     fChromium.OnOpenUrlFromTab := @ChromiumOpenUrlFromTab;
     fChromium.OnBeforePopup := @ChromiumBeforePopup;
