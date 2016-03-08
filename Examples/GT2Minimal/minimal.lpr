@@ -115,6 +115,11 @@ begin
 
   gtk_init(nil, nil);
 
+  // Install xlib error handlers so that the application won't be terminated
+  // on non-fatal errors.
+  XSetErrorHandler(@XErrorHandler);
+  XSetIOErrorHandler(@XIOErrorHandler);
+
   // Window
   Window := gtk_window_new(GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title(GTK_WINDOW(window), 'CEF3 Bare Bones');

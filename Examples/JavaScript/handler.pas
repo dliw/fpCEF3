@@ -11,7 +11,7 @@ Interface
 
 Uses
   Classes, SysUtils,
-  cef3lcl, cef3types, cef3intf, cef3ref, cef3own, cef3lib;
+  cef3types, cef3intf, cef3ref, cef3own, cef3lib;
 
 Type
   { Custom handler for the render process }
@@ -26,7 +26,7 @@ Type
   TMyHandler = class(TCefv8HandlerOwn)
   protected
   function Execute(const name: ustring; const obj: ICefv8Value;
-    const arguments: TCefv8ValueArray; var retval: ICefv8Value;
+    const arguments: ICefv8ValueArray; var retval: ICefv8Value;
     var exception: ustring): Boolean; override;
   end;
 
@@ -38,7 +38,7 @@ Var
 { TMyHandler }
 
 function TMyHandler.Execute(const name : ustring; const obj : ICefv8Value;
-  const arguments : TCefv8ValueArray; var retval : ICefv8Value;
+  const arguments : ICefv8ValueArray; var retval : ICefv8Value;
   var exception : ustring) : Boolean;
 begin
   // return a value
@@ -53,8 +53,7 @@ procedure TCustomRenderProcessHandler.OnContextCreated(const browser : ICefBrows
   const frame : ICefFrame; const context : ICefv8Context);
 Var
   myWin : ICefv8Value;
-  str   : String;
-  args  : TCefv8ValueArray;
+  args  : ICefv8ValueArray;
 begin
   myWin := context.GetGlobal;
   mystr := 'a test string';

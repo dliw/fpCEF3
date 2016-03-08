@@ -422,13 +422,21 @@ Type
 
     // To persist session cookies (cookies without an expiry date or validity
     // interval) by default when using the global cookie manager set this value to
-    // true. Session cookies are generally intended to be transient and most Web
-    // browsers do not persist them. A |cache_path| value must also be specified
-    // to enable this feature. Also configurable using the
+    // true (1). Session cookies are generally intended to be transient and most
+    // Web browsers do not persist them. A |cache_path| value must also be
+    // specified to enable this feature. Also configurable using the
     // "persist-session-cookies" command-line switch. Can be overridden for
     // individual CefRequestContext instances via the
     // CefRequestContextSettings.persist_session_cookies value.
     persist_session_cookies: Integer;
+
+    // To persist user preferences as a JSON file in the cache path directory set
+    // this value to true (1). A |cache_path| value must also be specified
+    // to enable this feature. Also configurable using the
+    // "persist-user-preferences" command-line switch. Can be overridden for
+    // individual CefRequestContext instances via the
+    // CefRequestContextSettings.persist_user_preferences value.
+    persist_user_preferences: Integer;
 
     // Value that will be returned as the User-Agent HTTP header. If empty the
     // default User-Agent string will be used. Also configurable using the
@@ -448,10 +456,12 @@ Type
     // command-line switch.
     locale: TCefString;
 
-    // The directory and file name to use for the debug log. If empty, the
-    // default name of "debug.log" will be used and the file will be written
-    // to the application directory. Also configurable using the "log-file"
-    // command-line switch.
+    // The directory and file name to use for the debug log. If empty a default
+    // log file name and location will be used. On Windows and Linux a "debug.log"
+    // file will be written in the main executable directory. On Mac OS X a
+    // "~/Library/Logs/<app name>_debug.log" file will be written where <app name>
+    // is the name of the main app executable. Also configurable using the
+    // "log-file" command-line switch.
     log_file: TCefString;
 
     // The log severity. Only messages of this severity level or higher will be
@@ -559,11 +569,17 @@ Type
 
     // To persist session cookies (cookies without an expiry date or validity
     // interval) by default when using the global cookie manager set this value to
-    // true. Session cookies are generally intended to be transient and most Web
-    // browsers do not persist them. Can be set globally using the
+    // true (1). Session cookies are generally intended to be transient and most
+    // Web browsers do not persist them. Can be set globally using the
     // CefSettings.persist_session_cookies value. This value will be ignored if
     // |cache_path| is empty or if it matches the CefSettings.cache_path value.
     persist_session_cookies: Integer;
+
+    // To persist user preferences as a JSON file in the cache path directory set
+    // this value to true (1). Can be set globally using the
+    // CefSettings.persist_user_preferences value. This value will be ignored if
+    // |cache_path| is empty or if it matches the CefSettings.cache_path value.
+    persist_user_preferences: Integer;
 
     // Set to true (1) to ignore errors related to invalid SSL certificates.
     // Enabling this setting can lead to potential security vulnerabilities like
@@ -650,10 +666,6 @@ Type
     // Controls whether the caret position will be drawn. Also configurable using
     // the "enable-caret-browsing" command-line switch.
     caret_browsing: TCefState;
-
-    // Controls whether the Java plugin will be loaded. Also configurable using
-    // the "disable-java" command-line switch.
-    java: TCefState;
 
     // Controls whether any plugins will be loaded. Also configurable using the
     // "disable-plugins" command-line switch.
@@ -886,6 +898,7 @@ Type
     ERR_SSL_VERSION_OR_CIPHER_MISMATCH = -113,
     ERR_SSL_RENEGOTIATION_REQUESTED = -114,
     ERR_CERT_COMMON_NAME_INVALID = -200,
+    ERR_CERT_BEGIN = ERR_CERT_COMMON_NAME_INVALID,
     ERR_CERT_DATE_INVALID = -201,
     ERR_CERT_AUTHORITY_INVALID = -202,
     ERR_CERT_CONTAINS_ERRORS = -203,
@@ -893,7 +906,13 @@ Type
     ERR_CERT_UNABLE_TO_CHECK_REVOCATION = -205,
     ERR_CERT_REVOKED = -206,
     ERR_CERT_INVALID = -207,
-    ERR_CERT_END = -208,
+    ERR_CERT_WEAK_SIGNATURE_ALGORITHM = -208,
+    // -209 is available: was ERR_CERT_NOT_IN_DNS.
+    ERR_CERT_NON_UNIQUE_NAME = -210,
+    ERR_CERT_WEAK_KEY = -211,
+    ERR_CERT_NAME_CONSTRAINT_VIOLATION = -212,
+    ERR_CERT_VALIDITY_TOO_LONG = -213,
+    ERR_CERT_END = ERR_CERT_VALIDITY_TOO_LONG,
     ERR_INVALID_URL = -300,
     ERR_DISALLOWED_URL_SCHEME = -301,
     ERR_UNKNOWN_URL_SCHEME = -302,
@@ -910,6 +929,37 @@ Type
     ERR_INSECURE_RESPONSE = -501
   );
 
+  // Supported certificate status code values. See net\cert\cert_status_flags.h
+  // for more information. CERT_STATUS_NONE is new in CEF because we use an
+  // enum while cert_status_flags.h uses a typedef and static const variables.
+  TCefCertStatus = (
+    CERT_STATUS_NONE = 0,
+    CERT_STATUS_COMMON_NAME_INVALID = 1 shl 0,
+    CERT_STATUS_DATE_INVALID = 1 shl 1,
+    CERT_STATUS_AUTHORITY_INVALID = 1 shl 2,
+    // 1 << 3 is reserved for ERR_CERT_CONTAINS_ERRORS (not useful with WinHTTP).
+    CERT_STATUS_NO_REVOCATION_MECHANISM = 1 shl 4,
+    CERT_STATUS_UNABLE_TO_CHECK_REVOCATION = 1 shl 5,
+    CERT_STATUS_REVOKED = 1 shl 6,
+    CERT_STATUS_INVALID = 1 shl 7,
+    CERT_STATUS_WEAK_SIGNATURE_ALGORITHM = 1 shl 8,
+    // 1 << 9 was used for CERT_STATUS_NOT_IN_DNS
+    CERT_STATUS_NON_UNIQUE_NAME = 1 shl 10,
+    CERT_STATUS_WEAK_KEY = 1 shl 11,
+    // 1 << 12 was used for CERT_STATUS_WEAK_DH_KEY
+    CERT_STATUS_PINNED_KEY_MISSING = 1 shl 13,
+    CERT_STATUS_NAME_CONSTRAINT_VIOLATION = 1 shl 14,
+    CERT_STATUS_VALIDITY_TOO_LONG = 1 shl 15,
+
+    // Bits 16 to 31 are for non-error statuses.
+    CERT_STATUS_IS_EV = 1 shl 16,
+    CERT_STATUS_REV_CHECKING_ENABLED = 1 shl 17,
+    // Bit 18 was CERT_STATUS_IS_DNSSEC
+    CERT_STATUS_SHA1_SIGNATURE_PRESENT = 1 shl 19,
+    CERT_STATUS_CT_COMPLIANCE_FAILED = 1 shl 20
+  );
+
+  // The manner in which a link click should be opened.
   TCefWindowOpenDisposition = (
     WOD_UNKNOWN,
     WOD_SUPPRESS_OPEN,
@@ -1099,9 +1149,6 @@ Type
 
     // If set upload progress events will be generated when a request has a body.
     UR_FLAG_REPORT_UPLOAD_PROGRESS    = 1 shl 3,
-
-    // If set the headers sent and received for the request will be recorded.
-    UR_FLAG_REPORT_RAW_HEADERS        = 1 shl 5,
 
     // If set the CefURLRequestClient::OnDownloadData method will not be called.
     UR_FLAG_NO_DOWNLOAD_DATA          = 1 shl 6,
@@ -1980,6 +2027,47 @@ Type
 
     // Disable the content. The user cannot load disabled content.
     PLUGIN_POLICY_DISABLE
+  );
+
+  // Policy for how the Referrer HTTP header value will be sent during navigation.
+  // If the `--no-referrers` command-line flag is specified then the policy value
+  // will be ignored and the Referrer value will never be sent.
+  TCefReferrerPolicy = (
+    // Always send the complete Referrer value.
+    REFERRER_POLICY_ALWAYS,
+
+    // Use the default policy. This is REFERRER_POLICY_ORIGIN_WHEN_CROSS_ORIGIN
+    // when the `--reduced-referrer-granularity` command-line flag is specified
+    // and REFERRER_POLICY_NO_REFERRER_WHEN_DOWNGRADE otherwise.
+    REFERRER_POLICY_DEFAULT,
+
+    // When navigating from HTTPS to HTTP do not send the Referrer value.
+    // Otherwise, send the complete Referrer value.
+    REFERRER_POLICY_NO_REFERRER_WHEN_DOWNGRADE,
+
+    // Never send the Referrer value.
+    REFERRER_POLICY_NEVER,
+
+    // Only send the origin component of the Referrer value.
+    REFERRER_POLICY_ORIGIN,
+
+    // When navigating cross-origin only send the origin component of the Referrer
+    // value. Otherwise, send the complete Referrer value.
+    REFERRER_POLICY_ORIGIN_WHEN_CROSS_ORIGIN
+  );
+
+  // Return values for CefResponseFilter::Filter().
+  TCefResponseFilterStatus = (
+    // Some or all of the pre-filter data was read successfully but more data is
+    // needed in order to continue filtering (filtered output is pending).
+    RESPONSE_FILTER_NEED_MORE_DATA,
+
+    // Some or all of the pre-filter data was read successfully and all available
+    // filtered output has been written.
+    RESPONSE_FILTER_DONE,
+
+    // An error occurred during filtering.
+    RESPONSE_FILTER_ERROR
   );
 
   // Callbacks

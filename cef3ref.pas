@@ -27,7 +27,7 @@ Unit cef3ref;
 Interface
 
 Uses
-  Classes, SysUtils,
+  Classes, SysUtils, ctypes,
   {$IFDEF DEBUG}LCLProc,{$ENDIF}
   cef3api, cef3types, cef3intf, cef3own;
 
@@ -501,6 +501,9 @@ Type
     procedure GetHeaderMap(const HeaderMap: ICefStringMultimap);
     procedure SetUrl(const value: ustring);
     procedure SetMethod(const value: ustring);
+    procedure SetReferrer(const referrerUrl: ustring; policy: TCefReferrerPolicy);
+    function GetReferrerUrl: ustring;
+    function GetReferrerPolicy: TCefReferrerPolicy;
     procedure SetPostData(const value: ICefPostData);
     procedure SetHeaderMap(const HeaderMap: ICefStringMultimap);
     function GetFlags: TCefUrlRequestFlags;
@@ -519,6 +522,7 @@ Type
   TCefPostDataRef = class(TCefBaseRef, ICefPostData)
   protected
     function IsReadOnly: Boolean;
+    function HasExcludedElements: Boolean;
     function GetElementCount: TSize;
     function GetElements(Count: TSize): IInterfaceList; // ICefPostDataElement
     function RemoveElement(const element: ICefPostDataElement): Integer;
@@ -557,6 +561,11 @@ Type
     function RegisterSchemeHandlerFactory(const schemeName, domainName: ustring; factory: ICefSchemeHandlerFactory): Boolean;
     function ClearSchemeHandlerFactories: Boolean;
     procedure PurgePluginListCache(reloadPages: Boolean);
+    function HasPreference(const name: ustring): Boolean;
+    function GetPreference(const name: ustring): ICefValue;
+    function GetAllPreferences(includeDefaults: Boolean): ICefDictionaryValue;
+    function CanSetPreference(const name: ustring): Boolean;
+    function SetPreference(const name: ustring; value: ICefValue; out error: ustring): Boolean;
   public
     class function UnWrap(data: Pointer): ICefRequestContext;
     class function New(settings: TCefRequestContextSettings; handler: ICefRequestContextHandler): ICefRequestContext;
@@ -642,6 +651,9 @@ Type
 
   TCefSslinfoRef = class(TCefBaseRef, ICefSslinfo)
   protected
+    function GetCertStatus: TCefCertStatus;
+    function IsCertStatusError: Boolean;
+    function IsCertStatusMinorError: Boolean;
     function GetSubject: ICefSslcertPrincipal;
     function GetIssuer: ICefSslcertPrincipal;
     function GetSerialNumber: ICefBinaryValue;
@@ -649,6 +661,9 @@ Type
     function GetValidExpiry: TDateTime;
     function GetDerencoded: ICefBinaryValue;
     function GetPemencoded: ICefBinaryValue;
+    function GetIssuerChainSize: TSize;
+    procedure GetDerencodedIssuerChain(out chain: ICefBinaryValueArray);
+    procedure GetPemencodedIssuerChain(out chain: ICefBinaryValueArray);
   public
     class function UnWrap(data: Pointer): ICefSslinfo;
   end;
@@ -748,7 +763,7 @@ Type
   TCefv8HandlerRef = class(TCefBaseRef, ICefv8Handler)
   protected
     function Execute(const name: ustring; const obj: ICefv8Value;
-      const arguments: TCefv8ValueArray; var retval: ICefv8Value;
+      const arguments: ICefv8ValueArray; var retval: ICefv8Value;
       var exception: ustring): Boolean;
   public
     class function UnWrap(data: Pointer): ICefv8Handler;
@@ -829,9 +844,9 @@ Type
     function GetFunctionName: ustring;
     function GetFunctionHandler: ICefv8Handler;
     function ExecuteFunction(const obj: ICefv8Value;
-      const arguments: TCefv8ValueArray): ICefv8Value;
+      const arguments: ICefv8ValueArray): ICefv8Value;
     function ExecuteFunctionWithContext(const context: ICefv8Context;
-      const obj: ICefv8Value; const arguments: TCefv8ValueArray): ICefv8Value;
+      const obj: ICefv8Value; const arguments: ICefv8ValueArray): ICefv8Value;
   public
     class function UnWrap(data: Pointer): ICefv8Value;
     class function NewUndefined: ICefv8Value;
@@ -3188,7 +3203,7 @@ end;
 
 procedure TCefRequestRef.SetUrl(const value : ustring);
 Var
-  v : TCefString;
+  v: TCefString;
 begin
   v := CefString(value);
   PCefRequest(fData)^.set_url(fData, @v);
@@ -3196,10 +3211,28 @@ end;
 
 procedure TCefRequestRef.SetMethod(const value : ustring);
 Var
-  v : TCefString;
+  v: TCefString;
 begin
   v := CefString(value);
   PCefRequest(fData)^.set_method(fData, @v);
+end;
+
+procedure TCefRequestRef.SetReferrer(const referrerUrl: ustring; policy: TCefReferrerPolicy);
+Var
+  r: TCefString;
+begin
+  r := CefString(referrerUrl);
+  PCefRequest(fData)^.set_referrer(fData, @r, policy);
+end;
+
+function TCefRequestRef.GetReferrerUrl: ustring;
+begin
+  Result := CefStringFreeAndGet(PCefRequest(fData)^.get_referrer_url(fData));
+end;
+
+function TCefRequestRef.GetReferrerPolicy: TCefReferrerPolicy;
+begin
+  Result := PCefRequest(fData)^.get_referrer_policy(fData);
 end;
 
 procedure TCefRequestRef.SetPostData(const value : ICefPostData);
@@ -3272,6 +3305,11 @@ end;
 function TCefPostDataRef.IsReadOnly : Boolean;
 begin
   Result := PCefPostData(fData)^.is_read_only(fData) <> 0;
+end;
+
+function TCefPostDataRef.HasExcludedElements: Boolean;
+begin
+  Result := PCefPostData(fData)^.has_excluded_elements(fData) <> 0;
 end;
 
 function TCefPostDataRef.GetElementCount : TSize;
@@ -3429,6 +3467,46 @@ end;
 procedure TCefRequestContextRef.PurgePluginListCache(reloadPages: Boolean);
 begin
   PCefRequestContext(fData)^.purge_plugin_list_cache(fData, Ord(reloadPages));
+end;
+
+function TCefRequestContextRef.HasPreference(const name: ustring): Boolean;
+Var
+  n: TCefString;
+begin
+  n := CefString(name);
+  Result := PCefRequestContext(fData)^.has_preference(fData, @n) <> 0;
+end;
+
+function TCefRequestContextRef.GetPreference(const name: ustring): ICefValue;
+Var
+  n: TCefString;
+begin
+  n := CefString(name);
+  Result := TCefValueRef.UnWrap(PCefRequestContext(fData)^.get_preference(fData, @n));
+end;
+
+function TCefRequestContextRef.GetAllPreferences(includeDefaults: Boolean): ICefDictionaryValue;
+begin
+  Result := TCefDictionaryValueRef.UnWrap(PCefRequestContext(fData)^.get_all_preferences(fData, Ord(includeDefaults)));
+end;
+
+function TCefRequestContextRef.CanSetPreference(const name: ustring): Boolean;
+Var
+  n: TCefString;
+begin
+  n := CefString(name);
+  Result := PCefRequestContext(fData)^.can_set_preference(fData, @n) <> 0;
+end;
+
+function TCefRequestContextRef.SetPreference(const name: ustring; value: ICefValue;
+  out error: ustring): Boolean;
+Var
+  n, e: TCefString;
+begin
+  n := CefString(name);
+  e := CefString('');
+  Result := PCefRequestContext(fData)^.set_preference(fData, @n, CefGetData(value), @e) <> 0;
+  error := CefStringClearAndGet(e);
 end;
 
 class function TCefRequestContextRef.UnWrap(data: Pointer): ICefRequestContext;
@@ -3753,6 +3831,21 @@ end;
 
 { TCefSslinfoRef }
 
+function TCefSslinfoRef.GetCertStatus: TCefCertStatus;
+begin
+  Result := PCefSslinfo(fData)^.get_cert_status(fData);
+end;
+
+function TCefSslinfoRef.IsCertStatusError: Boolean;
+begin
+  Result := PCefSslinfo(fData)^.is_cert_status_error(fData) <> 0;
+end;
+
+function TCefSslinfoRef.IsCertStatusMinorError: Boolean;
+begin
+  Result := PCefSslinfo(fData)^.is_cert_status_minor_error(fData) <> 0;
+end;
+
 function TCefSslinfoRef.GetSubject: ICefSslcertPrincipal;
 begin
   Result := TCefSslcertPrincipalRef.UnWrap(PCefSslinfo(fData)^.get_subject(fData));
@@ -3786,6 +3879,41 @@ end;
 function TCefSslinfoRef.GetPemencoded: ICefBinaryValue;
 begin
   Result := TCefBinaryValueRef.UnWrap(PCefSslinfo(fData)^.get_pemencoded(fData));
+end;
+
+function TCefSslinfoRef.GetIssuerChainSize: TSize;
+begin
+  Result := PCefSslinfo(fData)^.get_issuer_chain_size(fData);
+end;
+
+procedure TCefSslinfoRef.GetDerencodedIssuerChain(out chain: ICefBinaryValueArray);
+Var
+  count: csize_t;
+  pchain: PCefBinaryValueArray;
+  i: Integer;
+begin
+  PCefSslinfo(fData)^.get_derencoded_issuer_chain(fData, @count, pchain);
+
+  SetLength(chain, count);
+  For i := 0 to count - 1 do
+  begin
+    chain[i] := TCefBinaryValueRef.UnWrap(pchain[i]);
+  end;
+end;
+
+procedure TCefSslinfoRef.GetPemencodedIssuerChain(out chain: ICefBinaryValueArray);
+Var
+  count: csize_t;
+  pchain: PCefBinaryValueArray;
+  i: Integer;
+begin
+  PCefSslinfo(fData)^.get_pemencoded_issuer_chain(fData, @count, pchain);
+
+  SetLength(chain, count);
+  For i := 0 to count - 1 do
+  begin
+    chain[i] := TCefBinaryValueRef.UnWrap(pchain[i]);
+  end;
 end;
 
 class function TCefSslinfoRef.UnWrap(data: Pointer): ICefSslinfo;
@@ -4121,7 +4249,7 @@ end;
 { TCefv8HandlerRef }
 
 function TCefv8HandlerRef.Execute(const name : ustring;
-  const obj : ICefv8Value; const arguments : TCefv8ValueArray;
+  const obj : ICefv8Value; const arguments : ICefv8ValueArray;
   var retval : ICefv8Value; var exception : ustring) : Boolean;
 Var
   args : array of PCefV8Value;
@@ -4465,7 +4593,7 @@ begin
 end;
 
 function TCefv8ValueRef.ExecuteFunction(const obj : ICefv8Value;
-  const arguments : TCefv8ValueArray) : ICefv8Value;
+  const arguments : ICefv8ValueArray) : ICefv8Value;
 Var
   args : PPCefV8Value;
   i    : Integer;
@@ -4483,7 +4611,7 @@ begin
 end;
 
 function TCefv8ValueRef.ExecuteFunctionWithContext(const context : ICefv8Context;
-  const obj : ICefv8Value; const arguments : TCefv8ValueArray) : ICefv8Value;
+  const obj : ICefv8Value; const arguments : ICefv8ValueArray) : ICefv8Value;
 Var
   args : PPCefV8Value;
   i    : Integer;

@@ -55,7 +55,7 @@ Further details can be found [here][6].
 ### Which versions of CEF are supported?
 
 fpCEF3 only supports CEF3, *no* support for CEF1.  
-See changelog for the latest supported version, older ones usually don't work, newer ones *may* work, but are *not* recommended.
+See changelog or release tag for the currently supported version, other versions (older or newer) *may* work, but are *not* recommended.
 
 ### Which platforms are supported?
 

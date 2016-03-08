@@ -612,8 +612,8 @@ Type
       const request: ICefRequest): ICefResourceHandler; override;
     procedure OnResourceRedirect(const browser: ICefBrowser; const frame: ICefFrame;
       const request: ICefRequest; var newUrl: ustring); override;
-    function OnResourceResponse(browser: ICefBrowser; frame: ICefFrame; request: ICefRequest;
-      response: ICefResponse): Boolean; override;
+    function OnResourceResponse(const browser: ICefBrowser; const frame: ICefFrame;
+      const request: ICefRequest; const response: ICefResponse): Boolean; override;
     function GetAuthCredentials(const browser: ICefBrowser; const frame: ICefFrame;
       isProxy: Boolean; const host: ustring; port: Integer; const realm, scheme: ustring;
       const callback: ICefAuthCallback): Boolean; override;
@@ -1197,8 +1197,8 @@ begin
   fEvent.doOnResourceRedirect(browser, frame, request, newUrl);
 end;
 
-function TCustomRequestHandler.OnResourceResponse(browser: ICefBrowser; frame: ICefFrame;
-  request: ICefRequest; response: ICefResponse): Boolean;
+function TCustomRequestHandler.OnResourceResponse(const browser: ICefBrowser;
+  const frame: ICefFrame; const request: ICefRequest; const response: ICefResponse): Boolean;
 begin
   Result := fEvent.doOnResourceResponse(browser, frame, request, response);
 end;

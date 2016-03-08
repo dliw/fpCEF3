@@ -634,7 +634,6 @@ begin
   settings.javascript_access_clipboard := fOptions.JavascriptAccessClipboard;
   settings.javascript_dom_paste := fOptions.JavascriptDomPaste;
   settings.caret_browsing := fOptions.CaretBrowsing;
-  settings.java := fOptions.Java;
   settings.plugins := fOptions.Plugins;
   settings.universal_access_from_file_urls := fOptions.UniversalAccessFromFileUrls;
   settings.file_access_from_file_urls := fOptions.FileAccessFromFileUrls;

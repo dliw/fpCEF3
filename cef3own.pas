@@ -36,7 +36,7 @@ Uses
 Type
   TCefBaseOwn = class(TInterfacedObject, ICefBase)
   private
-    FData: Pointer;
+    fData: Pointer;
   public
     function Wrap: Pointer;
     constructor CreateData(size: TSize; owned: Boolean = False); virtual;
@@ -383,8 +383,13 @@ Type
       const request: ICefRequest): ICefResourceHandler; virtual;
     procedure OnResourceRedirect(const browser: ICefBrowser; const frame: ICefFrame;
       const request: ICefRequest; var newUrl: ustring); virtual;
-    function OnResourceResponse(browser: ICefBrowser; frame: ICefFrame; request: ICefRequest;
-      response: ICefResponse): Boolean; virtual;
+    function OnResourceResponse(const browser: ICefBrowser; const frame: ICefFrame;
+      const request: ICefRequest; const response: ICefResponse): Boolean; virtual;
+    function GetResourceResponseFilter(const browser: ICefBrowser; const frame: ICefFrame;
+      const request: ICefRequest; const response: ICefResponse): ICefResponseFilter; virtual;
+    procedure OnResourceLoadComplete(const browser: ICefBrowser; const frame: ICefFrame;
+      const request: ICefRequest; const response: ICefResponse; status: TCefUrlRequestStatus;
+      receivedContentLength: Int64); virtual;
     function GetAuthCredentials(const browser: ICefBrowser; const frame: ICefFrame;
       isProxy: Boolean; const host: ustring; port: Integer; const realm, scheme: ustring;
       const callback: ICefAuthCallback): Boolean; virtual;
@@ -445,6 +450,15 @@ Type
   end;
 
   TCefResourceHandlerClass = class of TCefResourceHandlerOwn;
+
+  TCefResponseFilterOwn = class(TCefBaseOwn, ICefResponseFilter)
+  protected
+    function InitFilter: Boolean; virtual;
+    function Filter(dataIn: Pointer; dataInSize: TSize; out dataInRead: TSize;
+      dataOut: Pointer; dataOutSize: TSize; out dataOutWritten: TSize): TCefResponseFilterStatus; virtual;
+  public
+    constructor Create; virtual;
+  end;
 
   TCefSchemeHandlerFactoryOwn = class(TCefBaseOwn, ICefSchemeHandlerFactory)
   private
@@ -526,7 +540,7 @@ Type
   TCefv8HandlerOwn = class(TCefBaseOwn, ICefv8Handler)
   protected
     function Execute(const name: ustring; const obj: ICefv8Value;
-      const arguments: TCefv8ValueArray; var retval: ICefv8Value;
+      const arguments: ICefv8ValueArray; var retval: ICefv8Value;
       var exception: ustring): Boolean; virtual;
   public
     constructor Create; virtual;
@@ -620,7 +634,7 @@ Type
     function SetValue(const v: TValue; var ret: ICefv8Value): Boolean;
   protected
     function Execute(const name: ustring; const obj: ICefv8Value;
-      const arguments: TCefv8ValueArray; var retval: ICefv8Value;
+      const arguments: ICefv8ValueArray; var retval: ICefv8Value;
       var exception: ustring): Boolean; override;
   public
     constructor Create(const value: TValue{$IFDEF CEF_MULTI_THREADED_MESSAGE_LOOP}; SyncMainThread: Boolean{$ENDIF}); reintroduce;
@@ -782,10 +796,10 @@ end;
 
 procedure cef_run_file_dialog_callback_on_file_dialog_dismissed(self: PCefRunFileDialogCallback;
   selected_accept_filter: Integer; file_paths: TCefStringList); cconv;
-var
-  list : TStringList;
-  i    : Integer;
-  item  : TCefString;
+Var
+  list: TStringList;
+  item : TCefString;
+  i: Integer;
 begin
   try
     If Assigned(file_paths) then
@@ -2550,10 +2564,24 @@ begin
   { empty }
 end;
 
-function TCefRequestHandlerOwn.OnResourceResponse(browser: ICefBrowser; frame: ICefFrame;
-  request: ICefRequest; response: ICefResponse): Boolean;
+function TCefRequestHandlerOwn.OnResourceResponse(const browser: ICefBrowser;
+  const frame: ICefFrame; const request: ICefRequest; const response: ICefResponse): Boolean;
 begin
   Result := False;
+end;
+
+function TCefRequestHandlerOwn.GetResourceResponseFilter(const browser: ICefBrowser;
+  const frame: ICefFrame; const request: ICefRequest;
+  const response: ICefResponse): ICefResponseFilter;
+begin
+  Result := nil;
+end;
+
+procedure TCefRequestHandlerOwn.OnResourceLoadComplete(const browser: ICefBrowser;
+  const frame: ICefFrame; const request: ICefRequest; const response: ICefResponse;
+  status: TCefUrlRequestStatus; receivedContentLength: Int64);
+begin
+  { empty }
 end;
 
 function TCefRequestHandlerOwn.GetAuthCredentials(const browser: ICefBrowser;
@@ -2777,6 +2805,42 @@ begin
     can_get_cookie := @cef_resource_handler_can_get_cookie;
     can_set_cookie := @cef_resource_handler_can_set_cookie;
     cancel := @cef_resource_handler_cancel;
+  end;
+end;
+
+{ TCefResponseFilter }
+
+function cef_response_filter_init_filter(self: PCefResponseFilter): Integer; cconv;
+begin
+  Result := Ord(TCefResponseFilterOwn(CefGetObject(self)).InitFilter);
+end;
+
+function cef_response_filter_filter(self: PCefResponseFilter; data_in: Pointer;
+  data_in_size: TSize; data_in_read: PSize; data_out: Pointer; data_out_size: TSize;
+  data_out_written: PSize): TCefResponseFilterStatus; cconv;
+begin
+  Result := TCefResponseFilterOwn(CefGetObject(self)).Filter(data_in, data_in_size, data_in_read^,
+    data_out, data_out_size, data_out_written^);
+end;
+
+function TCefResponseFilterOwn.InitFilter: Boolean;
+begin
+  Result := False;
+end;
+
+function TCefResponseFilterOwn.Filter(dataIn: Pointer; dataInSize: TSize; out dataInRead: TSize;
+  dataOut: Pointer; dataOutSize: TSize; out dataOutWritten: TSize): TCefResponseFilterStatus;
+begin
+  { empty }
+end;
+
+constructor TCefResponseFilterOwn.Create;
+begin
+  inherited CreateData(SizeOf(TCefResponseFilter));
+  With PCefResponseFilter(fData)^ do
+  begin
+    init_filter := @cef_response_filter_init_filter;
+    filter := @cef_response_filter_filter;
   end;
 end;
 
@@ -3112,7 +3176,7 @@ end;
 function cef_v8_handler_execute(self: PCefV8handler; const name: PCefString; object_: PCefV8value;
   argumentsCount: TSize; arguments: PPCefV8value; out retval: PCefV8value; var exception: TCefString): Integer; cconv;
 Var
-  args: TCefv8ValueArray;
+  args: ICefv8ValueArray;
   i: Integer;
   ret: ICefv8Value;
   exc: ustring;
@@ -3132,7 +3196,7 @@ begin
 end;
 
 function TCefv8HandlerOwn.Execute(const name: ustring; const obj: ICefv8Value;
-  const arguments: TCefv8ValueArray; var retval: ICefv8Value; var exception: ustring): Boolean;
+  const arguments: ICefv8ValueArray; var retval: ICefv8Value; var exception: ustring): Boolean;
 begin
   Result := False;
 end;
@@ -3413,7 +3477,7 @@ begin
 end;
 
 function TCefRTTIExtension.Execute(const name : ustring;
-  const obj : ICefv8Value; const arguments : TCefv8ValueArray;
+  const obj : ICefv8Value; const arguments : ICefv8ValueArray;
   var retval : ICefv8Value; var exception : ustring) : Boolean;
 begin
   Result := inherited Execute(name, obj, arguments, retval, exception);

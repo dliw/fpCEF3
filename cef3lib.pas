@@ -93,6 +93,8 @@ function CefClearCrossOriginWhitelist: Boolean;
 function CefParseUrl(const url: ustring; var parts: TUrlParts): Boolean;
 function CefCreateUrl(var parts: TUrlParts): ustring;
 
+function CefFormatUrlForSecurityDisplay(const originUrl, languages: ustring): ustring;
+
 function CefGetMimeType(const extension: ustring): ustring;
 procedure CefGetExtensionsForMimeType(const mimeType: ustring; extensions: TStrings);
 function CefBase64Encode(const data: Pointer; dataSize: TSize): ustring;
@@ -161,6 +163,9 @@ function CefApiHash(entry: Integer): String;
   procedure CefXWindowResize(const ABrowser: ICefBrowser; const Top, Left, Width, Height: Integer);
   procedure CefXLooseFocus(const ABrowser: ICefBrowser);
   procedure CefXSetVisibility(const ABrowser: ICefBrowser; const Value: Boolean);
+
+  function XErrorHandler(display: PDisplay; event: PXErrorEvent): Integer; cdecl;
+  function XIOErrorHandler(display: PDisplay): Integer; cdecl;
 {$ENDIF}
 
 
@@ -173,6 +178,7 @@ Var
   CefCommandLineArgsDisabled: Boolean = False;
   CefUserDataPath: ustring = '';
   CefPersistSessionCookies: Boolean = False;
+  CefPersistUserPreferences: Boolean = False;
   CefUserAgent: ustring = '';
   CefProductVersion: ustring = '';
   CefLocale: ustring = '';
@@ -436,6 +442,7 @@ begin
   Settings.command_line_args_disabled := Ord(CefCommandLineArgsDisabled);
   Settings.user_data_path := CefString(CefUserDataPath);
   Settings.persist_session_cookies := Ord(CefPersistSessionCookies);
+  Settings.persist_user_preferences := Ord(CefPersistUserPreferences);
   Settings.user_agent := CefString(CefUserAgent);
   Settings.product_version := CefString(CefProductVersion);
   Settings.locale := CefString(CefLocale);
@@ -475,6 +482,13 @@ begin
 
   CefIsMainProcess := True;
   Result := True;
+
+  {$IFDEF LINUX}
+    // Install xlib error handlers so that the application won't be terminated
+    // on non-fatal errors.
+    XSetErrorHandler(@XErrorHandler);
+    XSetIOErrorHandler(@XIOErrorHandler);
+  {$ENDIF}
 end;
 
 procedure CefShutDown;
@@ -624,6 +638,16 @@ begin
   FillChar(u, SizeOf(u), 0);
   If cef_create_url(@p, @u) <> 0 then Result := CefString(@u)
   Else Result := '';
+end;
+
+function CefFormatUrlForSecurityDisplay(const originUrl, languages: ustring): ustring;
+Var
+  o, l: TCefString;
+begin
+  o := CefString(originUrl);
+  l := CefString(languages);
+
+  Result := CefStringFreeAndGet(cef_format_url_for_security_display(@o, @l));
 end;
 
 function CefGetMimeType(const extension: ustring): ustring;
@@ -1011,6 +1035,28 @@ end;
     Else XUnmapWindow(cef_get_xdisplay(), ABrowser.Host.WindowHandle);
   end;
 
+  function XErrorHandler(display: PDisplay; event: PXErrorEvent): Integer; cdecl;
+  begin
+    {$IFDEF DEBUG}
+    WriteLn('X error received: ');
+    WriteLn(' type:         ', event^._type);
+    WriteLn(' serial:       ', event^.serial);
+    WriteLn(' error code:   ', event^.error_code);
+    WriteLn(' request code: ', event^.request_code);
+    WriteLn(' minor code:   ', event^.minor_code);
+    {$ENDIF}
+
+    Result := 0;
+  end;
+
+  function XIOErrorHandler(display: PDisplay): Integer; cdecl;
+  begin
+    {$IFDEF DEBUG}
+    WriteLn('XIOErrorHandler');
+    {$ENDIF}
+
+    Result := 0;
+  end;
 {$ENDIF}
 
 { TC }

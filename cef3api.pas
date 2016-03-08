@@ -138,6 +138,8 @@ Type
 
   PCefResponse = ^TCefResponse;
 
+  PCefResponseFilter = ^TCefResponseFilter;
+
   PCefSchemeRegistrar = ^TCefSchemeRegistrar;
   PCefSchemeHandlerFactory = ^TCefSchemeHandlerFactory;
 
@@ -171,6 +173,7 @@ Type
 
   PCefValue = ^TCefValue;
   PCefBinaryValue = ^TCefBinaryValue;
+  PCefBinaryValueArray = array of PCefBinaryValue;
   PCefDictionaryValue = ^TCefDictionaryValue;
   PCefListValue = ^TCefListValue;
 
@@ -1745,7 +1748,8 @@ Type
     // The resulting string must be freed by calling cef_string_userfree_free().
     get_name: function(self: PCefFrame): PCefStringUserFree; cconv;
 
-    // Returns the globally unique identifier for this frame.
+    // Returns the globally unique identifier for this frame or < 0 if the
+    // underlying frame does not yet exist.
     get_identifier: function(self: PCefFrame): Int64; cconv;
 
     // Returns the parent of this frame or NULL if this is the main (top-level)
@@ -1838,19 +1842,21 @@ Type
     // Base structure.
     base: TCefBase;
 
-    // Called to run a JavaScript dialog. The |default_prompt_text| value will be
-    // specified for prompt dialogs only. Set |suppress_message| to true (1) and
-    // return false (0) to suppress the message (suppressing messages is
-    // preferable to immediately executing the callback as this is used to detect
-    // presumably malicious behavior like spamming alert messages in
-    // onbeforeunload). Set |suppress_message| to false (0) and return false (0)
-    // to use the default implementation (the default implementation will show one
-    // modal dialog at a time and suppress any additional dialog requests until
-    // the displayed dialog is dismissed). Return true (1) if the application will
-    // use a custom dialog or if the callback has been executed immediately.
-    // Custom dialogs may be either modal or modeless. If a custom dialog is used
-    // the application must execute |callback| once the custom dialog is
-    // dismissed.
+    // Called to run a JavaScript dialog. If |origin_url| and |accept_lang| are
+    // non-NULL they can be passed to the CefFormatUrlForSecurityDisplay function
+    // to retrieve a secure and user-friendly display string. The
+    // |default_prompt_text| value will be specified for prompt dialogs only. Set
+    // |suppress_message| to true (1) and return false (0) to suppress the message
+    // (suppressing messages is preferable to immediately executing the callback
+    // as this is used to detect presumably malicious behavior like spamming alert
+    // messages in onbeforeunload). Set |suppress_message| to false (0) and return
+    // false (0) to use the default implementation (the default implementation
+    // will show one modal dialog at a time and suppress any additional dialog
+    // requests until the displayed dialog is dismissed). Return true (1) if the
+    // application will use a custom dialog or if the callback has been executed
+    // immediately. Custom dialogs may be either modal or modeless. If a custom
+    // dialog is used the application must execute |callback| once the custom
+    // dialog is dismissed.
     on_jsdialog: function(self: PCefJsDialogHandler; browser: PCefBrowser;
       const origin_url, accept_lang: PCefString; dialog_type: TCefJsDialogType;
       const message_text, default_prompt_text: PCefString;
@@ -2655,16 +2661,30 @@ Type
     // Set the request function type.
     set_method: procedure(self: PCefRequest; const method: PCefString); cconv;
 
+    // Set the referrer URL and policy. If non-NULL the referrer URL must be fully
+    // qualified with an HTTP or HTTPS scheme component. Any username, password or
+    // ref component will be removed.
+    set_referrer: procedure(self: PCefRequest; const referrer_url: PCefString; policy: TCefReferrerPolicy); cconv;
+
+    // Get the referrer URL.
+    //
+    // The resulting string must be freed by calling cef_string_userfree_free().
+    get_referrer_url: function(self: PCefRequest): PCefStringUserFree; cconv;
+
+    // Get the referrer policy.
+    get_referrer_policy: function(self: PCefRequest): TCefReferrerPolicy; cconv;
+
     // Get the post data.
     get_post_data: function(self: PCefRequest): PCefPostData; cconv;
 
     // Set the post data.
     set_post_data: procedure(self: PCefRequest; postData: PCefPostData); cconv;
 
-    // Get the header values.
+    // Get the header values. Will not include the Referer value if any.
     get_header_map: procedure(self: PCefRequest; headerMap: TCefStringMultimap); cconv;
 
-    // Set the header values.
+    // Set the header values. If a Referer value exists in the header map it will
+    // be removed and ignored.
     set_header_map: procedure(self: PCefRequest; headerMap: TCefStringMultimap); cconv;
 
     // Set all values at one time.
@@ -2714,6 +2734,12 @@ Type
 
     // Returns true (1) if this object is read-only.
     is_read_only: function(self: PCefPostData):Integer; cconv;
+
+    // Returns true (1) if the underlying POST data includes elements that are not
+    // represented by this cef_post_data_t object (for example, multi-part file
+    // upload data). Modifying cef_post_data_t objects with excluded elements may
+    // result in the request failing.
+    has_excluded_elements: function(self: PCefPostData): Integer; cconv;
 
     // Returns the number of existing post data elements.
     get_element_count: function(self: PCefPostData): csize_t; cconv;
@@ -2844,6 +2870,39 @@ Type
     // cef_request_tContextHandler::OnBeforePluginLoad may be called to rebuild
     // the plugin list cache.
     purge_plugin_list_cache: procedure(self: PCefRequestContext; reload_pages: Integer); cconv;
+
+    // Returns true (1) if a preference with the specified |name| exists. This
+    // function must be called on the browser process UI thread.
+    has_preference: function(self: PCefRequestContext; const name: PCefString): Integer; cconv;
+
+    // Returns the value for the preference with the specified |name|. Returns
+    // NULL if the preference does not exist. The returned object contains a copy
+    // of the underlying preference value and modifications to the returned object
+    // will not modify the underlying preference value. This function must be
+    // called on the browser process UI thread.
+    get_preference: function(self: PCefRequestContext; const name: PCefString): PCefValue; cconv;
+
+    // Returns all preferences as a dictionary. If |include_defaults| is true (1)
+    // then preferences currently at their default value will be included. The
+    // returned object contains a copy of the underlying preference values and
+    // modifications to the returned object will not modify the underlying
+    // preference values. This function must be called on the browser process UI
+    // thread.
+    get_all_preferences: function(self: PCefRequestContext; include_defaults: Integer): PCefDictionaryValue; cconv;
+
+    // Returns true (1) if the preference with the specified |name| can be
+    // modified using SetPreference. As one example preferences set via the
+    // command-line usually cannot be modified. This function must be called on
+    // the browser process UI thread.
+    can_set_preference: function(self: PCefRequestContext; const name: PCefString): Integer; cconv;
+
+    // Set the |value| associated with preference |name|. Returns true (1) if the
+    // value is set successfully and false (0) otherwise. If |value| is NULL the
+    // preference will be restored to its default value. If setting the preference
+    // fails then |error| will be populated with a detailed description of the
+    // problem. This function must be called on the browser process UI thread.
+    set_preference: function(self: PCefRequestContext; const name: PCefString; value: PCefValue;
+      error: PCefString): Integer; cconv;
   end;
 
 
@@ -2958,12 +3017,29 @@ Type
     on_resource_response: function(self: PCefRequestHandler; browser: PCefBrowser; frame: PCefFrame;
       request: PCefRequest; response: PCefResponse): Integer; cconv;
 
+    // Called on the IO thread to optionally filter resource response content.
+    // |request| and |response| represent the request and response respectively
+    // and cannot be modified in this callback.
+    get_resource_response_filter: function(self: PCefRequestHandler; browser: PCefBrowser;
+      frame: PCefFrame; request: PCefRequest; response: PCefResponse): PCefResponseFilter; cconv;
+
+    // Called on the IO thread when a resource load has completed. |request| and
+    // |response| represent the request and response respectively and cannot be
+    // modified in this callback. |status| indicates the load completion status.
+    // |received_content_length| is the number of response bytes actually read.
+    on_resource_load_complete: procedure(self: PCefRequestHandler; browser: PCefBrowser;
+      frame: PCefFrame; request: PCefRequest; response: PCefResponse; status: TCefUrlRequestStatus;
+      received_content_length: cint64); cconv;
+
     // Called on the IO thread when the browser needs credentials from the user.
     // |isProxy| indicates whether the host is a proxy server. |host| contains the
-    // hostname and |port| contains the port number. Return true (1) to continue
-    // the request and call cef_auth_callback_t::cont() either in this function or
-    // at a later time when the authentication information is available. Return
-    // false (0) to cancel the request immediately.
+    // hostname and |port| contains the port number. |realm| is the realm of the
+    // challenge and may be NULL. |scheme| is the authentication scheme used, such
+    // as "basic" or "digest", and will be NULL if the source of the request is an
+    // FTP server. Return true (1) to continue the request and call
+    // cef_auth_callback_t::cont() either in this function or at a later time when
+    // the authentication information is available. Return false (0) to cancel the
+    // request immediately.
     get_auth_credentials: function(self: PCefRequestHandler;
       browser: PCefBrowser; frame: PCefFrame; isProxy: Integer; const host: PCefString;
       port: Integer; const realm, scheme: PCefString; callback: PCefAuthCallback): Integer; cconv;
@@ -2988,10 +3064,9 @@ Type
     // Called on the UI thread to handle requests for URLs with an invalid SSL
     // certificate. Return true (1) and call cef_request_tCallback::cont() either
     // in this function or at a later time to continue or cancel the request.
-    // Return false (0) to cancel the request immediately. If |callback| is NULL
-    // the error cannot be recovered from and the request will be canceled
-    // automatically. If CefSettings.ignore_certificate_errors is set all invalid
-    // certificates will be accepted without calling this function.
+    // Return false (0) to cancel the request immediately. If
+    // CefSettings.ignore_certificate_errors is set all invalid certificates will
+    // be accepted without calling this function.
   	on_certificate_error: function(self: PCefRequestHandler; browser: PCefBrowser;
       cert_error: TCefErrorCode; const request_url: PCefString; ssl_info: PCefSslInfo;
       callback: PCefRequestCallback): Integer; cconv;
@@ -3181,6 +3256,39 @@ Type
   end;
 
 
+{ *** cef_response_filter_capi.h *** }
+  // Implement this structure to filter resource response content. The functions
+  // of this structure will be called on the browser process IO thread.
+  TCefResponseFilter = record
+    // Base structure.
+    base: TCefBase;
+
+    // Initialize the response filter. Will only be called a single time. The
+    // filter will not be installed if this function returns false (0).
+    init_filter: function(self: PCefResponseFilter): Integer; cconv;
+
+    // Called to filter a chunk of data. |data_in| is the input buffer containing
+    // |data_in_size| bytes of pre-filter data (|data_in| will be NULL if
+    // |data_in_size| is zero). |data_out| is the output buffer that can accept up
+    // to |data_out_size| bytes of filtered output data. Set |data_in_read| to the
+    // number of bytes that were read from |data_in|. Set |data_out_written| to
+    // the number of bytes that were written into |data_out|. If some or all of
+    // the pre-filter data was read successfully but more data is needed in order
+    // to continue filtering (filtered output is pending) return
+    // RESPONSE_FILTER_NEED_MORE_DATA. If some or all of the pre-filter data was
+    // read successfully and all available filtered output has been written return
+    // RESPONSE_FILTER_DONE. If an error occurs during filtering return
+    // RESPONSE_FILTER_ERROR. This function will be called repeatedly until there
+    // is no more data to filter (resource response is complete), |data_in_read|
+    // matches |data_in_size| (all available pre-filter bytes have been read), and
+    // the function returns RESPONSE_FILTER_DONE or RESPONSE_FILTER_ERROR. Do not
+    // keep a reference to the buffers passed to this function.
+    filter: function(self: PCefResponseFilter;
+      data_in: Pointer; data_in_size: csize_t; data_in_read: pcsize_t;
+      data_out: Pointer; data_out_size: csize_t; data_out_written: pcsize_t): TCefResponseFilterStatus; cconv;
+  end;
+
+
 { ***  cef_scheme_capi.h  *** }
   // Structure that manages custom scheme registrations.
   TCefSchemeRegistrar = record
@@ -3304,6 +3412,17 @@ Type
     // Base structure.
     base: TCefBase;
 
+    // Returns a bitmask containing any and all problems verifying the server
+    // certificate.
+    get_cert_status: function(self: PCefSslinfo): TCefCertStatus; cconv;
+
+    // Returns true (1) if the certificate status has any error, major or minor.
+    is_cert_status_error: function(self: PCefSslinfo): Integer; cconv;
+
+    // Returns true (1) if the certificate status represents only minor errors
+    // (e.g. failure to verify certificate revocation).
+    is_cert_status_minor_error: function(self: PCefSslinfo): Integer; cconv;
+
     // Returns the subject of the X.509 certificate. For HTTPS server certificates
     // this represents the web server.  The common name of the subject should
     // match the host name of the web server.
@@ -3329,6 +3448,22 @@ Type
 
     // Returns the PEM encoded data for the X.509 certificate.
     get_pemencoded: function(self: PCefSslinfo): PCefBinaryValue; cconv;
+
+    // Returns the number of certificates in the issuer chain. If 0, the
+    // certificate is self-signed.
+    get_issuer_chain_size: function(self: PCefSslinfo): csize_t; cconv;
+
+    // Returns the DER encoded data for the certificate issuer chain. If we failed
+    // to encode a certificate in the chain it is still present in the array but
+    // is an NULL string.
+    get_derencoded_issuer_chain: procedure(self: PCefSslinfo; chain_count: pcsize_t;
+      chain: PCefBinaryValueArray); cconv;
+
+    // Returns the PEM encoded data for the certificate issuer chain. If we failed
+    // to encode a certificate in the chain it is still present in the array but
+    // is an NULL string.
+    get_pemencoded_issuer_chain: procedure(self: PCefSslinfo; chain_count: pcsize_t;
+      chain: PCefBinaryValueArray); cconv;
   end;
 
 
@@ -4887,6 +5022,18 @@ Var
   // if |parts| isn't initialized as described.
   cef_create_url: function(const parts: PCefUrlParts; url: PCefString): Integer; cdecl;
 
+  // This is a convenience function for formatting a URL in a concise and human-
+  // friendly way to help users make security-related decisions (or in other
+  // circumstances when people need to distinguish sites, origins, or otherwise-
+  // simplified URLs from each other). Internationalized domain names (IDN) may be
+  // presented in Unicode if |languages| accepts the Unicode representation. The
+  // returned value will (a) omit the path for standard schemes, excepting file
+  // and filesystem, and (b) omit the port if it is the default for the scheme. Do
+  // not use this for URLs which will be parsed or sent to other applications.
+  //
+  // The resulting string must be freed by calling cef_string_userfree_free().
+  cef_format_url_for_security_display: function(const origin_url, languages: PCefString): PCefStringUserFree; cdecl;
+
   // Returns the mime type for the specified file extension or an NULL string if
   // unknown.
   //
@@ -5774,6 +5921,7 @@ begin
 
     Pointer(cef_parse_url)                           := GetProcAddress(LibHandle, 'cef_parse_url');
     Pointer(cef_create_url)                          := GetProcAddress(LibHandle, 'cef_create_url');
+    Pointer(cef_format_url_for_security_display)     := GetProcAddress(LibHandle, 'cef_format_url_for_security_display');
     Pointer(cef_get_mime_type)                       := GetProcAddress(LibHandle, 'cef_get_mime_type');
     Pointer(cef_get_extensions_for_mime_type)        := GetProcAddress(LibHandle, 'cef_get_extensions_for_mime_type');
     Pointer(cef_base64encode)                        := GetProcAddress(LibHandle, 'cef_base64encode');
@@ -5966,6 +6114,7 @@ begin
 
       Assigned(cef_parse_url) and
       Assigned(cef_create_url) and
+      Assigned(cef_format_url_for_security_display) and
       Assigned(cef_get_mime_type) and
       Assigned(cef_get_extensions_for_mime_type) and
       Assigned(cef_base64encode) and
