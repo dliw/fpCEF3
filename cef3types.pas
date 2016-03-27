@@ -1385,7 +1385,7 @@ Type
 
   // Supported event bit flags.
   TCefEventFlag = (
-    EVENTFLAG_NONE                = 0,
+    //EVENTFLAG_NONE                = 0,
     EVENTFLAG_CAPS_LOCK_ON,        //= 1 shl 0,
     EVENTFLAG_SHIFT_DOWN,          //= 1 shl 1,
     EVENTFLAG_CONTROL_DOWN,        //= 1 shl 2,
