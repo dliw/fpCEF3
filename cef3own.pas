@@ -157,8 +157,8 @@ Type
   protected
     procedure OnAddressChange(const browser: ICefBrowser; const frame: ICefFrame; const url: ustring); virtual;
     procedure OnTitleChange(const browser: ICefBrowser; const title: ustring); virtual;
-    procedure OnFaviconUrlchange(browser: ICefBrowser; iconUrls: TStrings); virtual;
-    procedure OnFullscreenModeChange(browser: ICefBrowser; fullscreen: Boolean); virtual;
+    procedure OnFaviconUrlchange(const browser: ICefBrowser; iconUrls: TStrings); virtual;
+    procedure OnFullscreenModeChange(const browser: ICefBrowser; fullscreen: Boolean); virtual;
     function OnTooltip(const browser: ICefBrowser; var text: ustring): Boolean; virtual;
     procedure OnStatusMessage(const browser: ICefBrowser; const value: ustring); virtual;
     function OnConsoleMessage(const browser: ICefBrowser; const message, source: ustring; line: Integer): Boolean; virtual;
@@ -1332,12 +1332,12 @@ begin
   { empty }
 end;
 
-procedure TCefDisplayHandlerOwn.OnFaviconUrlchange(browser: ICefBrowser; iconUrls: TStrings);
+procedure TCefDisplayHandlerOwn.OnFaviconUrlchange(const browser: ICefBrowser; iconUrls: TStrings);
 begin
   { empty }
 end;
 
-procedure TCefDisplayHandlerOwn.OnFullscreenModeChange(browser: ICefBrowser; fullscreen: Boolean);
+procedure TCefDisplayHandlerOwn.OnFullscreenModeChange(const browser: ICefBrowser; fullscreen: Boolean);
 begin
   { empty }
 end;

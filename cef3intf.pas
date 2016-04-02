@@ -474,8 +474,8 @@ Type
   ICefDisplayHandler = interface(ICefBase) ['{1EC7C76D-6969-41D1-B26D-079BCFF054C4}']
     procedure OnAddressChange(const browser: ICefBrowser; const frame: ICefFrame; const url: ustring);
     procedure OnTitleChange(const browser: ICefBrowser; const title: ustring);
-    procedure OnFaviconUrlchange(browser: ICefBrowser; iconUrls: TStrings);
-    procedure OnFullscreenModeChange(browser: ICefBrowser; fullscreen: Boolean);
+    procedure OnFaviconUrlchange(const browser: ICefBrowser; iconUrls: TStrings);
+    procedure OnFullscreenModeChange(const browser: ICefBrowser; fullscreen: Boolean);
     function OnTooltip(const browser: ICefBrowser; var text: ustring): Boolean;
     procedure OnStatusMessage(const browser: ICefBrowser; const value: ustring);
     function OnConsoleMessage(const browser: ICefBrowser; const message, source: ustring; line: Integer): Boolean;

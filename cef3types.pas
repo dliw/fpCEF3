@@ -991,7 +991,7 @@ Type
 
   // V8 access control values.
   TCefV8AccessControl = (
-    V8_ACCESS_CONTROL_DEFAULT               = 0,
+    //V8_ACCESS_CONTROL_DEFAULT               = 0,
     V8_ACCESS_CONTROL_ALL_CAN_READ          = 1,
     V8_ACCESS_CONTROL_ALL_CAN_WRITE         = 1 shl 1,
     V8_ACCESS_CONTROL_PROHIBITS_OVERWRITING = 1 shl 2
@@ -1000,7 +1000,7 @@ Type
 
   // V8 property attribute values.
   TCefV8PropertyAttribute = (
-    V8_PROPERTY_ATTRIBUTE_NONE       = 0,       // Writeable, Enumerable, Configurable
+    //V8_PROPERTY_ATTRIBUTE_NONE       = 0,       // Writeable, Enumerable, Configurable
     V8_PROPERTY_ATTRIBUTE_READONLY   = 1 shl 0, // Not writeable
     V8_PROPERTY_ATTRIBUTE_DONTENUM   = 1 shl 1, // Not enumerable
     V8_PROPERTY_ATTRIBUTE_DONTDELETE = 1 shl 2  // Not configurable
@@ -1138,7 +1138,7 @@ Type
   // Flags used to customize the behavior of CefURLRequest.
   TCefUrlRequestFlag = (
     // Default behavior.
-    UR_FLAG_NONE                      = 0,
+    //UR_FLAG_NONE                      = 0,
 
     // If set the cache will be skipped when handling the request.
     UR_FLAG_SKIP_CACHE                = 1 shl 0,
@@ -1474,7 +1474,7 @@ Type
 
   // Supported context menu media state bit flags.
   TCefContextMenuMediaStateFlag = (
-    CM_MEDIAFLAG_NONE                  = 0,
+    //CM_MEDIAFLAG_NONE                  = 0,
     CM_MEDIAFLAG_ERROR,                 //= 1 shl 0,
     CM_MEDIAFLAG_PAUSED,                //= 1 shl 1,
     CM_MEDIAFLAG_MUTED,                 //= 1 shl 2,
@@ -1490,7 +1490,7 @@ Type
 
   // Supported context menu edit state bit flags.
   TCefContextMenuEditStateFlag = (
-    CM_EDITFLAG_NONE            = 0,
+    //CM_EDITFLAG_NONE            = 0,
     CM_EDITFLAG_CAN_UNDO        = 1 shl 0,
     CM_EDITFLAG_CAN_REDO        = 1 shl 1,
     CM_EDITFLAG_CAN_CUT         = 1 shl 2,

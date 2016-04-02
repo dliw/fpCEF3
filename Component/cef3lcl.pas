@@ -154,6 +154,8 @@ Type
       fOnGetResourceHandler: TOnGetResourceHandler;
       fOnResourceRedirect: TOnResourceRedirect;
       fOnResourceResponse: TOnResourceResponse;
+      fOnGetResourceResponseFilter: TOnGetResourceResponseFilter;
+      fOnResourceLoadComplete: TOnResourceLoadComplete;
       fOnGetAuthCredentials: TOnGetAuthCredentials;
       fOnQuotaRequest: TOnQuotaRequest;
       fOnGetCookieManager: TOnGetCookieManager;
@@ -304,6 +306,12 @@ Type
         const request: ICefRequest; var newUrl: ustring); virtual;
       function doOnResourceResponse(const browser: ICefBrowser; const frame: ICefFrame;
         const request: ICefRequest; const response: ICefResponse): Boolean; virtual;
+      function doOnGetResourceResponseFilter(const browser: ICefBrowser;
+        const frame: ICefFrame; const request: ICefRequest;
+        const response: ICefResponse): ICefResponseFilter; virtual;
+      procedure doOnResourceLoadComplete(const browser: ICefBrowser;
+        const frame: ICefFrame; const request: ICefRequest; const response: ICefResponse;
+        status: TCefUrlRequestStatus; receivedContentLength: Int64); virtual;
       function doOnGetAuthCredentials(const Browser: ICefBrowser; const Frame: ICefFrame;
         isProxy: Boolean; const host: ustring; port: Integer; const realm, scheme: ustring;
         const callback: ICefAuthCallback): Boolean; virtual;
@@ -391,6 +399,8 @@ Type
       property OnBeforeResourceLoad: TOnBeforeResourceLoad read fOnBeforeResourceLoad write fOnBeforeResourceLoad;
       property OnGetResourceHandler: TOnGetResourceHandler read fOnGetResourceHandler write fOnGetResourceHandler;
       property OnResourceRedirect: TOnResourceRedirect read fOnResourceRedirect write fOnResourceRedirect;
+      property OnGetResourceResponseFilter: TOnGetResourceResponseFilter read fOnGetResourceResponseFilter write fOnGetResourceResponseFilter;
+      property OnResourceLoadComplete: TOnResourceLoadComplete read fOnResourceLoadComplete write fOnResourceLoadComplete;
       property OnGetAuthCredentials: TOnGetAuthCredentials read fOnGetAuthCredentials write fOnGetAuthCredentials;
       property OnQuotaRequest: TOnQuotaRequest read fOnQuotaRequest write fOnQuotaRequest;
       property OnGetCookieManager: TOnGetCookieManager read fOnGetCookieManager write fOnGetCookieManager;
@@ -486,6 +496,8 @@ Type
       property OnBeforeResourceLoad;
       property OnGetResourceHandler;
       property OnResourceRedirect;
+      property OnGetResourceResponseFilter;
+      property OnResourceLoadComplete;
       property OnGetAuthCredentials;
       property OnQuotaRequest;
       property OnGetCookieManager;
@@ -1256,6 +1268,23 @@ begin
   If Assigned(fOnResourceResponse) then
     fOnResourceResponse(Self, browser, frame, request, response, Result)
   Else Result := False;
+end;
+
+function TCustomChromium.doOnGetResourceResponseFilter(const browser: ICefBrowser;
+  const frame: ICefFrame; const request: ICefRequest;
+  const response: ICefResponse): ICefResponseFilter;
+begin
+  If Assigned(fOnGetResourceResponseFilter) then
+    fOnGetResourceResponseFilter(Self, browser, frame, request, response, Result)
+  Else Result := nil;
+end;
+
+procedure TCustomChromium.doOnResourceLoadComplete(const browser: ICefBrowser;
+  const frame: ICefFrame; const request: ICefRequest; const response: ICefResponse;
+  status: TCefUrlRequestStatus; receivedContentLength: Int64);
+begin
+  If Assigned(fOnResourceLoadComplete) then
+    fOnResourceLoadComplete(Self, browser, frame, request, response, status, receivedContentLength);
 end;
 
 function TCustomChromium.doOnGetAuthCredentials(const Browser: ICefBrowser; const Frame: ICefFrame;
