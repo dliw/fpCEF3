@@ -491,11 +491,11 @@ Type
     fStream: TStream;
     fOwned: Boolean;
   protected
-    function Write(const ptr: Pointer; size, n: TSize): TSize;
-    function Seek(offset: Int64; whence: Integer): Integer;
-    function Tell: Int64;
-    function Flush: Boolean;
-    function MayBlock: Boolean;
+    function Write(const ptr: Pointer; size, n: TSize): TSize; virtual;
+    function Seek(offset: Int64; whence: Integer): Integer; virtual;
+    function Tell: Int64; virtual;
+    function Flush: Boolean; virtual;
+    function MayBlock: Boolean; virtual;
   public
     constructor Create(Stream: TStream; Owned: Boolean); overload; virtual;
     constructor Create(const filename: String); overload; virtual;
@@ -527,12 +527,12 @@ Type
 
   TCefUrlrequestClientOwn = class(TCefBaseOwn, ICefUrlrequestClient)
   protected
-    procedure OnRequestComplete(const request: ICefUrlRequest);
-    procedure OnUploadProgress(const request: ICefUrlRequest; current, total: Int64);
-    procedure OnDownloadProgress(const request: ICefUrlRequest; current, total: Int64);
-    procedure OnDownloadData(const request: ICefUrlRequest; data: Pointer; dataLength: TSize);
+    procedure OnRequestComplete(const request: ICefUrlRequest); virtual;
+    procedure OnUploadProgress(const request: ICefUrlRequest; current, total: Int64); virtual;
+    procedure OnDownloadProgress(const request: ICefUrlRequest; current, total: Int64); virtual;
+    procedure OnDownloadData(const request: ICefUrlRequest; data: Pointer; dataLength: TSize); virtual;
     function GetAuthCredentials(isProxy: Boolean; const host: ustring; port: Integer;
-      const realm, scheme: ustring; callback: ICefAuthCallback): Boolean;
+      const realm, scheme: ustring; callback: ICefAuthCallback): Boolean; virtual;
   public
     constructor Create; virtual;
  end;
