@@ -64,6 +64,7 @@ object FMain: TFMain
     Width = 1201
     Anchors = [akTop, akLeft, akRight, akBottom]
     BorderSpacing.Top = 10
+    Images = TabIcons
     TabOrder = 3
     OnChange = TabsChange
   end
@@ -96,5 +97,9 @@ object FMain: TFMain
     Enabled = False
     OnClick = BCloseTabClick
     TabOrder = 5
+  end
+  object TabIcons: TImageList
+    left = 1152
+    top = 48
   end
 end

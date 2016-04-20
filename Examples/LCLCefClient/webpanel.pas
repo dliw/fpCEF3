@@ -5,7 +5,7 @@ Unit WebPanel;
 Interface
 
 Uses
-  Classes, SysUtils, Controls, ComCtrls, FileUtil, Forms, LCLProc,
+  Classes, SysUtils, Controls, ComCtrls, FileUtil, Forms, LCLProc, Graphics, strutils,
   cef3types, cef3lib, cef3intf, cef3own, cef3lcl;
 
 Type
@@ -18,6 +18,7 @@ Type
     procedure ChromiumTitleChange(Sender: TObject; const Browser: ICefBrowser; const title: ustring);
     procedure ChromiumAddressChange(Sender: TObject; const Browser: ICefBrowser;
       const Frame: ICefFrame; const url: ustring);
+    procedure ChromiumFaviconUrlchange(Sender: TObject; browser: ICefBrowser; iconUrls: TStrings);
     procedure ChromiumOpenUrlFromTab(Sender: TObject; browser: ICefBrowser; frame: ICefFrame;
       const targetUrl: ustring; targetDisposition: TCefWindowOpenDisposition; useGesture: Boolean;
       out Result: Boolean);
@@ -40,6 +41,7 @@ Type
     procedure RequestClose;
 
     procedure OpenUrl(AUrl: String);
+    procedure SetIcon(const Icon: TCustomIcon);
 
     property Url: String read fUrl write fUrl;
   end;
@@ -47,7 +49,7 @@ Type
 
 Implementation
 
-Uses Main, cef3ref;
+Uses cef3ref, Main, FaviconGetter;
 
 Type
   TClientMenuIDs = (
@@ -122,6 +124,17 @@ procedure TWebPanel.ChromiumAddressChange(Sender: TObject; const Browser: ICefBr
 begin
   fUrl := UTF8Encode(Browser.MainFrame.Url);
   FMain.EUrl.Text := fUrl;
+end;
+
+procedure TWebPanel.ChromiumFaviconUrlchange(Sender: TObject; browser: ICefBrowser;
+  iconUrls: TStrings);
+Var
+  i: Integer;
+begin
+  // For simplicity just use the first .ico image
+
+  For i := 0 to iconUrls.Count - 1 do
+    If AnsiEndsText('ico', iconUrls[i]) then TFaviconGetter.Create(Self, iconUrls[i]);
 end;
 
 procedure TWebPanel.ChromiumBeforePopup(Sender: TObject; const browser: ICefBrowser;
@@ -205,6 +218,7 @@ begin
     // Register callbacks
     fChromium.OnTitleChange := @ChromiumTitleChange;
     fChromium.OnAddressChange := @ChromiumAddressChange;
+    fChromium.OnFaviconUrlchange := @ChromiumFaviconUrlchange;
 
     fChromium.OnOpenUrlFromTab := @ChromiumOpenUrlFromTab;
     fChromium.OnBeforePopup := @ChromiumBeforePopup;
@@ -223,6 +237,17 @@ end;
 procedure TWebPanel.OpenUrl(AUrl: String);
 begin
   fChromium.Load(AUrl);
+end;
+
+// Change the icon of the tab
+procedure TWebPanel.SetIcon(const Icon: TCustomIcon);
+begin
+  If ImageIndex >= 0 then FMain.TabIcons.Delete(ImageIndex);
+
+  If Assigned(Icon) then ImageIndex := FMain.TabIcons.AddIcon(Icon)
+  Else ImageIndex := -1;
+
+  PageControl.Invalidate;
 end;
 
 

@@ -14,6 +14,7 @@ Type
     BNewTab: TButton;
     BCloseTab: TButton;
     EUrl: TEdit;
+    TabIcons: TImageList;
     LUrl: TStaticText;
     Tabs: TPageControl;
     procedure BCloseTabClick(Sender: TObject);
