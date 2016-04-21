@@ -134,7 +134,11 @@ begin
   // For simplicity just use the first .ico image
 
   For i := 0 to iconUrls.Count - 1 do
-    If AnsiEndsText('ico', iconUrls[i]) then TFaviconGetter.Create(Self, iconUrls[i]);
+    If AnsiEndsText('ico', iconUrls[i]) then
+    begin
+      TFaviconGetter.Create(Self, iconUrls[i]);
+      Break;
+    end;
 end;
 
 procedure TWebPanel.ChromiumBeforePopup(Sender: TObject; const browser: ICefBrowser;
@@ -242,9 +246,15 @@ end;
 // Change the icon of the tab
 procedure TWebPanel.SetIcon(const Icon: TCustomIcon);
 begin
-  If ImageIndex >= 0 then FMain.TabIcons.Delete(ImageIndex);
-
-  If Assigned(Icon) then ImageIndex := FMain.TabIcons.AddIcon(Icon)
+  If Assigned(Icon) then
+  begin
+    If ImageIndex >= 0 then
+    begin
+      FMain.TabIcons.Delete(ImageIndex);
+      FMain.TabIcons.InsertIcon(ImageIndex, Icon);
+    end
+    Else ImageIndex := FMain.TabIcons.AddIcon(Icon);
+  end
   Else ImageIndex := -1;
 
   PageControl.Invalidate;
