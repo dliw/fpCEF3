@@ -4093,7 +4093,7 @@ begin
   Result := TCefRequestRef.UnWrap(PCefUrlRequest(fData)^.get_request(fData));
 end;
 
-function TCefUrlRequestRef.GetClient : ICefUrlrequestClient;
+function TCefUrlRequestRef.GetClient: ICefUrlRequestClient;
 begin
   Result := TCefUrlRequestClientRef.UnWrap(PCefUrlRequest(fData)^.get_client(fData));
 end;
@@ -4103,7 +4103,7 @@ begin
   Result := PCefUrlRequest(fData)^.get_request_status(fData);
 end;
 
-function TCefUrlRequestRef.GetRequestError : TCefErrorCode;
+function TCefUrlRequestRef.GetRequestError: TCefErrorcode;
 begin
   Result := PCefUrlRequest(fData)^.get_request_error(fData);
 end;

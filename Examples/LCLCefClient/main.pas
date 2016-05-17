@@ -54,8 +54,22 @@ begin
 end;
 
 procedure TFMain.BCloseTabClick(Sender: TObject);
+Var
+  Index, i: Integer;
 begin
+  Index := Tabs.ActivePageIndex;
   Tabs.ActivePage.Free;
+
+  // Delete tab icon
+  TabIcons.Delete(Index);
+
+  // Adjust tab icon indices
+  For i := 0 to Tabs.PageCount - 1 do
+  begin
+    With Tabs.Pages[i] do
+      If ImageIndex <> -1 then ImageIndex := TabIndex;
+  end;
+  Tabs.Repaint;
 
   If Tabs.PageCount < 2 then BCloseTab.Enabled := False;
 end;
@@ -79,6 +93,9 @@ begin
   TabSheet.Caption := 'New Tab';
 
   TabSheet.InitializeChromium;
+
+  // Create a dummy tab icon (could be a loading indicator) until we get the real one
+  TabIcons.AddIcon(Application.Icon);
 
   Tabs.ActivePageIndex := TabSheet.PageIndex;
 

@@ -6,7 +6,8 @@ Interface
 
 Uses
   Classes, SysUtils, Controls, ComCtrls, FileUtil, Forms, LCLProc, Graphics, strutils,
-  cef3types, cef3lib, cef3intf, cef3own, cef3lcl;
+  cef3types, cef3lib, cef3intf, cef3own, cef3lcl,
+  FaviconGetter;
 
 Type
 
@@ -14,6 +15,7 @@ Type
   private
     fChromium: TChromium;
     fUrl: String;
+    fIconGetter: TFaviconGetter;
 
     procedure ChromiumTitleChange(Sender: TObject; const Browser: ICefBrowser; const title: ustring);
     procedure ChromiumAddressChange(Sender: TObject; const Browser: ICefBrowser;
@@ -33,10 +35,14 @@ Type
     procedure ChromiumContextMenuCommand(Sender: TObject; const Browser: ICefBrowser;
       const Frame: ICefFrame; const params: ICefContextMenuParams; commandId: Integer;
       eventFlags: TCefEventFlags; out Result: Boolean);
+
+    procedure IconReady(const Success: Boolean; const Icon: TIcon);
   protected
     procedure DoHide; override;
     procedure DoShow; override;
   public
+    destructor Destroy; override;
+
     procedure InitializeChromium;
     procedure RequestClose;
 
@@ -49,7 +55,7 @@ Type
 
 Implementation
 
-Uses cef3ref, Main, FaviconGetter;
+Uses cef3ref, Main;
 
 Type
   TClientMenuIDs = (
@@ -123,7 +129,8 @@ procedure TWebPanel.ChromiumAddressChange(Sender: TObject; const Browser: ICefBr
   const Frame: ICefFrame; const url: ustring);
 begin
   fUrl := UTF8Encode(Browser.MainFrame.Url);
-  FMain.EUrl.Text := fUrl;
+
+  If PageControl.ActivePage = Self then FMain.EUrl.Text := fUrl;
 end;
 
 procedure TWebPanel.ChromiumFaviconUrlchange(Sender: TObject; browser: ICefBrowser;
@@ -136,9 +143,15 @@ begin
   For i := 0 to iconUrls.Count - 1 do
     If AnsiEndsText('ico', iconUrls[i]) then
     begin
-      TFaviconGetter.Create(Self, iconUrls[i]);
-      Break;
+      // make sure there is only one
+      If Assigned(fIconGetter) then fIconGetter.Cancel;
+
+      fIconGetter := TFaviconGetter.Create(iconUrls[i], @IconReady);
+      Exit;
     end;
+
+  // No suitabe icon found
+  SetIcon(nil);
 end;
 
 procedure TWebPanel.ChromiumBeforePopup(Sender: TObject; const browser: ICefBrowser;
@@ -197,6 +210,16 @@ begin
   end;
 end;
 
+procedure TWebPanel.IconReady(const Success: Boolean; const Icon: TIcon);
+begin
+  Assert(CefCurrentlyOn(TID_UI));
+
+  fIconGetter := nil;
+
+  If Success then SetIcon(Icon)
+  Else SetIcon(nil);
+end;
+
 procedure TWebPanel.DoHide;
 begin
   inherited DoHide;
@@ -209,6 +232,14 @@ begin
   inherited DoShow;
 
   If Assigned(fChromium) then fChromium.Show;
+end;
+
+destructor TWebPanel.Destroy;
+begin
+  // Cancel icon request
+  If Assigned(fIconGetter) then fIconGetter.Cancel;
+
+  inherited Destroy;
 end;
 
 procedure TWebPanel.InitializeChromium;
@@ -248,16 +279,22 @@ procedure TWebPanel.SetIcon(const Icon: TCustomIcon);
 begin
   If Assigned(Icon) then
   begin
-    If ImageIndex >= 0 then
-    begin
-      FMain.TabIcons.Delete(ImageIndex);
-      FMain.TabIcons.InsertIcon(ImageIndex, Icon);
-    end
-    Else ImageIndex := FMain.TabIcons.AddIcon(Icon);
-  end
-  Else ImageIndex := -1;
+    // Replace icon with new one
+    FMain.TabIcons.Delete(TabIndex);
+    FMain.TabIcons.InsertIcon(TabIndex, Icon);
 
-  PageControl.Invalidate;
+    ImageIndex := TabIndex;
+  end
+  Else If ImageIndex <> -1 then
+  begin
+    // Replace icon with dummy one
+    FMain.TabIcons.Delete(TabIndex);
+    FMain.TabIcons.InsertIcon(TabIndex, Application.Icon);
+
+    ImageIndex := -1;
+  end;
+
+  PageControl.Repaint;
 end;
 
 

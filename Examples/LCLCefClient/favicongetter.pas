@@ -6,20 +6,24 @@ Interface
 
 Uses
   Classes, SysUtils, Graphics,
-  cef3types, cef3intf, cef3ref, cef3own,
-  WebPanel;
+  cef3types, cef3intf, cef3ref, cef3own, cef3lib;
 
 Type
+  TIconReady = procedure(const Success: Boolean; const Icon: TIcon) of object;
+
   TFaviconGetter = class(TCefUrlrequestClientOwn)
   private
-    fTarget: TWebPanel;
+    fCallback: TIconReady;
     fStream: TMemoryStream;
     fExt: String;
+    fUrlRequest: ICefUrlRequest;
   protected
     procedure OnDownloadData(const request: ICefUrlRequest; data: Pointer; dataLength: TSize); override;
     procedure OnRequestComplete(const request: ICefUrlRequest); override;
   public
-    constructor Create(Target: TWebPanel; Url: String);
+    constructor Create(Url: String; Callback: TIconReady);
+
+    procedure Cancel;
   end;
 
 Implementation
@@ -32,50 +36,46 @@ begin
   fStream.WriteBuffer(data^, dataLength);
 end;
 
-// Icon is ready
 // In a real world application this would be the place to handle different file formats
 // and to resize the image appropriately
-// After OnRequestComplete has been executed, this instance of TGetFaviCon is freed automatically.
 procedure TFaviconGetter.OnRequestComplete(const request: ICefUrlRequest);
 Var
   Picture: TPicture;
 begin
-  fStream.Position := 0;
-
-  try
-    try
-      // Load the icon ...
-      Picture := TPicture.Create;
-      Picture.LoadFromStreamWithFileExt(fStream, fExt);
-
-      // ... and add it to the TabIcons image list
-      fTarget.SetIcon(Picture.Icon);
-    finally
-      Picture.Free;
-      fStream.Free;
-    end;
-  except
-    // Catch any exception
-    // Broken things are easy to encounter on the internet, therefore robustness is very important
-
-    On E: Exception do
+  If Assigned(fCallback) then
+  begin
+    If request.GetRequestStatus = UR_SUCCESS then
     begin
-      {$IFDEF DEBUG}
-      WriteLn(E.Message);
-      {$ENDIF}
+      fStream.Position := 0;
 
-      fTarget.SetIcon(nil);
-    end;
+      try
+        // Load the icon ...
+        Picture := TPicture.Create;
+        Picture.LoadFromStreamWithFileExt(fStream, fExt);
+
+        // ... and add it to the TabIcons image list
+        fCallback(True, Picture.Icon);
+      except
+        // Catch any exception
+        // Broken things are easy to encounter on the internet, therefore robustness is very important
+        On E: Exception do fCallback(False, nil);
+      end;
+
+      Picture.Free;
+    end
+    Else fCallback(False, nil);
   end;
+
+  fStream.Free;
 end;
 
-constructor TFaviconGetter.Create(Target: TWebPanel; Url: String);
+constructor TFaviconGetter.Create(Url: String; Callback: TIconReady);
 Var
   Request: ICefRequest;
 begin
   inherited Create;
 
-  fTarget := Target;
+  fCallback := Callback;
   fStream := TMemoryStream.Create;
 
   // remember the file type for later
@@ -85,8 +85,15 @@ begin
   Request := TCefRequestRef.New;
   Request.Url := Url;
 
-  // ... and start the url request. The request client is the FaciconGetter itself
-  TCefUrlRequestRef.New(Request, Self, nil);
+  // ... and start the url request. The request client is the FaviconGetter itself.
+  fUrlRequest := TCefUrlRequestRef.New(Request, Self, nil);
+end;
+
+procedure TFaviconGetter.Cancel;
+begin
+  // disable callback and cancel request
+  fCallback := nil;
+  fUrlRequest.Cancel;
 end;
 
 end.
