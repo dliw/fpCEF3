@@ -4007,7 +4007,7 @@ Type
     // exception is thrown. For read-only values this function will return true
     // (1) even though assignment failed.
     set_value_bykey: function(self: PCefv8Value; const key: PCefString;
-      value: PCefv8Value; attribute: TCefV8PropertyAttribute): Integer; cconv;
+      value: PCefv8Value; attribute: TCefV8PropertyAttributes): Integer; cconv;
 
     // Associates a value with the specified identifier and returns true (1) on
     // success. Returns false (0) if this function is called incorrectly or an
@@ -4022,7 +4022,7 @@ Type
     // function is called incorrectly or an exception is thrown. For read-only
     // values this function will return true (1) even though assignment failed.
     set_value_byaccessor: function(self: PCefv8Value; const key: PCefString;
-      settings: TCefV8AccessControl; attribute: TCefV8PropertyAttribute): Integer; cconv;
+      settings: TCefV8AccessControls; attribute: TCefV8PropertyAttributes): Integer; cconv;
 
     // Read the keys for the object's values into the specified vector. Integer-
     // based keys will also be returned as strings.

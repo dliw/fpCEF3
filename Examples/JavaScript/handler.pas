@@ -59,7 +59,7 @@ begin
   mystr := 'a test string';
   SetLength(args, 1);
   args[0] := TCefv8ValueRef.NewString(mystr);
-  myWin.SetValueByKey('myval', args[0], V8_PROPERTY_ATTRIBUTE_NONE);
+  myWin.SetValueByKey('myval', args[0], []);
 end;
 
 procedure TCustomRenderProcessHandler.OnWebKitInitialized;

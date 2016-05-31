@@ -831,10 +831,10 @@ Type
     function GetValueByKey(const key: ustring): ICefv8Value;
     function GetValueByIndex(index: Integer): ICefv8Value;
     function SetValueByKey(const key: ustring; const value: ICefv8Value;
-      attribute: TCefV8PropertyAttribute): Boolean;
+      attribute: TCefV8PropertyAttributes): Boolean;
     function SetValueByIndex(index: Integer; const value: ICefv8Value): Boolean;
-    function SetValueByAccessor(const key: ustring; settings: TCefV8AccessControl;
-      attribute: TCefV8PropertyAttribute): Boolean;
+    function SetValueByAccessor(const key: ustring; settings: TCefV8AccessControls;
+      attribute: TCefV8PropertyAttributes): Boolean;
     function GetKeys(const keys: TStrings): Integer;
     function SetUserData(const data: ICefv8Value): Boolean;
     function GetUserData: ICefv8Value;
@@ -4515,7 +4515,7 @@ begin
 end;
 
 function TCefv8ValueRef.SetValueByKey(const key : ustring;
-  const value : ICefv8Value; attribute : TCefV8PropertyAttribute) : Boolean;
+  const value : ICefv8Value; attribute : TCefV8PropertyAttributes) : Boolean;
 Var
   k : TCefString;
 begin
@@ -4529,7 +4529,7 @@ begin
 end;
 
 function TCefv8ValueRef.SetValueByAccessor(const key : ustring;
-  settings : TCefV8AccessControl; attribute : TCefV8PropertyAttribute) : Boolean;
+  settings : TCefV8AccessControls; attribute : TCefV8PropertyAttributes) : Boolean;
 Var
   k : TCefString;
 begin

@@ -992,18 +992,18 @@ Type
   // V8 access control values.
   TCefV8AccessControl = (
     //V8_ACCESS_CONTROL_DEFAULT               = 0,
-    V8_ACCESS_CONTROL_ALL_CAN_READ          = 1,
-    V8_ACCESS_CONTROL_ALL_CAN_WRITE         = 1 shl 1,
-    V8_ACCESS_CONTROL_PROHIBITS_OVERWRITING = 1 shl 2
+    V8_ACCESS_CONTROL_ALL_CAN_READ,         //= 1,
+    V8_ACCESS_CONTROL_ALL_CAN_WRITE,        //= 1 shl 1,
+    V8_ACCESS_CONTROL_PROHIBITS_OVERWRITING //= 1 shl 2
   );
   TCefV8AccessControls = set of TCefV8AccessControl;
 
   // V8 property attribute values.
   TCefV8PropertyAttribute = (
     //V8_PROPERTY_ATTRIBUTE_NONE       = 0,       // Writeable, Enumerable, Configurable
-    V8_PROPERTY_ATTRIBUTE_READONLY   = 1 shl 0, // Not writeable
-    V8_PROPERTY_ATTRIBUTE_DONTENUM   = 1 shl 1, // Not enumerable
-    V8_PROPERTY_ATTRIBUTE_DONTDELETE = 1 shl 2  // Not configurable
+    V8_PROPERTY_ATTRIBUTE_READONLY,  //= 1 shl 0, // Not writeable
+    V8_PROPERTY_ATTRIBUTE_DONTENUM,  //= 1 shl 1, // Not enumerable
+    V8_PROPERTY_ATTRIBUTE_DONTDELETE //= 1 shl 2  // Not configurable
   );
   TCefV8PropertyAttributes = set of TCefV8PropertyAttribute;
 
@@ -1475,15 +1475,15 @@ Type
   // Supported context menu media state bit flags.
   TCefContextMenuMediaStateFlag = (
     //CM_MEDIAFLAG_NONE                  = 0,
-    CM_MEDIAFLAG_ERROR,                 //= 1 shl 0,
-    CM_MEDIAFLAG_PAUSED,                //= 1 shl 1,
-    CM_MEDIAFLAG_MUTED,                 //= 1 shl 2,
-    CM_MEDIAFLAG_LOOP,                  //= 1 shl 3,
-    CM_MEDIAFLAG_CAN_SAVE,              //= 1 shl 4,
-    CM_MEDIAFLAG_HAS_AUDIO,             //= 1 shl 5,
-    CM_MEDIAFLAG_HAS_VIDEO,             //= 1 shl 6,
-    CM_MEDIAFLAG_CONTROL_ROOT_ELEMENT,  //= 1 shl 7,
-    CM_MEDIAFLAG_CAN_PRINT,             //= 1 shl 8,
+    CM_MEDIAFLAG_ERROR,                //= 1 shl 0,
+    CM_MEDIAFLAG_PAUSED,               //= 1 shl 1,
+    CM_MEDIAFLAG_MUTED,                //= 1 shl 2,
+    CM_MEDIAFLAG_LOOP,                 //= 1 shl 3,
+    CM_MEDIAFLAG_CAN_SAVE,             //= 1 shl 4,
+    CM_MEDIAFLAG_HAS_AUDIO,            //= 1 shl 5,
+    CM_MEDIAFLAG_HAS_VIDEO,            //= 1 shl 6,
+    CM_MEDIAFLAG_CONTROL_ROOT_ELEMENT, //= 1 shl 7,
+    CM_MEDIAFLAG_CAN_PRINT,            //= 1 shl 8,
     CM_MEDIAFLAG_CAN_ROTATE            //= 1 shl 9
   );
   TCefContextMenuMediaStateFlags = set of TCefContextMenuMediaStateFlag;
@@ -1491,14 +1491,14 @@ Type
   // Supported context menu edit state bit flags.
   TCefContextMenuEditStateFlag = (
     //CM_EDITFLAG_NONE            = 0,
-    CM_EDITFLAG_CAN_UNDO        = 1 shl 0,
-    CM_EDITFLAG_CAN_REDO        = 1 shl 1,
-    CM_EDITFLAG_CAN_CUT         = 1 shl 2,
-    CM_EDITFLAG_CAN_COPY        = 1 shl 3,
-    CM_EDITFLAG_CAN_PASTE       = 1 shl 4,
-    CM_EDITFLAG_CAN_DELETE      = 1 shl 5,
-    CM_EDITFLAG_CAN_SELECT_ALL  = 1 shl 6,
-    CM_EDITFLAG_CAN_TRANSLATE   = 1 shl 7
+    CM_EDITFLAG_CAN_UNDO,       //= 1 shl 0,
+    CM_EDITFLAG_CAN_REDO,       //= 1 shl 1,
+    CM_EDITFLAG_CAN_CUT,        //= 1 shl 2,
+    CM_EDITFLAG_CAN_COPY,       //= 1 shl 3,
+    CM_EDITFLAG_CAN_PASTE,      //= 1 shl 4,
+    CM_EDITFLAG_CAN_DELETE,     //= 1 shl 5,
+    CM_EDITFLAG_CAN_SELECT_ALL, //= 1 shl 6,
+    CM_EDITFLAG_CAN_TRANSLATE   //= 1 shl 7
  );
  TCefContextMenuEditStateFlags = set of TCefContextMenuEditStateFlag;
 
