@@ -158,10 +158,8 @@ Type
       fOnResourceLoadComplete: TOnResourceLoadComplete;
       fOnGetAuthCredentials: TOnGetAuthCredentials;
       fOnQuotaRequest: TOnQuotaRequest;
-      fOnGetCookieManager: TOnGetCookieManager;
       fOnProtocolExecution: TOnProtocolExecution;
       fOnCertificateError: TOnCertificateError;
-      fOnBeforePluginLoad: TOnBeforePluginLoad;
       fOnPluginCrashed: TOnPluginCrashed;
       fOnRenderViewReady: TOnRenderViewReady;
       fOnRenderProcessTerminated: TOnRenderProcessTerminated;
@@ -317,14 +315,10 @@ Type
         const callback: ICefAuthCallback): Boolean; virtual;
       function doOnQuotaRequest(const Browser: ICefBrowser; const originUrl: ustring;
         newSize: Int64; const callback: ICefRequestCallback): Boolean; virtual;
-      function doOnGetCookieManager(const Browser: ICefBrowser;
-        const mainUrl: ustring): ICefCookieManager; virtual;
       procedure doOnProtocolExecution(const Browser: ICefBrowser;
         const url: ustring; out allowOsExecution: Boolean); virtual;
       function doOnCertificateError(const browser: ICefBrowser; certError: TCefErrorCode;
         const requestUrl: ustring; const sslInfo: ICefSslinfo; callback: ICefRequestCallback): Boolean;
-      function doOnBeforePluginLoad(const Browser: ICefBrowser; const url, policyUrl: ustring;
-        const info: ICefWebPluginInfo): Boolean; virtual;
       procedure doOnPluginCrashed(const Browser: ICefBrowser; const pluginPath: ustring); virtual;
       procedure doOnRenderViewReady(const browser: ICefBrowser); virtual;
       procedure doOnRenderProcessTerminated(const Browser: ICefBrowser; Status: TCefTerminationStatus); virtual;
@@ -403,10 +397,8 @@ Type
       property OnResourceLoadComplete: TOnResourceLoadComplete read fOnResourceLoadComplete write fOnResourceLoadComplete;
       property OnGetAuthCredentials: TOnGetAuthCredentials read fOnGetAuthCredentials write fOnGetAuthCredentials;
       property OnQuotaRequest: TOnQuotaRequest read fOnQuotaRequest write fOnQuotaRequest;
-      property OnGetCookieManager: TOnGetCookieManager read fOnGetCookieManager write fOnGetCookieManager;
       property OnProtocolExecution: TOnProtocolExecution read fOnProtocolExecution write fOnProtocolExecution;
       property OnCertificateError: TOnCertificateError read fOnCertificateError write fOnCertificateError;
-      property OnBeforePluginLoad: TOnBeforePluginLoad read fOnBeforePluginLoad write fOnBeforePluginLoad;
       property OnPluginCrashed: TOnPluginCrashed read fOnPluginCrashed write fOnPluginCrashed;
       property OnRenderViewReady: TOnRenderViewReady read fOnRenderViewReady write fOnRenderViewReady;
       property OnRenderProcessTerminated: TOnRenderProcessTerminated read fOnRenderProcessTerminated write fOnRenderProcessTerminated;
@@ -500,10 +492,8 @@ Type
       property OnResourceLoadComplete;
       property OnGetAuthCredentials;
       property OnQuotaRequest;
-      property OnGetCookieManager;
       property OnProtocolExecution;
       property OnCertificateError;
-      property OnBeforePluginLoad;
       property OnPluginCrashed;
       property OnRenderViewReady;
       property OnRenderProcessTerminated;
@@ -1304,13 +1294,6 @@ begin
   Else Result := False;
 end;
 
-function TCustomChromium.doOnGetCookieManager(const Browser: ICefBrowser;
-  const mainUrl: ustring): ICefCookieManager;
-begin
-  If Assigned(fOnGetCookieManager) then fOnGetCookieManager(Self, Browser, mainUrl, Result)
-  Else Result := nil;
-end;
-
 procedure TCustomChromium.doOnProtocolExecution(const Browser: ICefBrowser; const url: ustring;
   out allowOsExecution: Boolean);
 begin
@@ -1323,14 +1306,6 @@ function TCustomChromium.doOnCertificateError(const browser: ICefBrowser; certEr
 begin
   If Assigned(fOnCertificateError) then
     fOnCertificateError(Self, certError, requestUrl, callback, Result)
-  Else Result := False;
-end;
-
-function TCustomChromium.doOnBeforePluginLoad(const Browser: ICefBrowser;
-  const url, policyUrl: ustring; const info: ICefWebPluginInfo): Boolean;
-begin
-  If Assigned(fOnBeforePluginLoad) then
-    fOnBeforePluginLoad(Self, Browser, url, policyUrl, info, Result)
   Else Result := False;
 end;
 

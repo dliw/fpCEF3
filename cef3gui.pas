@@ -165,14 +165,10 @@ Type
   TOnQuotaRequest = procedure(Sender: TObject; const Browser: ICefBrowser;
     const originUrl: ustring; newSize: Int64; const callback: ICefRequestCallback;
     out Result: Boolean) of object;
-  TOnGetCookieManager = procedure(Sender: TObject; const Browser: ICefBrowser;
-    const mainUrl: ustring; out Result: ICefCookieManager) of object;
   TOnProtocolExecution = procedure(Sender: TObject; const Browser: ICefBrowser;
     const url: ustring; out allowOsExecution: Boolean) of object;
   TOnCertificateError = procedure(Sender: TObject; certError: TCefErrorcode; const requestUrl: ustring;
       callback: ICefRequestCallback; out Result: Boolean) of object;
-  TOnBeforePluginLoad = procedure(Sender: TObject; const Browser: ICefBrowser;
-    const url, policyUrl: ustring; const info: ICefWebPluginInfo; out Result: Boolean) of object;
   TOnPluginCrashed = procedure(Sender: TObject; const browser: ICefBrowser; const plugin_path: ustring) of object;
   TOnRenderViewReady = procedure(Sender: TObject; const browser: ICefBrowser) of object;
   TOnRenderProcessTerminated= procedure(Sender: TObject; const browser: ICefBrowser; status: TCefTerminationStatus) of object;

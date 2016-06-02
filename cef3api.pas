@@ -2996,11 +2996,11 @@ Type
     on_before_resource_load: function(self: PCefRequestHandler; browser: PCefBrowser;
       frame: PCefFrame; request: PCefRequest; callback: PCefRequestCallback): TCefReturnValue; cconv;
 
-  	// Called on the IO thread before a resource is loaded. To allow the resource
-  	// to load normally return NULL. To specify a handler for the resource return
-  	// a cef_resource_handler_t object. The |request| object should not be
-  	// modified in this callback.
-  	get_resource_handler: function(self:PCefRequestHandler; browser: PCefBrowser;frame: PCefFrame;
+    // Called on the IO thread before a resource is loaded. To allow the resource
+    // to load normally return NULL. To specify a handler for the resource return
+    // a cef_resource_handler_t object. The |request| object should not be
+    // modified in this callback.
+    get_resource_handler: function(self:PCefRequestHandler; browser: PCefBrowser;frame: PCefFrame;
       request: PCefRequest): PCefResourceHandler; cconv;
 
     // Called on the IO thread when a resource load is redirected. The |request|
