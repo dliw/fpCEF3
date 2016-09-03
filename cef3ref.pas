@@ -107,7 +107,7 @@ Type
       mouseUp: Boolean; clickCount: Integer);
     procedure SendMouseMoveEvent(event:TCefMouseEvent; mouseLeave: Boolean);
     procedure SendMouseWheelEvent(const event: TCefMouseEvent; deltaX, deltaY: Integer);
-    procedure SendFocusEvent(dosetFocus: Integer);
+    procedure SendFocusEvent(dosetFocus: Boolean);
     procedure SendCaptureLostEvent;
     procedure NotifyMoveOrResizeStarted;
     function GetWindowlessFrameRate: Integer;
@@ -547,8 +547,6 @@ Type
     class function UnWrap(data: Pointer): ICefPostDataElement;
     class function New: ICefPostDataElement;
   end;
-
-  { TCefRequestContextRef }
 
   TCefRequestContextRef = class(TCefBaseRef, ICefRequestContext)
   protected
@@ -1414,9 +1412,9 @@ begin
   PCefBrowserHost(fData)^.send_mouse_wheel_event(fData, @event, deltaX, deltaY);
 end;
 
-procedure TCefBrowserHostRef.SendFocusEvent(dosetFocus : Integer);
+procedure TCefBrowserHostRef.SendFocusEvent(dosetFocus: Boolean);
 begin
-  PCefBrowserHost(fData)^.send_focus_event(fData, dosetFocus);
+  PCefBrowserHost(fData)^.send_focus_event(fData, Ord(dosetFocus));
 end;
 
 procedure TCefBrowserHostRef.SendCaptureLostEvent;

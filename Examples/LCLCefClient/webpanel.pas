@@ -5,7 +5,7 @@ Unit WebPanel;
 Interface
 
 Uses
-  Classes, SysUtils, Controls, ComCtrls, FileUtil, Forms, LCLProc, Graphics, strutils,
+  Classes, SysUtils, Controls, ComCtrls, FileUtil, Forms, LCLProc, Graphics, strutils, LazFileUtils,
   cef3types, cef3lib, cef3intf, cef3own, cef3lcl,
   FaviconGetter;
 

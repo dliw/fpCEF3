@@ -24,8 +24,6 @@ Unit cef3own;
 
 {$I cef.inc}
 
-{$WARNING different kinds of callbacks!}
-
 Interface
 
 Uses
@@ -223,8 +221,6 @@ Type
   public
     constructor Create; virtual;
   end;
-
-  { TCefFastGetGeolocationCallback }
 
   TCefFastGetGeolocationCallback = class(TCefGetGeolocationCallbackOwn)
   private

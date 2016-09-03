@@ -37,8 +37,8 @@ Type
   TOnBeforeContextMenu = procedure(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame;
     const params: ICefContextMenuParams; const model: ICefMenuModel) of object;
   TOnRunContextMenu = procedure(Sender: TObject; const browser: ICefBrowser; const frame: ICefFrame;
-      const params: ICefContextMenuParams; const model: ICefMenuModel;
-      const callback: ICefRunContextMenuCallback; out Result: Boolean) of object;
+    const params: ICefContextMenuParams; const model: ICefMenuModel;
+    const callback: ICefRunContextMenuCallback; out Result: Boolean) of object;
   TOnContextMenuCommand = procedure(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame;
     const params: ICefContextMenuParams; commandId: Integer;
     eventFlags: TCefEventFlags; out Result: Boolean) of object;
@@ -63,7 +63,7 @@ Type
   TOnBeforeDownload = procedure(Sender: TObject; const Browser: ICefBrowser; const downloadItem: ICefDownloadItem;
     const suggestedName: ustring; const callback: ICefBeforeDownloadCallback) of object;
   TOnDownloadUpdated = procedure(Sender: TObject; const Browser: ICefBrowser; const downloadItem: ICefDownloadItem;
-      const callback: ICefDownloadItemCallback) of object;
+    const callback: ICefDownloadItemCallback) of object;
 
   { DragHandler }
   TOnDragEnter = procedure(Sender: TObject; const Browser: ICefBrowser; const dragData: ICefDragData; mask: TCefDragOperationsMask; out Result: Boolean) of object;
@@ -135,7 +135,7 @@ Type
   TOnCursorChange = procedure(Sender: TObject; const browser: ICefBrowser; cursor: TCefCursorHandle;
     type_: TCefCursorType; const customCursorInfo: PCefCursorInfo) of object;
   TOnStartDragging = procedure(Sender: TObject; const browser: ICefBrowser; const dragData: ICefDragData;
-      allowedOps: TCefDragOperationsMask; x, y: Integer; out Result: Boolean) of object;
+    allowedOps: TCefDragOperationsMask; x, y: Integer; out Result: Boolean) of object;
   TOnUpdateDragCursor = procedure(Self: TObject; const browser: ICefBrowser; operation: TCefDragOperationsMask) of object;
   TOnScrollOffsetChanged = procedure(Sender: TObject; const browser: ICefBrowser; x,y: Double) of object;
 
@@ -146,13 +146,13 @@ Type
     const targetUrl: ustring; targetDisposition: TCefWindowOpenDisposition; useGesture: Boolean;
     out Result: Boolean) of object;
   TOnBeforeResourceLoad = procedure(Sender: TObject; const browser: ICefBrowser; const frame: ICefFrame;
-      const request: ICefRequest; const callback: ICefRequestCallback; out Result: TCefReturnValue) of object;
+    const request: ICefRequest; const callback: ICefRequestCallback; out Result: TCefReturnValue) of object;
   TOnGetResourceHandler = procedure(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame;
     const request: ICefRequest; out Result: ICefResourceHandler) of object;
   TOnResourceRedirect = procedure(Sender: TObject; const browser: ICefBrowser; const frame: ICefFrame;
-      const request: ICefRequest; var newUrl: ustring) of object;
+    const request: ICefRequest; var newUrl: ustring) of object;
   TOnResourceResponse = procedure(Sender: TObject; browser: ICefBrowser; frame: ICefFrame; request: ICefRequest;
-      response: ICefResponse; out Result: Boolean) of object;
+    response: ICefResponse; out Result: Boolean) of object;
   TOnGetResourceResponseFilter = procedure(Sender: TObject; const browser: ICefBrowser;
     const frame: ICefFrame; const request: ICefRequest;
     const response: ICefResponse; out Result: ICefResponseFilter) of object;
@@ -168,10 +168,10 @@ Type
   TOnProtocolExecution = procedure(Sender: TObject; const Browser: ICefBrowser;
     const url: ustring; out allowOsExecution: Boolean) of object;
   TOnCertificateError = procedure(Sender: TObject; certError: TCefErrorcode; const requestUrl: ustring;
-      callback: ICefRequestCallback; out Result: Boolean) of object;
+    callback: ICefRequestCallback; out Result: Boolean) of object;
   TOnPluginCrashed = procedure(Sender: TObject; const browser: ICefBrowser; const plugin_path: ustring) of object;
   TOnRenderViewReady = procedure(Sender: TObject; const browser: ICefBrowser) of object;
-  TOnRenderProcessTerminated= procedure(Sender: TObject; const browser: ICefBrowser; status: TCefTerminationStatus) of object;
+  TOnRenderProcessTerminated = procedure(Sender: TObject; const browser: ICefBrowser; status: TCefTerminationStatus) of object;
 
   TChromiumOptions = class(TPersistent)
   private

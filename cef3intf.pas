@@ -293,7 +293,7 @@ Type
       mouseUp: Boolean; clickCount: Integer);
     procedure SendMouseMoveEvent(event:TCefMouseEvent; mouseLeave: Boolean);
     procedure SendMouseWheelEvent(const event: TCefMouseEvent; deltaX, deltaY: Integer);
-    procedure SendFocusEvent(dosetFocus: Integer);
+    procedure SendFocusEvent(dosetFocus: Boolean);
     procedure SendCaptureLostEvent;
     procedure NotifyMoveOrResizeStarted;
     function GetWindowlessFrameRate: Integer;
