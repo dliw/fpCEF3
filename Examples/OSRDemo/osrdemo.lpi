@@ -118,7 +118,7 @@
     <RequiredPackages Count="3">
       <Item1>
         <PackageName Value="BGRABitmapPack"/>
-        <MinVersion Major="8" Minor="8" Release="1" Valid="True"/>
+        <MinVersion Major="9" Minor="1" Valid="True"/>
       </Item1>
       <Item2>
         <PackageName Value="CEF3"/>

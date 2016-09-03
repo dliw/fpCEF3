@@ -1,13 +1,13 @@
 object Mainform: TMainform
-  Left = 338
+  Left = 643
   Height = 475
-  Top = 133
+  Top = 320
   Width = 762
   Caption = 'Browser -'
   ClientHeight = 475
   ClientWidth = 762
   OnCreate = FormCreate
-  LCLVersion = '1.4.2.0'
+  LCLVersion = '1.6.0.4'
   object BGo: TButton
     AnchorSideTop.Control = Owner
     AnchorSideRight.Control = Owner
@@ -53,7 +53,7 @@ object Mainform: TMainform
     TabOrder = 2
     Text = 'http://'
   end
-  object PaintBox: TPaintBox
+  object OSRPanel: TPanel
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Control = EUrl
     AnchorSideTop.Side = asrBottom
@@ -67,11 +67,24 @@ object Mainform: TMainform
     Width = 762
     Anchors = [akTop, akLeft, akRight, akBottom]
     BorderSpacing.Top = 10
-    OnMouseDown = PaintBoxMouseDown
-    OnMouseMove = PaintBoxMouseMove
-    OnMouseUp = PaintBoxMouseUp
-    OnMouseWheel = PaintBoxMouseWheel
-    OnResize = PaintBoxResize
+    BevelOuter = bvNone
+    ClientHeight = 430
+    ClientWidth = 762
+    TabOrder = 3
+    OnEnter = OSRPanelEnter
+    OnExit = OSRPanelExit
+    object PaintBox: TPaintBox
+      Left = 0
+      Height = 430
+      Top = 0
+      Width = 762
+      Align = alClient
+      OnMouseDown = PaintBoxMouseDown
+      OnMouseMove = PaintBoxMouseMove
+      OnMouseUp = PaintBoxMouseUp
+      OnMouseWheel = PaintBoxMouseWheel
+      OnResize = PaintBoxResize
+    end
   end
   object Chromium: TChromiumOSR
     OnGetRootScreenRect = ChromiumGetRootScreenRect

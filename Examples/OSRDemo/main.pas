@@ -19,6 +19,7 @@ Type
     EUrl : TEdit;
     LUrl : TStaticText;
     PaintBox : TPaintBox;
+    OSRPanel: TPanel;
     procedure BGoClick(Sender : TObject);
     procedure ChromiumGetRootScreenRect(Sender : TObject;
       const Browser : ICefBrowser; rect : PCefRect; out Result : Boolean);
@@ -30,6 +31,8 @@ Type
     procedure EUrlKeyDown(Sender : TObject; var Key : Word;
       Shift : TShiftState);
     procedure FormCreate(Sender : TObject);
+    procedure OSRPanelEnter(Sender: TObject);
+    procedure OSRPanelExit(Sender: TObject);
     procedure PaintBoxMouseDown(Sender : TObject; Button : TMouseButton;
       Shift : TShiftState; X, Y : Integer);
     procedure PaintBoxMouseMove(Sender : TObject; Shift : TShiftState;
@@ -140,6 +143,8 @@ procedure TMainform.PaintBoxMouseDown(Sender : TObject; Button : TMouseButton;
 Var
   MouseEvent: TCefMouseEvent;
 begin
+  OSRPanel.SetFocus;
+
   MouseEvent.x := X;
   MouseEvent.y := Y;
   MouseEvent.modifiers := getModifiers(Shift);
@@ -184,7 +189,6 @@ end;
 procedure TMainform.PaintBoxResize(Sender : TObject);
 begin
   Chromium.Browser.Host.WasResized;
-  Chromium.Browser.Host.SendFocusEvent(1);
   Application.ProcessMessages;
 end;
 
@@ -192,6 +196,16 @@ procedure TMainform.FormCreate(Sender : TObject);
 begin
   {$INFO subprocess is set here, uncomment to use a subprocess}
   //CefBrowserSubprocessPath := '.' + PathDelim + 'subprocess'{$IFDEF WINDOWS}+'.exe'{$ENDIF};
+end;
+
+procedure TMainform.OSRPanelEnter(Sender: TObject);
+begin
+  Chromium.Browser.Host.SendFocusEvent(True);
+end;
+
+procedure TMainform.OSRPanelExit(Sender: TObject);
+begin
+  Chromium.Browser.Host.SendFocusEvent(False);
 end;
 
 end.
