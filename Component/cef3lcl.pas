@@ -66,7 +66,7 @@ Uses
   {$IFDEF LCLQT}
   qt4, qtwidgets,
   {$ENDIF}
-  cef3types, cef3lib, cef3intf, cef3gui;
+  cef3types, cef3lib, cef3intf, cef3gui, cef3context;
 
 Type
 
@@ -163,6 +163,10 @@ Type
       fOnPluginCrashed: TOnPluginCrashed;
       fOnRenderViewReady: TOnRenderViewReady;
       fOnRenderProcessTerminated: TOnRenderProcessTerminated;
+
+      { RequestContext }
+      fChromiumContext: TCustomChromiumContext;
+      fRequestContext: ICefRequestContext;
 
       fOptions: TChromiumOptions;
       fFontOptions: TChromiumFontOptions;
@@ -403,6 +407,10 @@ Type
       property OnRenderViewReady: TOnRenderViewReady read fOnRenderViewReady write fOnRenderViewReady;
       property OnRenderProcessTerminated: TOnRenderProcessTerminated read fOnRenderProcessTerminated write fOnRenderProcessTerminated;
 
+      { RequestContext }
+      property ChromiumContext: TCustomChromiumContext read fChromiumContext write fChromiumContext;
+      property RequestContext: ICefRequestContext read fRequestContext write fRequestContext;
+
       property BrowserId: Integer read fBrowserId;
       property Browser: ICefBrowser read fBrowser;
       property Handler: ICefClient read fHandler;
@@ -423,6 +431,8 @@ Type
     public
       property BrowserId;
       property Browser;
+
+      property RequestContext;
     published
       property Color;
       property Constraints;
@@ -497,6 +507,8 @@ Type
       property OnPluginCrashed;
       property OnRenderViewReady;
       property OnRenderProcessTerminated;
+
+      property ChromiumContext;
 
       property DefaultUrl;
 
@@ -697,10 +709,13 @@ begin
     settings.size := SizeOf(TCefBrowserSettings);
     GetSettings(settings);
 
+    // request context priority: ChromiumContext (component) > RequestContext (manually set) > nil
+    If Assigned(fChromiumContext) then fRequestContext := fChromiumContext.GetRequestContext;
+
 {$IFDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
-    CefBrowserHostCreateBrowser(@info, FHandler, UTF8Decode(fDefaultUrl), @settings, nil);
+    CefBrowserHostCreateBrowser(@info, FHandler, UTF8Decode(fDefaultUrl), @settings, fRequestContext);
 {$ELSE}
-    fBrowser := CefBrowserHostCreateBrowserSync(@info, FHandler, '', @settings, nil);
+    fBrowser := CefBrowserHostCreateBrowserSync(@info, FHandler, '', @settings, fRequestContext);
     fBrowserId := fBrowser.Identifier;
 {$ENDIF}
 

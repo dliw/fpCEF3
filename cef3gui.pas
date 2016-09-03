@@ -173,6 +173,11 @@ Type
   TOnRenderViewReady = procedure(Sender: TObject; const browser: ICefBrowser) of object;
   TOnRenderProcessTerminated = procedure(Sender: TObject; const browser: ICefBrowser; status: TCefTerminationStatus) of object;
 
+  { RequestContextHandler }
+  TOnGetCookieManager = procedure(Sender: TObject; out Result: ICefCookieManager) of object;
+  TOnBeforePluginLoad = procedure(Sender: TObject; const mimeType, pluginUrl, topOriginUrl: ustring;
+    pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy; out Result: Boolean) of object;
+
   TChromiumOptions = class(TPersistent)
   private
     fRemoteFonts: TCefState;
@@ -387,6 +392,12 @@ Type
     procedure doOnPluginCrashed(const browser: ICefBrowser; const plugin_path: ustring);
     procedure doOnRenderViewReady(const browser: ICefBrowser);
     procedure doOnRenderProcessTerminated(const browser: ICefBrowser; status: TCefTerminationStatus);
+  end;
+
+  IChromiumContextEvents = interface ['{1CEDEEB4-AEEF-473B-99FA-F8D0D2576A36}']
+    function doOnGetCookieManager: ICefCookieManager;
+    function doOnBeforePluginLoad(const mimeType, pluginUrl, topOriginUrl: ustring;
+        pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy): Boolean;
   end;
 
   ICefClientHandler = interface ['{E76F6888-D9C3-4FCE-9C23-E89659820A36}']
@@ -650,6 +661,16 @@ Type
     constructor Create(const events: IChromiumEvents); reintroduce; virtual;
   end;
 
+  TCustomRequestContextHandler = class(TCefRequestContextHandlerOwn)
+  private
+    fEvent: IChromiumContextEvents;
+  protected
+    function GetCookieManager: ICefCookieManager; override;
+    function OnBeforePluginLoad(const mimeType, pluginUrl, topOriginUrl: ustring;
+      pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy): Boolean; override;
+  public
+    constructor Create(const events: IChromiumContextEvents); reintroduce; virtual;
+  end;
 
 
 Implementation
@@ -1308,6 +1329,25 @@ procedure TCustomRequestHandler.OnRenderProcessTerminated(const browser: ICefBro
   status: TCefTerminationStatus);
 begin
   fEvent.doOnRenderProcessTerminated(browser, status);
+end;
+
+{ TCustomRequestContextHandler }
+
+constructor TCustomRequestContextHandler.Create(const events: IChromiumContextEvents);
+begin
+  inherited Create;
+  fEvent := events;
+end;
+
+function TCustomRequestContextHandler.GetCookieManager: ICefCookieManager;
+begin
+  Result := fEvent.doOnGetCookieManager;
+end;
+
+function TCustomRequestContextHandler.OnBeforePluginLoad(const mimeType, pluginUrl, topOriginUrl: ustring;
+  pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy): Boolean;
+begin
+  Result := fEvent.doOnBeforePluginLoad(mimeType, pluginUrl, topOriginUrl, pluginInfo, pluginPolicy);
 end;
 
 end.
