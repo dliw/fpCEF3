@@ -1063,7 +1063,13 @@ Type
     RT_PING,
 
     // Main resource of a service worker.
-    RT_SERVICE_WORKER
+    RT_SERVICE_WORKER,
+
+    // A report of Content Security Policy violations.
+    RT_CSP_REPORT,
+
+    // A resource that a plugin requested.
+    RT_PLUGIN_RESOURCE
   );
 
   // Transition type for a request. Made up of one source value and 0 or more
@@ -1203,6 +1209,25 @@ Type
   TCefSize = record
     width: Integer;
     height: Integer;
+  end;
+
+  // Structure representing a range.
+  PCefRange = ^TCefRange;
+  TCefRange = record
+    from: Integer;
+    to_: Integer;
+  end;
+
+  TCefRangeArray = array of TCefRange;
+  PCefRangeArray = ^TCefRangeArray;
+
+  // Structure representing insets.
+  PCefInsets = ^TCefInsets;
+  TCefInsets = record
+    top: Integer;
+    left: Integer;
+    bottom: Integer;
+    right: Integer;
   end;
 
   // Structure representing a draggable region.
@@ -1787,16 +1812,6 @@ Type
     DUPLEX_MODE_SHORT_EDGE
   );
 
-  // Structure representing a print job page range.
-  PCefPageRange = ^TCefPageRange;
-  TCefPageRange = record
-    from: Integer;
-    to_: Integer;
-  end;
-
-  TCefPageRangeArray = array of TCefPageRange;
-  PCefPageRangeArray = ^TCefPageRangeArray;
-
   // Cursor type values.
   TCefCursorType = (
     CT_POINTER = 0,
@@ -1866,31 +1881,40 @@ Type
     // just the absence of them). All other unescape rules imply "normal" in
     // addition to their special meaning. Things like escaped letters, digits,
     // and most symbols will get unescaped with this mode.
-    UU_NORMAL = 1,
+    UU_NORMAL = 1 shl 0,
 
     // Convert %20 to spaces. In some places where we're showing URLs, we may
     // want this. In places where the URL may be copied and pasted out, then
     // you wouldn't want this since it might not be interpreted in one piece
     // by other applications.
-    UU_SPACES = 2,
+    UU_SPACES = 1 shl 1,
+
+    // Unescapes '/' and '\\'. If these characters were unescaped, the resulting
+    // URL won't be the same as the source one. Moreover, they are dangerous to
+    // unescape in strings that will be used as file paths or names. This value
+    // should only be used when slashes don't have special meaning, like data
+    // URLs.
+    UU_PATH_SEPARATORS = 1 shl 2,
 
     // Unescapes various characters that will change the meaning of URLs,
-    // including '%', '+', '&', '/', '#'. If we unescaped these characters, the
-    // resulting URL won't be the same as the source one. This flag is used when
-    // generating final output like filenames for URLs where we won't be
-    // interpreting as a URL and want to do as much unescaping as possible.
-    UU_URL_SPECIAL_CHARS = 4,
+    // including '%', '+', '&', '#'. Does not unescape path separators.
+    // If these characters were unescaped, the resulting URL won't be the same
+    // as the source one. This flag is used when generating final output like
+    // filenames for URLs where we won't be interpreting as a URL and want to do
+    // as much unescaping as possible.
+    UU_URL_SPECIAL_CHARS_EXCEPT_PATH_SEPARATORS = 1 shl 3,
 
-    // Unescapes control characters such as %01. This INCLUDES NULLs. This is
-    // used for rare cases such as data: URL decoding where the result is binary
-    // data. This flag also unescapes BiDi control characters.
+    // Unescapes characters that can be used in spoofing attempts (such as LOCK)
+    // and control characters (such as BiDi control characters and %01).  This
+    // INCLUDES NULLs.  This is used for rare cases such as data: URL decoding
+    // where the result is binary data.
     //
-    // DO NOT use CONTROL_CHARS if the URL is going to be displayed in the UI
-    // for security reasons.
-    UU_CONTROL_CHARS = 8,
+    // DO NOT use UU_SPOOFING_AND_CONTROL_CHARS if the URL is going to be
+    // displayed in the UI for security reasons.
+    UU_SPOOFING_AND_CONTROL_CHARS = 1 shl 4,
 
     // URL queries use "+" for space. This flag controls that replacement.
-    UU_REPLACE_PLUS_WITH_SPACE = 16
+    UU_REPLACE_PLUS_WITH_SPACE = 1 shl 5
   );
 
   // Options that can be passed to CefParseJSON.
@@ -2070,12 +2094,129 @@ Type
     RESPONSE_FILTER_ERROR
   );
 
-  // Callbacks
-  TGetLocalizedString = function(stringId: Integer; out stringVal: ustring): Boolean;
-  TGetDataResource = function(resourceId: Integer; out data: Pointer; out dataSize: TSize): Boolean;
-  TGetDataResourceForScale = function(resourceId: Integer; scaleFactor: TCefScaleFactor; out data: Pointer; out dataSize: TSize): Boolean;
-  TCefGetGeolocationCallbackProc = procedure(const position: TCefGeoposition);
-  TCefWebPluginIsUnstableProc = procedure(const path: ustring; unstable: Boolean);
+  // Describes how to interpret the components of a pixel.
+  TCefColorType = (
+    // RGBA with 8 bits per pixel (32bits total).
+    CEF_COLOR_TYPE_RGBA_8888,
+
+    // BGRA with 8 bits per pixel (32bits total).
+    CEF_COLOR_TYPE_BGRA_8888
+  );
+
+  // Describes how to interpret the alpha component of a pixel.
+  TCefAlphaType = (
+    // No transparency. The alpha component is ignored.
+    CEF_ALPHA_TYPE_OPAQUE,
+
+    // Transparency with pre-multiplied alpha component.
+    CEF_ALPHA_TYPE_PREMULTIPLIED,
+
+    // Transparency with post-multiplied alpha component.
+    CEF_ALPHA_TYPE_POSTMULTIPLIED
+  );
+
+  // Text style types.
+  TCefTextStyle = (
+    CEF_TEXT_STYLE_BOLD,
+    CEF_TEXT_STYLE_ITALIC,
+    CEF_TEXT_STYLE_STRIKE,
+    CEF_TEXT_STYLE_DIAGONAL_STRIKE,
+    CEF_TEXT_STYLE_UNDERLINE
+  );
+
+  // Specifies where along the main axis the CefBoxLayout child views should be
+  // laid out.
+  TCefMainAxisAlignment = (
+    // Child views will be left-aligned.
+    CEF_MAIN_AXIS_ALIGNMENT_START,
+
+    // Child views will be center-aligned.
+    CEF_MAIN_AXIS_ALIGNMENT_CENTER,
+
+    // Child views will be right-aligned.
+    CEF_MAIN_AXIS_ALIGNMENT_END
+  );
+
+  // Specifies where along the cross axis the CefBoxLayout child views should be
+  // laid out.
+  TCefCrossAxisAlignment = (
+    // Child views will be stretched to fit.
+    CEF_CROSS_AXIS_ALIGNMENT_STRETCH,
+
+    // Child views will be left-aligned.
+    CEF_CROSS_AXIS_ALIGNMENT_START,
+
+    // Child views will be center-aligned.
+    CEF_CROSS_AXIS_ALIGNMENT_CENTER,
+
+    // Child views will be right-aligned.
+    CEF_CROSS_AXIS_ALIGNMENT_END
+  );
+
+  // Settings used when initializing a CefBoxLayout.
+  TCefBoxLayoutSettings = record
+    // If true (1) the layout will be horizontal, otherwise the layout will be
+    // vertical.
+    horizontal: Integer;
+
+    // Adds additional horizontal space between the child view area and the host
+    // view border.
+    inside_border_horizontal_spacing: Integer;
+
+    // Adds additional vertical space between the child view area and the host
+    // view border.
+    inside_border_vertical_spacing: Integer;
+
+    // Adds additional space around the child view area.
+    inside_border_insets: TCefInsets;
+
+    // Adds additional space between child views.
+    between_child_spacing: Integer;
+
+    // Specifies where along the main axis the child views should be laid out.
+    main_axis_alignment: TCefMainAxisAlignment;
+
+    // Specifies where along the cross axis the child views should be laid out.
+    cross_axis_alignment: TCefCrossAxisAlignment;
+
+    // Minimum cross axis size.
+    minimum_cross_axis_size: Integer;
+
+    // Default flex for views when none is specified via CefBoxLayout methods.
+    // Using the preferred size as the basis, free space along the main axis is
+    // distributed to views in the ratio of their flex weights. Similarly, if the
+    // views will overflow the parent, space is subtracted in these ratios. A flex
+    // of 0 means this view is not resized. Flex values must not be negative.
+    default_flex: Integer;
+  end;
+
+  // Specifies the button display state.
+  TCefButtonState = (
+    CEF_BUTTON_STATE_NORMAL,
+    CEF_BUTTON_STATE_HOVERED,
+    CEF_BUTTON_STATE_PRESSED,
+    CEF_BUTTON_STATE_DISABLED
+  );
+
+  // Specifies the horizontal text alignment mode.
+  TCefHorizontalAlignment = (
+    // Align the text's left edge with that of its display area.
+    CEF_HORIZONTAL_ALIGNMENT_LEFT,
+
+    // Align the text's center with that of its display area.
+    CEF_HORIZONTAL_ALIGNMENT_CENTER,
+
+    // Align the text's right edge with that of its display area.
+    CEF_HORIZONTAL_ALIGNMENT_RIGHT
+  );
+
+  // Specifies how a menu will be anchored for non-RTL languages. The opposite
+  // position will be used for RTL languages.
+  TCefMenuAnchorPosition = (
+    CEF_MENU_ANCHOR_TOPLEFT,
+    CEF_MENU_ANCHOR_TOPRIGHT,
+    CEF_MENU_ANCHOR_BOTTOMCENTER
+  );
 
 Implementation
 

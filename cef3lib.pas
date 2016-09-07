@@ -93,7 +93,7 @@ function CefClearCrossOriginWhitelist: Boolean;
 function CefParseUrl(const url: ustring; var parts: TUrlParts): Boolean;
 function CefCreateUrl(var parts: TUrlParts): ustring;
 
-function CefFormatUrlForSecurityDisplay(const originUrl, languages: ustring): ustring;
+function CefFormatUrlForSecurityDisplay(const originUrl: ustring): ustring;
 
 function CefGetMimeType(const extension: ustring): ustring;
 procedure CefGetExtensionsForMimeType(const mimeType: ustring; extensions: TStrings);
@@ -101,7 +101,6 @@ function CefBase64Encode(const data: Pointer; dataSize: TSize): ustring;
 function CefBase64Decode(const data: ustring): ICefBinaryValue;
 function CefUriEncode(const text: ustring; usePlus: Boolean): ustring;
 function CefUriDecode(const text: ustring; convertToUtf8: Boolean; unescapeRules: TCefUriUnescapeRule): ustring;
-function CefParseCssColor(const colorString: ustring; strict: Boolean; out color: TCefColor): Boolean;
 function CefParseJson(const jsonString: ustring; options: TCefJsonParserOptions): ICefValue;
 function CefParseJsonAndReturnError(const jsonString: ustring; options: TCefJsonParserOptions; out errorCode: TCefJsonParserError; out errorMsg: ustring): ICefValue;
 function CefWriteJson(node: ICefValue; options: TCefJsonWriterOptions): ustring;
@@ -128,11 +127,7 @@ function Cefv8ContextInContext: Boolean;
 procedure CefVisitWebPluginInfo(const visitor: ICefWebPluginInfoVisitor);
 procedure CefVisitWebPluginInfoProc(const visitor: TCefWebPluginInfoVisitorProc);
 procedure CefRefreshWebPlugins;
-procedure CefAddWebPluginPath(const path: ustring);
-procedure CefAddWebPluginDirectory(const dir: ustring);
-procedure CefRemoveWebPluginPath(const path: ustring);
 procedure CefUnregisterInternalWebPlugin(const path: ustring);
-procedure CefForceWebPluginShutdown(const path: ustring);
 procedure CefRegisterWebPluginCrash(const path: ustring);
 procedure CefIsWebPluginUnstable(const path: ustring; const callback: ICefWebPluginUnstableCallback);
 procedure CefIsWebPluginUnstableProc(const path: ustring; const callback: TCefWebPluginIsUnstableProc);
@@ -640,14 +635,13 @@ begin
   Else Result := '';
 end;
 
-function CefFormatUrlForSecurityDisplay(const originUrl, languages: ustring): ustring;
+function CefFormatUrlForSecurityDisplay(const originUrl: ustring): ustring;
 Var
-  o, l: TCefString;
+  o: TCefString;
 begin
   o := CefString(originUrl);
-  l := CefString(languages);
 
-  Result := CefStringFreeAndGet(cef_format_url_for_security_display(@o, @l));
+  Result := CefStringFreeAndGet(cef_format_url_for_security_display(@o));
 end;
 
 function CefGetMimeType(const extension: ustring): ustring;
@@ -709,15 +703,6 @@ Var
 begin
   t := CefString(text);
   Result := CefStringFreeAndGet(cef_uridecode(@t, Ord(convertToUtf8), unescapeRules));
-end;
-
-function CefParseCssColor(const colorString: ustring; strict: Boolean;
-  out color: TCefColor): Boolean;
-Var
-  c: TCefString;
-begin
-  c := CefString(colorString);
-  Result := cef_parse_csscolor(@c, Ord(strict), @color) <> 0;
 end;
 
 function CefParseJson(const jsonString: ustring; options: TCefJsonParserOptions): ICefValue;
@@ -841,44 +826,12 @@ begin
   cef_refresh_web_plugins();
 end;
 
-procedure CefAddWebPluginPath(const path: ustring);
-Var
-  p: TCefString;
-begin
-  p := CefString(path);
-  cef_add_web_plugin_path(@p);
-end;
-
-procedure CefAddWebPluginDirectory(const dir: ustring);
-Var
-  d: TCefString;
-begin
-  d := CefString(dir);
-  cef_add_web_plugin_directory(@d);
-end;
-
-procedure CefRemoveWebPluginPath(const path: ustring);
-Var
-  p: TCefString;
-begin
-  p := CefString(path);
-  cef_remove_web_plugin_path(@p);
-end;
-
 procedure CefUnregisterInternalWebPlugin(const path: ustring);
 Var
   p: TCefString;
 begin
   p := CefString(path);
   cef_unregister_internal_web_plugin(@p);
-end;
-
-procedure CefForceWebPluginShutdown(const path: ustring);
-Var
-  p: TCefString;
-begin
-  p := CefString(path);
-  cef_force_web_plugin_shutdown(@p);
 end;
 
 procedure CefRegisterWebPluginCrash(const path: ustring);

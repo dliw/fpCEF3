@@ -42,6 +42,7 @@ Type
   PCefRunFileDialogCallback = ^TCefRunFileDialogCallback;
   PCefNavigationEntryVisitor = ^TCefNavigationEntryVisitor;
   PCefPdfPrintCallback = ^TCefPdfPrintCallback;
+  PCefDownloadImageCallback = ^TCefDownloadImageCallback;
   PCefBrowserHost = ^TCefBrowserHost;
 
   PCefBrowserProcessHandler = ^TCefBrowserProcessHandler;
@@ -92,6 +93,8 @@ Type
   PCefGeolocationCallback = ^TCefGeolocationCallback;
   PCefGeolocationHandler = ^TCefGeolocationHandler;
 
+  PCefImage = ^TCefImage;
+
   PCefJsDialogCallback = ^TCefJsDialogCallback;
   PCefJsDialogHandler = ^TCefJsDialogHandler;
 
@@ -102,6 +105,8 @@ Type
   PCefLoadHandler = ^TCefLoadHandler;
 
   PCefMenuModel = ^TCefMenuModel;
+
+  PCefMenuModelDelegate = ^TCefMenuModelDelegate;
 
   PCefNavigationEntry = ^TCefNavigationEntry;
 
@@ -123,6 +128,7 @@ Type
   PCefPostDataElementArray = ^TCefPostDataElementArray;
   PCefPostDataElement = ^TCefPostDataElement;
 
+  PCefResolveCallback = ^TCefResolveCallback;
   PCefRequestContext = ^TCefRequestContext;
 
   PCefRequestContextHandler = ^TCefRequestContextHandler;
@@ -383,6 +389,21 @@ Type
   end;
 
 
+  // Callback structure for cef_browser_host_t::DownloadImage. The functions of
+  // this structure will be called on the browser process UI thread.
+  TCefDownloadImageCallback = record
+    // Base structure.
+    base: TCefBase;
+
+    // Method that will be executed when the image download has completed.
+    // |image_url| is the URL that was downloaded and |http_status_code| is the
+    // resulting HTTP status code. |image| is the resulting image, possibly at
+    // multiple scale factors, or NULL if the download failed.
+    on_download_image_finished: procedure(self: PCefDownloadImageCallback;
+      const image_url: PCefString; http_status_code: Integer; image: PCefImage); cconv;
+  end;
+
+
   // Structure used to represent the browser process aspects of a browser window.
   // The functions of this structure can only be called in the browser process.
   // They may be called on any thread in that process unless otherwise indicated
@@ -404,20 +425,30 @@ Type
     // information.
     close_browser: procedure(self: PCefBrowserHost; force_close: Integer); cconv;
 
+    // Helper for closing a browser. Call this function from the top-level window
+    // close handler. Internally this calls CloseBrowser(false (0)) if the close
+    // has not yet been initiated. This function returns false (0) while the close
+    // is pending and true (1) after the close has completed. See close_browser()
+    // and cef_life_span_handler_t::do_close() documentation for additional usage
+    // information. This function must be called on the browser process UI thread.
+    try_close_browser: function(self: PCefBrowserHost): Integer; cconv;
+
     // Set whether the browser is focused.
     set_focus: procedure(self: PCefBrowserHost; focus: Integer); cconv;
 
-    // Set whether the window containing the browser is visible
-    // (minimized/unminimized, app hidden/unhidden, etc). Only used on Mac OS X.
-    set_window_visibility: procedure(self: PCefBrowserHost; visible: Integer); cconv;
-
-    // Retrieve the window handle for this browser.
+    // Retrieve the window handle for this browser. If this browser is wrapped in
+    // a cef_browser_view_t this function should be called on the browser process
+    // UI thread and it will return the handle for the top-level native window.
     get_window_handle: function(self: PCefBrowserHost): TCefWindowHandle; cconv;
 
     // Retrieve the window handle of the browser that opened this browser. Will
-    // return NULL for non-popup windows. This function can be used in combination
-    // with custom handling of modal windows.
+    // return NULL for non-popup windows or if this browser is wrapped in a
+    // cef_browser_view_t. This function can be used in combination with custom
+    // handling of modal windows.
     get_opener_window_handle: function(self: PCefBrowserHost): TCefWindowHandle; cconv;
+
+    // Returns true (1) if this browser is wrapped in a cef_browser_view_t.
+    has_view: function(self: PCefBrowserHost): Integer; cconv;
 
     // Returns the client for this browser.
     get_client: function(self: PCefBrowserHost): PCefClient; cconv;
@@ -455,6 +486,19 @@ Type
     // Download the file at |url| using cef_download_handler_t.
     start_download: procedure(self: PCefBrowserHost; const url: PCefString); cconv;
 
+    // Download |image_url| and execute |callback| on completion with the images
+    // received from the renderer. If |is_favicon| is true (1) then cookies are
+    // not sent and not accepted during download. Images with density independent
+    // pixel (DIP) sizes larger than |max_image_size| are filtered out from the
+    // image results. Versions of the image at different scale factors may be
+    // downloaded up to the maximum scale factor supported by the system. If there
+    // are no image results <= |max_image_size| then the smallest image is resized
+    // to |max_image_size| and is the only result. A |max_image_size| of 0 means
+    // unlimited. If |bypass_cache| is true (1) then |image_url| is requested from
+    // the server even if it is present in the browser cache.
+    download_image: procedure(self: PCefBrowserHost; const image_url: PCefString; is_favicon: Integer;
+      max_image_size: cuint32; bypass_cache: Integer; callback: PCefDownloadImageCallback); cconv;
+
     // Print the current browser contents.
     print: procedure(self: PCefBrowserHost); cconv;
 
@@ -477,14 +521,22 @@ Type
     // Cancel all searches that are currently going on.
     stop_finding: procedure(self: PCefBrowserHost; clearSelection: Integer); cconv;
 
-    // Open developer tools in its own window. If |inspect_element_at| is non-
-    // NULL the element at the specified (x,y) location will be inspected.
+    // Open developer tools (DevTools) in its own browser. The DevTools browser
+    // will remain associated with this browser. If the DevTools browser is
+    // already open then it will be focused, in which case the |windowInfo|,
+    // |client| and |settings| parameters will be ignored. If |inspect_element_at|
+    // is non-NULL then the element at the specified (x,y) location will be
+    // inspected. The |windowInfo| parameter will be ignored if this browser is
+    // wrapped in a cef_browser_view_t.
     show_dev_tools: procedure(self: PCefBrowserHost; const windowInfo: PCefWindowInfo; client: PCefClient;
       const settings: PCefBrowserSettings; const inspect_element_at: PCefPoint); cconv;
 
-    // Explicitly close the developer tools window if one exists for this browser
-    // instance.
+    // Explicitly close the associated DevTools browser, if any.
     close_dev_tools: procedure(self: PCefBrowserHost); cconv;
+
+    // Returns true (1) if this browser currently has an associated DevTools
+    // browser. Must be called on the browser process UI thread.
+    has_dev_tools: function(self: PCefBrowserHost): Integer; cconv;
 
     // Retrieve a snapshot of current navigation entries as values sent to the
     // specified visitor. If |current_only| is true (1) only the current
@@ -1815,11 +1867,99 @@ Type
     on_request_geolocation_permission: function(self: PCefGeolocationHandler; browser: PCefBrowser;
       const requesting_url: PCefString; request_id: Integer; callback: PCefGeolocationCallback): Integer; cconv;
 
-    // Called when a geolocation access request is canceled. |requesting_url| is
-    // the URL that originally requested permission and |request_id| is the unique
-    // ID for the permission request.
+    // Called when a geolocation access request is canceled. |request_id| is the
+    // unique ID for the permission request.
     on_cancel_geolocation_permission: procedure(self: PCefGeolocationHandler;
-        browser: PCefBrowser; const requesting_url: PCefString; request_id: Integer); cconv;
+        browser: PCefBrowser; request_id: Integer); cconv;
+  end;
+
+
+{ ***  cef_image_capi.h  *** }
+  // Container for a single image represented at different scale factors. All
+  // image representations should be the same size in density independent pixel
+  // (DIP) units. For example, if the image at scale factor 1.0 is 100x100 pixels
+  // then the image at scale factor 2.0 should be 200x200 pixels -- both images
+  // will display with a DIP size of 100x100 units. The functions of this
+  // structure must be called on the browser process UI thread.
+  TCefImage = record
+    // Base structure.
+    base: TCefBase;
+
+    // Returns true (1) if this Image is NULL.
+    is_empty: function(self: PCefImage): Integer; cconv;
+
+    // Returns true (1) if this Image and |that| Image share the same underlying
+    // storage. Will also return true (1) if both images are NULL.
+    is_same: function(self, that: PCefImage): Integer; cconv;
+
+    // Add a bitmap image representation for |scale_factor|. Only 32-bit RGBA/BGRA
+    // formats are supported. |pixel_width| and |pixel_height| are the bitmap
+    // representation size in pixel coordinates. |pixel_data| is the array of
+    // pixel data and should be |pixel_width| x |pixel_height| x 4 bytes in size.
+    // |color_type| and |alpha_type| values specify the pixel format.
+    add_bitmap: function(self: PCefImage; scale_factor: Single; pixel_width, pixel_height: Integer;
+      color_type: TCefColorType; alpha_type: TCefAlphaType; const pixel_data: Pointer;
+      pixel_data_size: csize_t): Integer; cconv;
+
+    // Add a PNG image representation for |scale_factor|. |png_data| is the image
+    // data of size |png_data_size|. Any alpha transparency in the PNG data will
+    // be maintained.
+    add_png: function(self: PCefImage; scale_factor: Single; const png_data: Pointer;
+      png_data_size: csize_t): Integer; cconv;
+
+    // Create a JPEG image representation for |scale_factor|. |jpeg_data| is the
+    // image data of size |jpeg_data_size|. The JPEG format does not support
+    // transparency so the alpha byte will be set to 0xFF for all pixels.
+    add_jpeg: function(self: PCefImage; scale_factor: Single; const jpeg_data: Pointer;
+      jpeg_data_size: csize_t): Integer; cconv;
+
+    // Returns the image width in density independent pixel (DIP) units.
+    get_width: function(self: PCefImage): csize_t; cconv;
+
+    // Returns the image height in density independent pixel (DIP) units.
+    get_height: function(self: PCefImage): csize_t; cconv;
+
+    // Returns true (1) if this image contains a representation for
+    // |scale_factor|.
+    has_representation: function(self: PCefImage; scale_factor: Single): Integer; cconv;
+
+    // Removes the representation for |scale_factor|. Returns true (1) on success.
+    remove_representation: function(self: PCefImage; scale_factor: Single): Integer; cconv;
+
+    // Returns information for the representation that most closely matches
+    // |scale_factor|. |actual_scale_factor| is the actual scale factor for the
+    // representation. |pixel_width| and |pixel_height| are the representation
+    // size in pixel coordinates. Returns true (1) on success.
+    get_representation_info: function(self: PCefImage; scale_factor: Single;
+      actual_scale_factor: PSingle; pixel_width, pixel_height: PInteger): Integer; cconv;
+
+    // Returns the bitmap representation that most closely matches |scale_factor|.
+    // Only 32-bit RGBA/BGRA formats are supported. |color_type| and |alpha_type|
+    // values specify the desired output pixel format. |pixel_width| and
+    // |pixel_height| are the output representation size in pixel coordinates.
+    // Returns a cef_binary_value_t containing the pixel data on success or NULL
+    // on failure.
+    get_as_bitmap: function(self: PCefImage; scale_factor: Single; color_type: TCefColorType;
+      alpha_type: TCefAlphaType; pixel_width, pixel_height: PInteger): PCefBinaryValue; cconv;
+
+    // Returns the PNG representation that most closely matches |scale_factor|. If
+    // |with_transparency| is true (1) any alpha transparency in the image will be
+    // represented in the resulting PNG data. |pixel_width| and |pixel_height| are
+    // the output representation size in pixel coordinates. Returns a
+    // cef_binary_value_t containing the PNG image data on success or NULL on
+    // failure.
+    get_as_png: function(self: PCefImage; scale_factor: Single; with_transparency: Integer;
+      pixel_width, pixel_height: PInteger): PCefBinaryValue; cconv;
+
+    // Returns the JPEG representation that most closely matches |scale_factor|.
+    // |quality| determines the compression level with 0 == lowest and 100 ==
+    // highest. The JPEG format does not support alpha transparency and the alpha
+    // channel, if any, will be discarded. |pixel_width| and |pixel_height| are
+    // the output representation size in pixel coordinates. Returns a
+    // cef_binary_value_t containing the JPEG image data on success or NULL on
+    // failure.
+    get_as_jpeg: function(self: PCefImage; scale_factor: Single; quality: Integer;
+      pixel_width, pixel_height: PInteger): PCefBinaryValue; cconv;
   end;
 
 
@@ -1842,23 +1982,23 @@ Type
     // Base structure.
     base: TCefBase;
 
-    // Called to run a JavaScript dialog. If |origin_url| and |accept_lang| are
-    // non-NULL they can be passed to the CefFormatUrlForSecurityDisplay function
-    // to retrieve a secure and user-friendly display string. The
-    // |default_prompt_text| value will be specified for prompt dialogs only. Set
-    // |suppress_message| to true (1) and return false (0) to suppress the message
-    // (suppressing messages is preferable to immediately executing the callback
-    // as this is used to detect presumably malicious behavior like spamming alert
-    // messages in onbeforeunload). Set |suppress_message| to false (0) and return
-    // false (0) to use the default implementation (the default implementation
-    // will show one modal dialog at a time and suppress any additional dialog
-    // requests until the displayed dialog is dismissed). Return true (1) if the
-    // application will use a custom dialog or if the callback has been executed
-    // immediately. Custom dialogs may be either modal or modeless. If a custom
-    // dialog is used the application must execute |callback| once the custom
-    // dialog is dismissed.
+    // Called to run a JavaScript dialog. If |origin_url| is non-NULL it can be
+    // passed to the CefFormatUrlForSecurityDisplay function to retrieve a secure
+    // and user-friendly display string. The |default_prompt_text| value will be
+    // specified for prompt dialogs only. Set |suppress_message| to true (1) and
+    // return false (0) to suppress the message (suppressing messages is
+    // preferable to immediately executing the callback as this is used to detect
+    // presumably malicious behavior like spamming alert messages in
+    // onbeforeunload). Set |suppress_message| to false (0) and return false (0)
+    // to use the default implementation (the default implementation will show one
+    // modal dialog at a time and suppress any additional dialog requests until
+    // the displayed dialog is dismissed). Return true (1) if the application will
+    // use a custom dialog or if the callback has been executed immediately.
+    // Custom dialogs may be either modal or modeless. If a custom dialog is used
+    // the application must execute |callback| once the custom dialog is
+    // dismissed.
     on_jsdialog: function(self: PCefJsDialogHandler; browser: PCefBrowser;
-      const origin_url, accept_lang: PCefString; dialog_type: TCefJsDialogType;
+      const origin_url: PCefString; dialog_type: TCefJsDialogType;
       const message_text, default_prompt_text: PCefString;
       callback: PCefJsDialogCallback; suppress_message: PInteger): Integer; cconv;
 
@@ -1929,57 +2069,87 @@ Type
     // popup browser return true (1). The |client| and |settings| values will
     // default to the source browser's values. If the |no_javascript_access| value
     // is set to false (0) the new browser will not be scriptable and may not be
-    // hosted in the same renderer process as the source browser.
+    // hosted in the same renderer process as the source browser. Any
+    // modifications to |windowInfo| will be ignored if the parent browser is
+    // wrapped in a cef_browser_view_t.
     on_before_popup: function(self: PCefLifeSpanHandler; browser: PCefBrowser; frame: PCefFrame;
       const target_url, target_frame_name: PCefString; target_disposition: TCefWindowOpenDisposition;
       user_gesture: Integer; const popupFeatures: PCefPopupFeatures;
       windowInfo: PCefWindowInfo; var client: PCefClient; settings: PCefBrowserSettings;
       no_javascript_access: PInteger): Integer; cconv;
 
-    // Called after a new browser is created.
+    // Called after a new browser is created. This callback will be the first
+    // notification that references |browser|.
     on_after_created: procedure(self: PCefLifeSpanHandler; browser: PCefBrowser); cconv;
 
-    // Called when a modal window is about to display and the modal loop should
-    // begin running. Return false (0) to use the default modal loop
-    // implementation or true (1) to use a custom implementation.
-    run_modal: function(self: PCefLifeSpanHandler; browser: PCefBrowser): Integer; cconv;
-
     // Called when a browser has recieved a request to close. This may result
-    // directly from a call to cef_browser_host_t::close_browser() or indirectly
-    // if the browser is a top-level OS window created by CEF and the user
-    // attempts to close the window. This function will be called after the
-    // JavaScript 'onunload' event has been fired. It will not be called for
-    // browsers after the associated OS window has been destroyed (for those
-    // browsers it is no longer possible to cancel the close).
+    // directly from a call to cef_browser_host_t::*close_browser() or indirectly
+    // if the browser is parented to a top-level window created by CEF and the
+    // user attempts to close that window (by clicking the 'X', for example). The
+    // do_close() function will be called after the JavaScript 'onunload' event
+    // has been fired.
     //
-    // If CEF created an OS window for the browser returning false (0) will send
-    // an OS close notification to the browser window's top-level owner (e.g.
-    // WM_CLOSE on Windows, performClose: on OS-X and "delete_event" on Linux). If
-    // no OS window exists (window rendering disabled) returning false (0) will
-    // cause the browser object to be destroyed immediately. Return true (1) if
-    // the browser is parented to another window and that other window needs to
-    // receive close notification via some non-standard technique.
-    //
-    // If an application provides its own top-level window it should handle OS
-    // close notifications by calling cef_browser_host_t::CloseBrowser(false (0))
-    // instead of immediately closing (see the example below). This gives CEF an
+    // An application should handle top-level owner window close notifications by
+    // calling cef_browser_host_t::Tryclose_browser() or
+    // cef_browser_host_t::CloseBrowser(false (0)) instead of allowing the window
+    // to close immediately (see the examples below). This gives CEF an
     // opportunity to process the 'onbeforeunload' event and optionally cancel the
     // close before do_close() is called.
     //
+    // When windowed rendering is enabled CEF will internally create a window or
+    // view to host the browser. In that case returning false (0) from do_close()
+    // will send the standard close notification to the browser's top-level owner
+    // window (e.g. WM_CLOSE on Windows, performClose: on OS X, "delete_event" on
+    // Linux or cef_window_delegate_t::can_close() callback from Views). If the
+    // browser's host window/view has already been destroyed (via view hierarchy
+    // tear-down, for example) then do_close() will not be called for that browser
+    // since is no longer possible to cancel the close.
+    //
+    // When windowed rendering is disabled returning false (0) from do_close()
+    // will cause the browser object to be destroyed immediately.
+    //
+    // If the browser's top-level owner window requires a non-standard close
+    // notification then send that notification from do_close() and return true
+    // (1).
+    //
     // The cef_life_span_handler_t::on_before_close() function will be called
-    // immediately before the browser object is destroyed. The application should
-    // only exit after on_before_close() has been called for all existing
-    // browsers.
+    // after do_close() (if do_close() is called) and immediately before the
+    // browser object is destroyed. The application should only exit after
+    // on_before_close() has been called for all existing browsers.
     //
-    // If the browser represents a modal window and a custom modal loop
-    // implementation was provided in cef_life_span_handler_t::run_modal() this
-    // callback should be used to restore the opener window to a usable state.
+    // The below examples describe what should happen during window close when the
+    // browser is parented to an application-provided top-level window.
     //
-    // By way of example consider what should happen during window close when the
-    // browser is parented to an application-provided top-level OS window. 1.
-    // User clicks the window close button which sends an OS close
-    //     notification (e.g. WM_CLOSE on Windows, performClose: on OS-X and
-    //     "delete_event" on Linux).
+    // Example 1: Using cef_browser_host_t::Tryclose_browser(). This is
+    // recommended for clients using standard close handling and windows created
+    // on the browser process UI thread. 1.  User clicks the window close button
+    // which sends a close notification to
+    //     the application's top-level window.
+    // 2.  Application's top-level window receives the close notification and
+    //     calls TryCloseBrowser() (which internally calls CloseBrowser(false)).
+    //     TryCloseBrowser() returns false so the client cancels the window close.
+    // 3.  JavaScript 'onbeforeunload' handler executes and shows the close
+    //     confirmation dialog (which can be overridden via
+    //     CefJSDialogHandler::OnBeforeUnloadDialog()).
+    // 4.  User approves the close. 5.  JavaScript 'onunload' handler executes. 6.
+    // CEF sends a close notification to the application's top-level window
+    //     (because DoClose() returned false by default).
+    // 7.  Application's top-level window receives the close notification and
+    //     calls TryCloseBrowser(). TryCloseBrowser() returns true so the client
+    //     allows the window close.
+    // 8.  Application's top-level window is destroyed. 9.  Application's
+    // on_before_close() handler is called and the browser object
+    //     is destroyed.
+    // 10. Application exits by calling cef_quit_message_loop() if no other
+    // browsers
+    //     exist.
+    //
+    // Example 2: Using cef_browser_host_t::CloseBrowser(false (0)) and
+    // implementing the do_close() callback. This is recommended for clients using
+    // non-standard close handling or windows that were not created on the browser
+    // process UI thread. 1.  User clicks the window close button which sends a
+    // close notification to
+    //     the application's top-level window.
     // 2.  Application's top-level window receives the close notification and:
     //     A. Calls CefBrowserHost::CloseBrowser(false).
     //     B. Cancels the window close.
@@ -1990,12 +2160,12 @@ Type
     // Application's do_close() handler is called. Application will:
     //     A. Set a flag to indicate that the next close attempt will be allowed.
     //     B. Return false.
-    // 7.  CEF sends an OS close notification. 8.  Application's top-level window
-    // receives the OS close notification and
+    // 7.  CEF sends an close notification to the application's top-level window.
+    // 8.  Application's top-level window receives the close notification and
     //     allows the window to close based on the flag from #6B.
-    // 9.  Browser OS window is destroyed. 10. Application's
-    // cef_life_span_handler_t::on_before_close() handler is called and
-    //     the browser object is destroyed.
+    // 9.  Application's top-level window is destroyed. 10. Application's
+    // on_before_close() handler is called and the browser object
+    //     is destroyed.
     // 11. Application exits by calling cef_quit_message_loop() if no other
     // browsers
     //     exist.
@@ -2003,9 +2173,8 @@ Type
 
     // Called just before a browser is destroyed. Release all references to the
     // browser object and do not attempt to execute any functions on the browser
-    // object after this callback returns. If this is a modal window and a custom
-    // modal loop implementation was provided in run_modal() this callback should
-    // be used to exit the custom modal loop. See do_close() documentation for
+    // object after this callback returns. This callback will be the last
+    // notification that references |browser|. See do_close() documentation for
     // additional usage information.
     on_before_close: procedure(self: PCefLifeSpanHandler; browser: PCefBrowser); cconv;
   end;
@@ -2022,7 +2191,8 @@ Type
     // Called when the loading state has changed. This callback will be executed
     // twice -- once when loading is initiated either programmatically or by user
     // action, and once when loading is terminated due to completion, cancellation
-    // of failure.
+    // of failure. It will be called before any calls to OnLoadStart and after all
+    // calls to OnLoadError and/or OnLoadEnd.
     on_loading_state_change: procedure(self: PCefLoadHandler; browser: PCefBrowser;
       isLoading, canGoBack, canGoForward: Integer); cconv;
 
@@ -2030,9 +2200,9 @@ Type
     // never be NULL -- call the is_main() function to check if this frame is the
     // main frame. Multiple frames may be loading at the same time. Sub-frames may
     // start or continue loading after the main frame load has ended. This
-    // function may not be called for a particular frame if the load request for
-    // that frame fails. For notification of overall browser load status use
-    // OnLoadingStateChange instead.
+    // function will always be called for all frames irrespective of whether the
+    // request completes successfully. For notification of overall browser load
+    // status use OnLoadingStateChange instead.
     on_load_start: procedure(self: PCefLoadHandler; browser: PCefBrowser; frame: PCefFrame); cconv;
 
     // Called when the browser is done loading a frame. The |frame| value will
@@ -2040,7 +2210,8 @@ Type
     // main frame. Multiple frames may be loading at the same time. Sub-frames may
     // start or continue loading after the main frame load has ended. This
     // function will always be called for all frames irrespective of whether the
-    // request completes successfully.
+    // request completes successfully. For notification of overall browser load
+    // status use OnLoadingStateChange instead.
     on_load_end: procedure(self: PCefLoadHandler; browser: PCefBrowser;
       frame: PCefFrame; httpStatusCode: Integer); cconv;
 
@@ -2257,6 +2428,24 @@ Type
   end;
 
 
+{ *** cef_menu_model_delegate_capi.h  *** }
+  // Implement this structure to handle menu model events. The functions of this
+  // structure will be called on the browser process UI thread unless otherwise
+  // indicated.
+  TCefMenuModelDelegate = record
+    // Base structure.
+    base: TCefBase;
+
+    // Perform the action associated with the specified |command_id| and optional
+    // |event_flags|.
+    execute_command: procedure(self: PCefMenuModelDelegate; menu_model: PCefMenuModel;
+      command_id: Integer; event_flags: TCefEventFlags); cconv;
+
+    // The menu is about to show.
+    menu_will_show: procedure(self: PCefMenuModelDelegate; menu_model: PCefMenuModel); cconv;
+  end;
+
+
 { ***  cef_navigation_entry_capi.h  *** }
   // Structure used to represent an entry in navigation history.
   TCefNavigationEntry = record
@@ -2409,13 +2598,13 @@ Type
     get_dpi: function(self: PCefPrintSettings): Integer; cconv;
 
     // Set the page ranges.
-    set_page_ranges: procedure(self: PCefPrintSettings; rangesCount: csize_t; const ranges: PCefPageRangeArray); cconv;
+    set_page_ranges: procedure(self: PCefPrintSettings; rangesCount: csize_t; const ranges: PCefRangeArray); cconv;
 
     // Returns the number of page ranges that currently exist.
     get_page_ranges_count: function(self: PCefPrintSettings): csize_t; cconv;
 
     // Retrieve the page ranges.
-    get_page_ranges: procedure(self: PCefPrintSettings; rangesCount: csize_t; ranges: PCefPageRangeArray); cconv;
+    get_page_ranges: procedure(self: PCefPrintSettings; rangesCount: csize_t; ranges: PCefRangeArray); cconv;
 
     // Set whether only the selection will be printed.
     set_selection_only: procedure(self: PCefPrintSettings; selection_only: Integer); cconv;
@@ -2798,6 +2987,18 @@ Type
 
 
 { *** cef_request_context_capi.h *** }
+  // Callback structure for cef_request_tContext::ResolveHost.
+  TCefResolveCallback = record
+    // Base structure.
+    base: TCefBase;
+
+    // Called after the ResolveHost request has completed. |result| will be the
+    // result code. |resolved_ips| will be the list of resolved IP addresses or
+    // NULL if the resolution failed.
+    on_resolve_completed: procedure(self: PCefResolveCallback; result: TCefErrorCode;
+      resolved_ips: TCefStringList); cconv;
+  end;
+
   // A request context provides request handling for a set of related browser or
   // URL request objects. A request context can be specified when creating a new
   // browser via the cef_browser_host_t static factory functions or when creating
@@ -2903,6 +3104,32 @@ Type
     // problem. This function must be called on the browser process UI thread.
     set_preference: function(self: PCefRequestContext; const name: PCefString; value: PCefValue;
       error: PCefString): Integer; cconv;
+
+    // Clears all certificate exceptions that were added as part of handling
+    // cef_request_tHandler::on_certificate_error(). If you call this it is
+    // recommended that you also call close_all_connections() or you risk not
+    // being prompted again for server certificates if you reconnect quickly. If
+    // |callback| is non-NULL it will be executed on the UI thread after
+    // completion.
+    clear_certificate_exceptions: procedure(self: PCefRequestContext; callback: PCefCompletionCallback); cconv;
+
+    // Clears all active and idle connections that Chromium currently has. This is
+    // only recommended if you have released all other CEF objects but don't yet
+    // want to call cef_shutdown(). If |callback| is non-NULL it will be executed
+    // on the UI thread after completion.
+    close_all_connections: procedure(self: PCefRequestContext; callback: PCefCompletionCallback); cconv;
+
+    // Attempts to resolve |origin| to a list of associated IP addresses.
+    // |callback| will be executed on the UI thread after completion.
+    resolve_host: procedure(self: PCefRequestContext; const origin: PCefString;
+      callback: PCefResolveCallback); cconv;
+
+    // Attempts to resolve |origin| to a list of associated IP addresses using
+    // cached data. |resolved_ips| will be populated with the list of resolved IP
+    // addresses or NULL if no cached data is available. Returns ERR_NONE on
+    // success. This function must be called on the browser process IO thread.
+    resolve_host_cached: function(self: PCefRequestCallback; const origin: PCefString;
+      resolved_ips: TCefStringList): TCefErrorCode; cconv;
   end;
 
 
@@ -3185,7 +3412,8 @@ Type
     // (0) or the specified number of bytes have been read. Use the |response|
     // object to set the mime type, http status code and other optional header
     // values. To redirect the request to a new URL set |redirectUrl| to the new
-    // URL.
+    // URL. If an error occured while setting up the request you can call
+    // set_error() on |response| to indicate the error condition.
     get_response_headers: procedure(self: PCefResourceHandler;
       response: PCefResponse; response_length: PInt64; redirectUrl: PCefString); cconv;
 
@@ -3220,6 +3448,13 @@ Type
 
     // Returns true (1) if this object is read-only.
     is_read_only: function(self: PCefResponse): Integer; cconv;
+
+    // Get the response error code. Returns ERR_NONE if there was no error.
+    get_error: function(self: PCefResponse): TCefErrorCode; cconv;
+
+    // Set the response error code. This can be used by custom scheme handlers to
+    // return errors during initial request processing.
+    set_error: procedure(self: PCefResponse; error: TCefErrorCode); cconv;
 
     // Get the response status code.
     get_status: function(self: PCefResponse): Integer; cconv;
@@ -4963,6 +5198,17 @@ Var
   cef_get_geolocation: function(callback: PCefGetGeolocationCallback): Integer; cdecl;
 
 
+{ *** cef_image_capi.h  *** }
+  // Create a new cef_image_t. It will initially be NULL. Use the Add*() functions
+  // to add representations at different scale factors.
+  cef_image_create: function: PCefImage; cdecl;
+
+
+{ *** cef_menu_model_capi.h  *** }
+  // Create a new MenuModel with the specified |delegate|.
+  cef_menu_model_create: function(delegate: PCefMenuModelDelegate): PCefMenuModel; cdecl;
+
+
 { ***  cef_origin_whitelist_capi.h  *** }
   // Add an entry to the cross-origin access whitelist.
   //
@@ -5026,13 +5272,13 @@ Var
   // friendly way to help users make security-related decisions (or in other
   // circumstances when people need to distinguish sites, origins, or otherwise-
   // simplified URLs from each other). Internationalized domain names (IDN) may be
-  // presented in Unicode if |languages| accepts the Unicode representation. The
-  // returned value will (a) omit the path for standard schemes, excepting file
-  // and filesystem, and (b) omit the port if it is the default for the scheme. Do
-  // not use this for URLs which will be parsed or sent to other applications.
+  // presented in Unicode if the conversion is considered safe. The returned value
+  // will (a) omit the path for standard schemes, excepting file and filesystem,
+  // and (b) omit the port if it is the default for the scheme. Do not use this
+  // for URLs which will be parsed or sent to other applications.
   //
   // The resulting string must be freed by calling cef_string_userfree_free().
-  cef_format_url_for_security_display: function(const origin_url, languages: PCefString): PCefStringUserFree; cdecl;
+  cef_format_url_for_security_display: function(const origin_url: PCefString): PCefStringUserFree; cdecl;
 
   // Returns the mime type for the specified file extension or an NULL string if
   // unknown.
@@ -5074,12 +5320,6 @@ Var
   //
   // The resulting string must be freed by calling cef_string_userfree_free().
   cef_uridecode: function(const text: PCefString; convert_to_utf8: Integer; unescape_rule: TCefUriUnescapeRule): PCefStringUserFree; cdecl;
-
-  // Parses |string| which represents a CSS color value. If |strict| is true (1)
-  // strict parsing rules will be applied. Returns true (1) on success or false
-  // (0) on error. If parsing succeeds |color| will be set to the color value
-  // otherwise |color| will remain unchanged.
-  cef_parse_csscolor: function(const string_: PCefString; strict: Integer; color: PCefColor): Integer; cdecl;
 
   // Parses the specified |json_string| and returns a dictionary or list
   // representation. If JSON parsing fails this function returns NULL.
@@ -5149,7 +5389,7 @@ Var
 
   // Creates a new context object that shares storage with |other| and uses an
   // optional |handler|.
-  create_context_shared: function(other: PCefRequestContext; handler: PCefRequestContextHandler): PCefRequestContext; cdecl;
+  cef_create_context_shared: function(other: PCefRequestContext; handler: PCefRequestContextHandler): PCefRequestContext; cdecl;
 
 
 { ***  cef_resource_bundle_capi.h  *** }
@@ -5426,45 +5666,19 @@ Var
   // process.
   cef_visit_web_plugin_info: procedure(visitor: PCefWebPluginInfoVisitor); cdecl;
 
-
   // Cause the plugin list to refresh the next time it is accessed regardless of
   // whether it has already been loaded. Can be called on any thread in the
   // browser process.
   cef_refresh_web_plugins: procedure; cdecl;
-
-
-  // Add a plugin path (directory + file). This change may not take affect until
-  // after cef_refresh_web_plugins() is called. Can be called on any thread in the
-  // browser process.
-  cef_add_web_plugin_path: procedure(const path: PCefString); cdecl;
-
-
-  // Add a plugin directory. This change may not take affect until after
-  // cef_refresh_web_plugins() is called. Can be called on any thread in the
-  // browser process.
-  cef_add_web_plugin_directory: procedure(const dir: PCefString); cdecl;
-
-
-  // Remove a plugin path (directory + file). This change may not take affect
-  // until after cef_refresh_web_plugins() is called. Can be called on any thread
-  // in the browser process.
-  cef_remove_web_plugin_path: procedure(const path: PCefString); cdecl;
-
 
   // Unregister an internal plugin. This may be undone the next time
   // cef_refresh_web_plugins() is called. Can be called on any thread in the
   // browser process.
   cef_unregister_internal_web_plugin: procedure(const path: PCefString); cdecl;
 
-  // Force a plugin to shutdown. Can be called on any thread in the browser
-  // process but will be executed on the IO thread.
-  cef_force_web_plugin_shutdown: procedure(const path: PCefString); cdecl;
-
-
   // Register a plugin crash. Can be called on any thread in the browser process
   // but will be executed on the IO thread.
   cef_register_web_plugin_crash: procedure(const path: PCefString); cdecl;
-
 
   // Query if a plugin is unstable. Can be called on any thread in the browser
   // process.
@@ -5915,6 +6129,10 @@ begin
 
     Pointer(cef_get_geolocation)                     := GetProcAddress(LibHandle, 'cef_get_geolocation');
 
+    Pointer(cef_image_create)                        := GetProcAddress(LibHandle, 'cef_image_create');
+
+    Pointer(cef_menu_model_create)                   := GetProcAddress(LibHandle, 'cef_menu_model_create');
+
     Pointer(cef_add_cross_origin_whitelist_entry)    := GetProcAddress(LibHandle, 'cef_add_cross_origin_whitelist_entry');
     Pointer(cef_remove_cross_origin_whitelist_entry) := GetProcAddress(LibHandle, 'cef_remove_cross_origin_whitelist_entry');
     Pointer(cef_clear_cross_origin_whitelist)        := GetProcAddress(LibHandle, 'cef_clear_cross_origin_whitelist');
@@ -5928,7 +6146,6 @@ begin
     Pointer(cef_base64decode)                        := GetProcAddress(LibHandle, 'cef_base64decode');
     Pointer(cef_uriencode)                           := GetProcAddress(LibHandle, 'cef_uriencode');
     Pointer(cef_uridecode)                           := GetProcAddress(LibHandle, 'cef_uridecode');
-    Pointer(cef_parse_csscolor)                      := GetProcAddress(LibHandle, 'cef_parse_csscolor');
     Pointer(cef_parse_json)                          := GetProcAddress(LibHandle, 'cef_parse_json');
     Pointer(cef_parse_jsonand_return_error)          := GetProcAddress(LibHandle, 'cef_parse_jsonand_return_error');
     Pointer(cef_write_json)                          := GetProcAddress(LibHandle, 'cef_write_json');
@@ -5947,7 +6164,7 @@ begin
 
     Pointer(cef_request_context_get_global_context)  := GetProcAddress(LibHandle, 'cef_request_context_get_global_context');
     Pointer(cef_request_context_create_context)      := GetProcAddress(LibHandle, 'cef_request_context_create_context');
-    Pointer(create_context_shared)                   := GetProcAddress(LibHandle, 'create_context_shared');
+    Pointer(cef_create_context_shared)               := GetProcAddress(LibHandle, 'cef_create_context_shared');
 
     Pointer(cef_resource_bundle_get_global)          := GetProcAddress(LibHandle, 'cef_resource_bundle_get_global');
 
@@ -5998,11 +6215,7 @@ begin
 
     Pointer(cef_visit_web_plugin_info)               := GetProcAddress(LibHandle, 'cef_visit_web_plugin_info');
     Pointer(cef_refresh_web_plugins)                 := GetProcAddress(LibHandle, 'cef_refresh_web_plugins');
-    Pointer(cef_add_web_plugin_path)                 := GetProcAddress(LibHandle, 'cef_add_web_plugin_path');
-    Pointer(cef_add_web_plugin_directory)            := GetProcAddress(LibHandle, 'cef_add_web_plugin_directory');
-    Pointer(cef_remove_web_plugin_path)              := GetProcAddress(LibHandle, 'cef_remove_web_plugin_path');
     Pointer(cef_unregister_internal_web_plugin)      := GetProcAddress(LibHandle, 'cef_unregister_internal_web_plugin');
-    Pointer(cef_force_web_plugin_shutdown)           := GetProcAddress(LibHandle, 'cef_force_web_plugin_shutdown');
     Pointer(cef_register_web_plugin_crash)           := GetProcAddress(LibHandle, 'cef_register_web_plugin_crash');
     Pointer(cef_is_web_plugin_unstable)              := GetProcAddress(LibHandle, 'cef_is_web_plugin_unstable');
 
@@ -6108,6 +6321,10 @@ begin
 
       Assigned(cef_get_geolocation) and
 
+      Assigned(cef_image_create) and
+
+      Assigned(cef_menu_model_create) and
+
       Assigned(cef_add_cross_origin_whitelist_entry) and
       Assigned(cef_remove_cross_origin_whitelist_entry) and
       Assigned(cef_clear_cross_origin_whitelist) and
@@ -6121,7 +6338,6 @@ begin
       Assigned(cef_base64decode) and
       Assigned(cef_uriencode) and
       Assigned(cef_uridecode) and
-      Assigned(cef_parse_csscolor) and
       Assigned(cef_parse_json) and
       Assigned(cef_parse_jsonand_return_error) and
       Assigned(cef_write_json) and
@@ -6140,7 +6356,7 @@ begin
 
       Assigned(cef_request_context_get_global_context) and
       Assigned(cef_request_context_create_context) and
-      Assigned(create_context_shared) and
+      Assigned(cef_create_context_shared) and
 
       Assigned(cef_resource_bundle_get_global) and
 
@@ -6191,11 +6407,7 @@ begin
 
       Assigned(cef_visit_web_plugin_info) and
       Assigned(cef_refresh_web_plugins) and
-      Assigned(cef_add_web_plugin_path) and
-      Assigned(cef_add_web_plugin_directory) and
-      Assigned(cef_remove_web_plugin_path) and
       Assigned(cef_unregister_internal_web_plugin) and
-      Assigned(cef_force_web_plugin_shutdown) and
       Assigned(cef_register_web_plugin_crash) and
       Assigned(cef_is_web_plugin_unstable) and
 

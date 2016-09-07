@@ -10,7 +10,7 @@ Install cef3.lpk into Lazarus
 Download CEF3 from [here][1a] or [here][1b] and copy all files from either `Debug` or `Release` to the folder your .exe is / will be in.
 
 ### Linux
-You need a build of CEF3 with `tcmalloc` disabled. The official downloads provided __won't__ work!
+You need a build of CEF3 with `tcmalloc` disabled. The [official CEF binaries][1a] are suitable.
 
 Copy / link _libcef.so_,  
   a) to a default library location, eg. `/usr/lib(64)`, `/usr/local/lib(64)` __or__  

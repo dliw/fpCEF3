@@ -53,8 +53,8 @@ Type
   { DisplayHandler }
   TOnAddressChange = procedure(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame; const url: ustring) of object;
   TOnTitleChange = procedure(Sender: TObject; const Browser: ICefBrowser; const title: ustring) of object;
-  TOnFaviconUrlchange = procedure(Sender: TObject; browser: ICefBrowser; iconUrls: TStrings) of object;
-  TOnFullscreenModeChange = procedure(Sender: TObject; browser: ICefBrowser; fullscreen: Boolean) of object;
+  TOnFaviconUrlchange = procedure(Sender: TObject; const Browser: ICefBrowser; iconUrls: TStrings) of object;
+  TOnFullscreenModeChange = procedure(Sender: TObject; const Browser: ICefBrowser; fullscreen: Boolean) of object;
   TOnTooltip = procedure(Sender: TObject; const Browser: ICefBrowser; var text: ustring; out Result: Boolean) of object;
   TOnStatusMessage = procedure(Sender: TObject; const Browser: ICefBrowser; const value: ustring) of object;
   TOnConsoleMessage = procedure(Sender: TObject; const Browser: ICefBrowser; const message, Source: ustring; line: Integer; out Result: Boolean) of object;
@@ -81,10 +81,10 @@ Type
   TOnRequestGeolocationPermission = procedure(Sender: TObject; const Browser: ICefBrowser;
     const requestingUrl: ustring; requestId: Integer; const callback: ICefGeolocationCallback; out Result: Boolean) of object;
   TOnCancelGeolocationPermission = procedure(Sender: TObject; const Browser: ICefBrowser;
-    const requestingUrl: ustring; requestId: Integer) of object;
+    requestId: Integer) of object;
 
   { JsDialogHandler }
-  TOnJsdialog = procedure(Sender: TObject; const Browser: ICefBrowser; const originUrl, acceptLang: ustring;
+  TOnJsdialog = procedure(Sender: TObject; const Browser: ICefBrowser; const originUrl: ustring;
     dialogType: TCefJsDialogType; const messageText, defaultPromptText: ustring;
     callback: ICefJsDialogCallback; out suppressMessage: Boolean; out Result: Boolean) of object;
   TOnBeforeUnloadDialog = procedure(Sender: TObject; const Browser: ICefBrowser;
@@ -106,7 +106,6 @@ Type
     var client: ICefClient; var settings: TCefBrowserSettings; var noJavascriptAccess: Boolean; out Result: Boolean) of object;
   TOnAfterCreated = procedure(Sender: TObject; const Browser: ICefBrowser) of object;
   TOnBeforeClose = procedure(Sender: TObject; const Browser: ICefBrowser) of object;
-  TOnRunModal = procedure(Sender: TObject; const Browser: ICefBrowser; out Result: Boolean) of object;
   TOnClose = procedure(Sender: TObject; const Browser: ICefBrowser; out Result: Boolean) of object;
 
   { LoadHandler }
@@ -307,11 +306,10 @@ Type
     { CefGeolocationHandler }
     function doOnRequestGeolocationPermission(const browser: ICefBrowser; const requestingUrl: ustring;
       requestId: Integer; const callback: ICefGeolocationCallback): Boolean;
-    procedure doOnCancelGeolocationPermission(const browser: ICefBrowser;
-      const requestingUrl: ustring; requestId: Integer);
+    procedure doOnCancelGeolocationPermission(const browser: ICefBrowser; requestId: Integer);
 
     { CefJsDialogHandler }
-    function doOnJsdialog(const browser: ICefBrowser; const originUrl, acceptLang: ustring;
+    function doOnJsdialog(const browser: ICefBrowser; const originUrl: ustring;
       dialogType: TCefJsDialogType; const messageText, defaultPromptText: ustring;
       callback: ICefJsDialogCallback; out suppressMessage: Boolean): Boolean;
     function doOnBeforeUnloadDialog(const browser: ICefBrowser;
@@ -332,7 +330,6 @@ Type
       userGesture: Boolean; var popupFeatures: TCefPopupFeatures; var windowInfo: TCefWindowInfo;
       var client: ICefClient; var settings: TCefBrowserSettings; var noJavascriptAccess: Boolean): Boolean;
     procedure doOnAfterCreated(const browser: ICefBrowser);
-    function doOnRunModal(const browser: ICefBrowser): Boolean;
     function doOnClose(const browser: ICefBrowser): Boolean;
     procedure doOnBeforeClose(const browser: ICefBrowser);
 
@@ -537,8 +534,7 @@ Type
   protected
     function OnRequestGeolocationPermission(const Browser: ICefBrowser;
       const requestingUrl: ustring; requestId: Integer; const callback: ICefGeolocationCallback): Boolean; override;
-    procedure OnCancelGeolocationPermission(const Browser: ICefBrowser;
-      const requestingUrl: ustring; requestId: Integer); override;
+    procedure OnCancelGeolocationPermission(const Browser: ICefBrowser; requestId: Integer); override;
   public
     constructor Create(const events: IChromiumEvents); reintroduce; virtual;
   end;
@@ -547,7 +543,7 @@ Type
   private
     fEvent: IChromiumEvents;
   protected
-    function OnJsdialog(const Browser: ICefBrowser; const originUrl, acceptLang: ustring;
+    function OnJsdialog(const Browser: ICefBrowser; const originUrl: ustring;
       dialogType: TCefJsDialogType; const messageText, defaultPromptText: ustring;
       callback: ICefJsDialogCallback; out suppressMessage: Boolean): Boolean; override;
     function OnBeforeUnloadDialog(const Browser: ICefBrowser;
@@ -580,7 +576,6 @@ Type
       userGesture: Boolean; var popupFeatures: TCefPopupFeatures; var windowInfo: TCefWindowInfo;
       var client: ICefClient; var settings: TCefBrowserSettings; var noJavascriptAccess: Boolean): Boolean; override;
     procedure OnAfterCreated(const Browser: ICefBrowser); override;
-    function RunModal(const Browser: ICefBrowser): Boolean; override;
     function DoClose(const Browser: ICefBrowser): Boolean; override;
     procedure OnBeforeClose(const Browser: ICefBrowser); override;
   public
@@ -1026,9 +1021,9 @@ begin
 end;
 
 procedure TCustomGeolocationHandler.OnCancelGeolocationPermission(
-  const Browser: ICefBrowser; const requestingUrl: ustring; requestId: Integer);
+  const Browser: ICefBrowser; requestId: Integer);
 begin
-  fEvent.doOnCancelGeolocationPermission(Browser, requestingUrl, requestId);
+  fEvent.doOnCancelGeolocationPermission(Browser, requestId);
 end;
 
 { TCustomJsDialogHandler }
@@ -1047,11 +1042,11 @@ begin
 end;
 
 function TCustomJsDialogHandler.OnJsdialog(const Browser: ICefBrowser;
-  const originUrl, acceptLang: ustring; dialogType: TCefJsDialogType;
+  const originUrl: ustring; dialogType: TCefJsDialogType;
   const messageText, defaultPromptText: ustring; callback: ICefJsDialogCallback;
   out suppressMessage: Boolean): Boolean;
 begin
-  Result := fEvent.doOnJsdialog(Browser, originUrl, acceptLang, dialogType,
+  Result := fEvent.doOnJsdialog(Browser, originUrl, dialogType,
     messageText, defaultPromptText, callback, suppressMessage);
 end;
 
@@ -1107,11 +1102,6 @@ end;
 procedure TCustomLifeSpanHandler.OnAfterCreated(const Browser: ICefBrowser);
 begin
   fEvent.doOnAfterCreated(Browser);
-end;
-
-function TCustomLifeSpanHandler.RunModal(const Browser: ICefBrowser): Boolean;
-begin
-  Result := fEvent.doOnRunModal(Browser);
 end;
 
 function TCustomLifeSpanHandler.DoClose(const Browser: ICefBrowser): Boolean;

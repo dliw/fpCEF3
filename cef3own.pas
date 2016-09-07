@@ -79,6 +79,38 @@ Type
     constructor Create(callback: TCefRunFileDialogCallbackProc); reintroduce; virtual;
   end;
 
+  TCefPdfPrintCallbackOwn = class(TCefBaseOwn, ICefPdfPrintCallback)
+  protected
+    procedure OnPdfPrintFinished(const path: ustring; ok: Boolean); virtual;
+  public
+    constructor Create; virtual;
+  end;
+
+  TCefFastPdfPrintCallback = class(TCefPdfPrintCallbackOwn)
+  private
+    fCallback: TCefPdfPrintCallbackProc;
+  protected
+    procedure OnPdfPrintFinished(const path: ustring; ok: Boolean); override;
+  public
+    constructor Create(callback: TCefPdfPrintCallbackProc); reintroduce; virtual;
+  end;
+
+  TCefDownloadImageCallbackOwn = class(TCefBaseOwn, ICefDownloadImageCallback)
+  protected
+    procedure OnDownloadImageFinished(const imageUrl: ustring; httpStatusCode: Integer; image: ICefImage); virtual;
+  public
+    constructor Create; virtual;
+  end;
+
+  TCefFastDownloadImageCallback = class(TCefDownloadImageCallbackOwn)
+  private
+    fCallback: TCefDownloadImageCallbackProc;
+  protected
+    procedure OnDownloadImageFinished(const imageUrl: ustring; httpStatusCode: Integer; image: ICefImage); override;
+  public
+    constructor Create(callback: TCefDownloadImageCallbackProc); reintroduce; virtual;
+  end;
+
   TCefBrowserProcessHandlerOwn = class(TCefBaseOwn, ICefBrowserProcessHandler)
   protected
     procedure OnContextInitialized; virtual;
@@ -235,15 +267,14 @@ Type
   protected
     function OnRequestGeolocationPermission(const browser: ICefBrowser; const requestingUrl: ustring;
       requestId: Integer; const callback: ICefGeolocationCallback): Boolean; virtual;
-    procedure OnCancelGeolocationPermission(const browser: ICefBrowser;
-      const requestingUrl: ustring; requestId: Integer); virtual;
+    procedure OnCancelGeolocationPermission(const browser: ICefBrowser; requestId: Integer); virtual;
   public
     constructor Create; virtual;
   end;
 
   TCefJsDialogHandlerOwn = class(TCefBaseOwn, ICefJsDialogHandler)
   protected
-    function OnJsDialog(const browser: ICefBrowser; const originUrl, acceptLang: ustring;
+    function OnJsDialog(const browser: ICefBrowser; const originUrl: ustring;
       dialogType: TCefJsDialogType; const messageText, defaultPromptText: ustring;
       callback: ICefJsDialogCallback; out suppressMessage: Boolean): Boolean; virtual;
     function OnBeforeUnloadDialog(const browser: ICefBrowser;
@@ -272,7 +303,6 @@ Type
       userGesture: Boolean; var popupFeatures: TCefPopupFeatures; var windowInfo: TCefWindowInfo;
       var client: ICefClient; var settings: TCefBrowserSettings; var noJavascriptAccess: Boolean): Boolean; virtual;
     procedure OnAfterCreated(const browser: ICefBrowser); virtual;
-    function RunModal(const browser: ICefBrowser): Boolean; virtual;
     function DoClose(const browser: ICefBrowser): Boolean; virtual;
     procedure OnBeforeClose(const browser: ICefBrowser); virtual;
   public
@@ -286,6 +316,14 @@ Type
     procedure OnLoadEnd(const browser: ICefBrowser; const frame: ICefFrame; httpStatusCode: Integer); virtual;
     procedure OnLoadError(const browser: ICefBrowser; const frame: ICefFrame; errorCode: TCefErrorCode;
       const errorText, failedUrl: ustring); virtual;
+  public
+    constructor Create; virtual;
+  end;
+
+  TCefMenuModelDelegateOwn = class(TCefBaseOwn, ICefMenuModelDelegate)
+  protected
+    procedure ExecuteCommand(menuModel: ICefMenuModel; commandId: Integer; eventFlags: TCefEventFlags); virtual;
+    procedure MenuWillShow(menuModel: ICefMenuModel); virtual;
   public
     constructor Create; virtual;
   end;
@@ -550,6 +588,20 @@ Type
       const exception: ustring): Boolean; virtual;
   public
     constructor Create; virtual;
+  end;
+
+  TCefFastV8Accessor = class(TCefV8AccessorOwn)
+  private
+    fGetter: TCefV8AccessorGetterProc;
+    fSetter: TCefV8AccessorSetterProc;
+  protected
+    function Get(const name: ustring; const obj: ICefv8Value;
+      out value: ICefv8Value; const exception: ustring): Boolean; override;
+    function Put(const name: ustring; const obj, value: ICefv8Value;
+      const exception: ustring): Boolean; override;
+  public
+    constructor Create(const getter: TCefV8AccessorGetterProc;
+      const setter: TCefV8AccessorSetterProc); reintroduce;
   end;
 
   TCefWebPluginInfoVisitorOwn = class(TCefBaseOwn, ICefWebPluginInfoVisitor)
@@ -841,6 +893,79 @@ begin
 end;
 
 constructor TCefFastRunFileDialogCallback.Create(callback: TCefRunFileDialogCallbackProc);
+begin
+  inherited Create;
+  fCallback := callback;
+end;
+
+{ TCefPdfPrintCallbackOwn }
+
+procedure cef_pdf_print_callback_on_pdf_print_finished(self: PCefPdfPrintCallback;
+  const path: PCefString; ok: Integer); cconv;
+begin
+  TCefPdfPrintCallbackOwn(CefGetObject(self)).OnPdfPrintFinished(CefString(path), ok <> 0);
+end;
+
+procedure TCefPdfPrintCallbackOwn.OnPdfPrintFinished(const path: ustring; ok: Boolean);
+begin
+  { empty }
+end;
+
+constructor TCefPdfPrintCallbackOwn.Create;
+begin
+  inherited CreateData(SizeOf(TCefPdfPrintCallback));
+  With PCefPdfPrintCallback(fData)^ do
+  begin
+    on_pdf_print_finished := @cef_pdf_print_callback_on_pdf_print_finished;
+  end;
+end;
+
+{ TCefFastPdfPrintCallback }
+
+procedure TCefFastPdfPrintCallback.OnPdfPrintFinished(const path: ustring; ok: Boolean);
+begin
+  fCallback(path, ok);
+end;
+
+constructor TCefFastPdfPrintCallback.Create(callback: TCefPdfPrintCallbackProc);
+begin
+  inherited Create;
+  fCallback := callback;
+end;
+
+{ TCefDownloadImageCallbackOwn }
+
+procedure cef_download_image_callback_on_download_image_finished(self: PCefDownloadImageCallback;
+  const image_url: PCefString; http_status_code: Integer; image: PCefImage); cconv;
+begin
+  TCefDownloadImageCallbackOwn(CefGetObject(self)).
+    OnDownloadImageFinished(CefString(image_url), http_status_code, TCefImageRef.UnWrap(image));
+end;
+
+procedure TCefDownloadImageCallbackOwn.OnDownloadImageFinished(const imageUrl: ustring;
+  httpStatusCode: Integer; image: ICefImage);
+begin
+  { empty }
+end;
+
+constructor TCefDownloadImageCallbackOwn.Create;
+begin
+  inherited CreateData(SizeOf(TCefDownloadImageCallback));
+  With PCefDownloadImageCallback(fData)^ do
+  begin
+    on_download_image_finished := @cef_download_image_callback_on_download_image_finished;
+  end;
+end;
+
+{ TCefFastDownloadImageCallback }
+
+procedure TCefFastDownloadImageCallback.OnDownloadImageFinished(const imageUrl: ustring;
+  httpStatusCode: Integer; image: ICefImage);
+begin
+  fCallback(imageUrl, httpStatusCode, image);
+end;
+
+constructor TCefFastDownloadImageCallback.Create(callback: TCefDownloadImageCallbackProc);
 begin
   inherited Create;
   fCallback := callback;
@@ -1148,7 +1273,7 @@ end;
 constructor TCefContextMenuHandlerOwn.Create;
 begin
   inherited CreateData(SizeOf(TCefContextMenuHandler));
-  With PCefContextMenuHandler(FData)^ do
+  With PCefContextMenuHandler(fData)^ do
   begin
     on_before_context_menu := @cef_context_menu_handler_on_before_context_menu;
     run_context_menu := @cef_context_menu_handler_run_context_menu;
@@ -1178,7 +1303,7 @@ end;
 constructor TCefCookieVisitorOwn.Create;
 begin
   inherited CreateData(SizeOf(TCefCookieVisitor));
-  With PCefCookieVisitor(FData)^ do
+  With PCefCookieVisitor(fData)^ do
   begin
     visit := @cef_cookie_visitor_visit;
   end;
@@ -1250,7 +1375,7 @@ begin
     OnAddressChange(
       TCefBrowserRef.UnWrap(browser),
       TCefFrameRef.UnWrap(frame),
-      cefstring(url)
+      CefString(url)
     );
 end;
 
@@ -1609,10 +1734,10 @@ begin
 end;
 
 procedure cef_geolocation_handler_on_cancel_geolocation_permission(self: PCefGeolocationHandler;
-  browser: PCefBrowser; const requesting_url: PCefString; request_id: Integer); cconv;
+  browser: PCefBrowser; request_id: Integer); cconv;
 begin
   TCefGeolocationHandlerOwn(CefGetObject(self)).
-    OnCancelGeolocationPermission(TCefBrowserRef.UnWrap(browser), CefString(requesting_url), request_id);
+    OnCancelGeolocationPermission(TCefBrowserRef.UnWrap(browser), request_id);
 end;
 
 function TCefGeolocationHandlerOwn.OnRequestGeolocationPermission(const browser: ICefBrowser;
@@ -1622,7 +1747,7 @@ begin
 end;
 
 procedure TCefGeolocationHandlerOwn.OnCancelGeolocationPermission(const browser: ICefBrowser;
-  const requestingUrl: ustring; requestId: Integer);
+  requestId: Integer);
 begin
   { empty }
 end;
@@ -1640,7 +1765,7 @@ end;
 { TCefJsDialogHandlerOwn }
 
 function cef_jsdialog_handler_on_jsdialog(self: PCefJsDialogHandler; browser: PCefBrowser;
-  const origin_url, accept_lang: PCefString; dialog_type: TCefJsDialogType;
+  const origin_url: PCefString; dialog_type: TCefJsDialogType;
   const message_text, default_prompt_text: PCefString; callback: PCefJsDialogCallback;
   suppress_message: PInteger): Integer; cconv;
 Var
@@ -1648,9 +1773,9 @@ Var
 begin
   sm := suppress_message^ <> 0;
   Result := Ord(TCefJsDialogHandlerOwn(CefGetObject(self)).
-    OnJsdialog(TCefBrowserRef.UnWrap(browser), CefString(origin_url), CefString(accept_lang),
-               dialog_type, CefString(message_text), CefString(default_prompt_text),
-               TCefJsDialogCallbackRef.UnWrap(callback), sm));
+    OnJsdialog(TCefBrowserRef.UnWrap(browser), CefString(origin_url), dialog_type,
+      CefString(message_text), CefString(default_prompt_text),
+      TCefJsDialogCallbackRef.UnWrap(callback), sm));
   suppress_message^ := Ord(sm);
 end;
 
@@ -1673,7 +1798,7 @@ begin
 end;
 
 function TCefJsDialogHandlerOwn.OnJsdialog(const browser: ICefBrowser;
-  const originUrl, acceptLang: ustring; dialogType: TCefJsDialogType;
+  const originUrl: ustring; dialogType: TCefJsDialogType;
   const messageText, defaultPromptText: ustring;
   callback: ICefJsDialogCallback; out suppressMessage: Boolean): Boolean;
 begin
@@ -1782,11 +1907,6 @@ begin
   TCefLifeSpanHandlerOwn(CefGetObject(self)).OnAfterCreated(TCefBrowserRef.UnWrap(browser));
 end;
 
-function cef_life_span_handler_run_modal(self: PCefLifeSpanHandler; browser: PCefBrowser): Integer; cconv;
-begin
-  Result := Ord(TCefLifeSpanHandlerOwn(CefGetObject(self)).RunModal(TCefBrowserRef.UnWrap(browser)));
-end;
-
 function cef_life_span_handler_do_close(self: PCefLifeSpanHandler; browser: PCefBrowser): Integer; cconv;
 begin
   Result := Ord(TCefLifeSpanHandlerOwn(CefGetObject(self)).DoClose(TCefBrowserRef.UnWrap(browser)));
@@ -1811,11 +1931,6 @@ begin
   { empty }
 end;
 
-function TCefLifeSpanHandlerOwn.RunModal(const browser: ICefBrowser): Boolean;
-begin
-  Result := False;
-end;
-
 function TCefLifeSpanHandlerOwn.DoClose(const browser: ICefBrowser): Boolean;
 begin
   Result := False;
@@ -1833,7 +1948,6 @@ begin
   begin
     on_before_popup := @cef_life_span_handler_on_before_popup;
     on_after_created := @cef_life_span_handler_on_after_created;
-    run_modal := @cef_life_span_handler_run_modal;
     do_close := @cef_life_span_handler_do_close;
     on_before_close := @cef_life_span_handler_on_before_close;
   end;
@@ -1902,6 +2016,43 @@ begin
     on_load_start := @cef_load_handler_on_load_start;
     on_load_end := @cef_load_handler_on_load_end;
     on_load_error := @cef_load_handler_on_load_error;
+  end;
+end;
+
+{ TCefMenuModelDelegateOwn }
+
+procedure cef_menu_model_delegate_execute_command(self: PCefMenuModelDelegate;
+  menu_model: PCefMenuModel; command_id: Integer; event_flags: TCefEventFlags); cconv;
+begin
+  TCefMenuModelDelegateOwn(CefGetObject(self)).
+    ExecuteCommand(TCefMenuModelRef.UnWrap(menu_model), command_id, event_flags);
+end;
+
+procedure cef_menu_model_delegate_menu_will_show(self: PCefMenuModelDelegate;
+  menu_model: PCefMenuModel); cconv;
+begin
+  TCefMenuModelDelegateOwn(CefGetObject(self)).
+    MenuWillShow(TCefMenuModelRef.UnWrap(menu_model));
+end;
+
+procedure TCefMenuModelDelegateOwn.ExecuteCommand(menuModel: ICefMenuModel; commandId: Integer;
+  eventFlags: TCefEventFlags);
+begin
+  { empty }
+end;
+
+procedure TCefMenuModelDelegateOwn.MenuWillShow(menuModel: ICefMenuModel);
+begin
+  { empty }
+end;
+
+constructor TCefMenuModelDelegateOwn.Create;
+begin
+  inherited CreateData(SizeOf(TCefMenuModelDelegate));
+  With PCefMenuModelDelegate(fData)^ do
+  begin
+    execute_command := @cef_menu_model_delegate_execute_command;
+    menu_will_show := @cef_menu_model_delegate_menu_will_show;
   end;
 end;
 
@@ -3247,6 +3398,30 @@ begin
     get  := @cef_v8_accessor_get;
     set_ := @cef_v8_accessor_put;
   end;
+end;
+
+{ TCefFastV8Accessor }
+
+function TCefFastV8Accessor.Get(const name: ustring; const obj: ICefv8Value; out value: ICefv8Value;
+  const exception: ustring): Boolean;
+begin
+  If Assigned(FGetter) then Result := fGetter(name, obj, value, exception)
+  Else Result := False;
+end;
+
+function TCefFastV8Accessor.Put(const name: ustring; const obj, value: ICefv8Value;
+  const exception: ustring): Boolean;
+begin
+  If Assigned(FSetter) then fSetter(name, obj, value, exception)
+  Else Result := False;
+end;
+
+constructor TCefFastV8Accessor.Create(const getter: TCefV8AccessorGetterProc;
+  const setter: TCefV8AccessorSetterProc);
+begin
+  inherited Create;
+  fGetter := getter;
+  fSetter := setter;
 end;
 
 { TCefWebPluginInfoVisitorOwn }

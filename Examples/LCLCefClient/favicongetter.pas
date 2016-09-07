@@ -21,7 +21,7 @@ Type
     procedure OnDownloadData(const request: ICefUrlRequest; data: Pointer; dataLength: TSize); override;
     procedure OnRequestComplete(const request: ICefUrlRequest); override;
   public
-    constructor Create(Url: String; Callback: TIconReady);
+    constructor Create(Url: String; Callback: TIconReady); reintroduce;
 
     procedure Cancel;
   end;
@@ -33,7 +33,7 @@ Implementation
 procedure TFaviconGetter.OnDownloadData(const request: ICefUrlRequest; data: Pointer;
   dataLength: TSize);
 begin
-  fStream.WriteBuffer(data^, dataLength);
+  If Assigned(fCallback) then fStream.WriteBuffer(data^, dataLength);
 end;
 
 // In a real world application this would be the place to handle different file formats
@@ -42,6 +42,8 @@ procedure TFaviconGetter.OnRequestComplete(const request: ICefUrlRequest);
 Var
   Picture: TPicture;
 begin
+  fUrlRequest := nil;
+
   If Assigned(fCallback) then
   begin
     If request.GetRequestStatus = UR_SUCCESS then
@@ -85,7 +87,7 @@ begin
   Request := TCefRequestRef.New;
   Request.Url := Url;
 
-  // ... and start the url request. The request client is the FaviconGetter itself.
+  // ... and start the url request. The request client is FaviconGetter itself.
   fUrlRequest := TCefUrlRequestRef.New(Request, Self, nil);
 end;
 
@@ -93,7 +95,7 @@ procedure TFaviconGetter.Cancel;
 begin
   // disable callback and cancel request
   fCallback := nil;
-  fUrlRequest.Cancel;
+  If Assigned(fUrlRequest) then fUrlRequest.Cancel;
 end;
 
 end.

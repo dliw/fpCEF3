@@ -6,7 +6,7 @@ Interface
 
 Uses
   Classes, SysUtils, FileUtil, Forms, Controls, Dialogs, StdCtrls, LCLType,
-  cef3types, cef3lib, cef3intf, cef3lcl, cef3context;
+  cef3types, cef3lib, cef3intf, cef3lcl;
 
 Type
 

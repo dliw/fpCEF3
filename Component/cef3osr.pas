@@ -92,7 +92,6 @@ Type
     fOnBeforePopup: TOnBeforePopup;
     fOnAfterCreated: TOnAfterCreated;
     fOnBeforeClose: TOnBeforeClose;
-    fOnRunModal: TOnRunModal;
     fOnClose: TOnClose;
 
     { LoadHandler }
@@ -202,11 +201,10 @@ Type
     { GeolocationHandler }
     function doOnRequestGeolocationPermission(const browser: ICefBrowser; const requestingUrl: ustring;
       requestId: Integer; const callback: ICefGeolocationCallback): Boolean; virtual;
-    procedure doOnCancelGeolocationPermission(const Browser: ICefBrowser;
-      const requestingUrl: ustring; requestId: Integer); virtual;
+    procedure doOnCancelGeolocationPermission(const Browser: ICefBrowser; requestId: Integer); virtual;
 
     { JsDialogHandler }
-    function doOnJsdialog(const Browser: ICefBrowser; const originUrl, acceptLang: ustring;
+    function doOnJsdialog(const Browser: ICefBrowser; const originUrl: ustring;
       dialogType: TCefJsDialogType; const messageText, defaultPromptText: ustring;
       callback: ICefJsDialogCallback; out suppressMessage: Boolean): Boolean; virtual;
     function doOnBeforeUnloadDialog(const Browser: ICefBrowser;
@@ -228,7 +226,6 @@ Type
       var client: ICefClient; var settings: TCefBrowserSettings; var noJavascriptAccess: Boolean): Boolean; virtual;
     procedure doOnAfterCreated(const Browser: ICefBrowser); virtual;
     procedure doOnBeforeClose(const Browser: ICefBrowser); virtual;
-    function doOnRunModal(const Browser: ICefBrowser): Boolean; virtual;
     function doOnClose(const Browser: ICefBrowser): Boolean; virtual;
 
     { LoadHandler }
@@ -344,7 +341,6 @@ Type
     property OnBeforePopup: TOnBeforePopup read fOnBeforePopup write fOnBeforePopup;
     property OnAfterCreated: TOnAfterCreated read fOnAfterCreated write fOnAfterCreated;
     property OnBeforeClose: TOnBeforeClose read fOnBeforeClose write fOnBeforeClose;
-    property OnRunModal: TOnRunModal read fOnRunModal write fOnRunModal;
     property OnClose: TOnClose read fOnClose write fOnClose;
 
     { LoadHandler }
@@ -453,7 +449,6 @@ Type
     property OnBeforePopup;
     property OnAfterCreated;
     property OnBeforeClose;
-    property OnRunModal;
     property OnClose;
 
     property OnLoadingStateChange;
@@ -852,21 +847,20 @@ begin
 end;
 
 procedure TCustomChromiumOSR.doOnCancelGeolocationPermission(const Browser : ICefBrowser;
-  const requestingUrl : ustring; requestId : Integer);
+  requestId : Integer);
 begin
   If Assigned(FOnCancelGeolocationPermission) then
-    FOnCancelGeolocationPermission(Self, Browser, requestingUrl, requestId);
+    FOnCancelGeolocationPermission(Self, Browser, requestId);
 end;
 
-function TCustomChromiumOSR.doOnJsdialog(const Browser : ICefBrowser;
-  const originUrl, acceptLang : ustring; dialogType : TCefJsDialogType;
-  const messageText, defaultPromptText : ustring;
-  callback : ICefJsDialogCallback; out suppressMessage : Boolean) : Boolean;
+function TCustomChromiumOSR.doOnJsdialog(const Browser: ICefBrowser; const originUrl: ustring;
+  dialogType: TCefJsDialogType; const messageText, defaultPromptText: ustring;
+  callback: ICefJsDialogCallback; out suppressMessage: Boolean): Boolean;
 begin
   Result := False;
   If Assigned(FOnJsdialog) then
-    FOnJsdialog(Self, Browser, originUrl, acceptLang, dialogType,
-                messageText, defaultPromptText, callback, suppressMessage, Result);
+    FOnJsdialog(Self, Browser, originUrl, dialogType, messageText, defaultPromptText, callback,
+      suppressMessage, Result);
 end;
 
 function TCustomChromiumOSR.doOnBeforeUnloadDialog(const Browser : ICefBrowser;
@@ -923,12 +917,6 @@ end;
 procedure TCustomChromiumOSR.doOnBeforeClose(const Browser : ICefBrowser);
 begin
   If Assigned(FOnBeforeClose) then FOnBeforeClose(Self, Browser);
-end;
-
-function TCustomChromiumOSR.doOnRunModal(const Browser : ICefBrowser) : Boolean;
-begin
-  Result := False;
-  If Assigned(FOnRunModal) then FOnRunModal(Self, Browser, Result);
 end;
 
 function TCustomChromiumOSR.doOnClose(const Browser : ICefBrowser) : Boolean;

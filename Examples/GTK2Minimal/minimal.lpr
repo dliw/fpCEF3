@@ -103,6 +103,13 @@ begin
   ExitCode := cef_execute_process(@MainArgs, nil, nil);
   If ExitCode >= 0 then Halt(ExitCode);
 
+  gtk_init(nil, nil);
+
+  // Install xlib error handlers so that the application won't be terminated
+  // on non-fatal errors.
+  XSetErrorHandler(@XErrorHandler);
+  XSetIOErrorHandler(@XIOErrorHandler);
+
   Settings.size := SizeOf(Settings);
   Settings.single_process := Ord(False);
   Settings.no_sandbox := Ord(True);
@@ -112,13 +119,6 @@ begin
   Settings.context_safety_implementation := 0;
 
   cef_initialize(@MainArgs, @Settings, nil, nil);
-
-  gtk_init(nil, nil);
-
-  // Install xlib error handlers so that the application won't be terminated
-  // on non-fatal errors.
-  XSetErrorHandler(@XErrorHandler);
-  XSetIOErrorHandler(@XIOErrorHandler);
 
   // Window
   Window := gtk_window_new(GTK_WINDOW_TOPLEVEL);

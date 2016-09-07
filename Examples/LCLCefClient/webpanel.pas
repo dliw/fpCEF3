@@ -20,7 +20,7 @@ Type
     procedure ChromiumTitleChange(Sender: TObject; const Browser: ICefBrowser; const title: ustring);
     procedure ChromiumAddressChange(Sender: TObject; const Browser: ICefBrowser;
       const Frame: ICefFrame; const url: ustring);
-    procedure ChromiumFaviconUrlchange(Sender: TObject; browser: ICefBrowser; iconUrls: TStrings);
+    procedure ChromiumFaviconUrlchange(Sender: TObject; const Browser: ICefBrowser; iconUrls: TStrings);
     procedure ChromiumOpenUrlFromTab(Sender: TObject; browser: ICefBrowser; frame: ICefFrame;
       const targetUrl: ustring; targetDisposition: TCefWindowOpenDisposition; useGesture: Boolean;
       out Result: Boolean);
@@ -128,18 +128,22 @@ end;
 procedure TWebPanel.ChromiumAddressChange(Sender: TObject; const Browser: ICefBrowser;
   const Frame: ICefFrame; const url: ustring);
 begin
-  fUrl := UTF8Encode(Browser.MainFrame.Url);
+  Assert(CefCurrentlyOn(TID_UI));
 
-  If PageControl.ActivePage = Self then FMain.EUrl.Text := fUrl;
+  If frame.IsMain then
+  begin
+    fUrl := UTF8Encode(Browser.MainFrame.Url);
+
+    If PageControl.ActivePage = Self then FMain.EUrl.Text := fUrl;
+  end;
 end;
 
-procedure TWebPanel.ChromiumFaviconUrlchange(Sender: TObject; browser: ICefBrowser;
+procedure TWebPanel.ChromiumFaviconUrlchange(Sender: TObject; const Browser: ICefBrowser;
   iconUrls: TStrings);
 Var
   i: Integer;
 begin
   // For simplicity just use the first .ico image
-
   For i := 0 to iconUrls.Count - 1 do
     If AnsiEndsText('ico', iconUrls[i]) then
     begin

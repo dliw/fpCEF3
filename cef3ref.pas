@@ -72,10 +72,11 @@ Type
   TCefBrowserHostRef = class(TCefBaseRef, ICefBrowserHost)
     function GetBrowser: ICefBrowser;
     procedure CloseBrowser(aForceClose: Boolean);
+    function TryCloseBrowser: Boolean;
     procedure SetFocus(focus: Boolean);
-    procedure SetWindowVisibility(visible: Boolean);
     function GetWindowHandle: TCefWindowHandle;
     function GetOpenerWindowHandle: TCefWindowHandle;
+    function HasView: Boolean;
     function GetClient: ICefClient;
     function GetRequestContext: ICefRequestContext;
     function GetZoomLevel: Double;
@@ -85,6 +86,8 @@ Type
     procedure RunFileDialogProc(mode: TCefFileDialogMode; const title, defaultFileName: ustring;
       acceptFilters: TStrings; selectedAcceptFilter: Integer; const callback : TCefRunFileDialogCallbackProc);
     procedure StartDownload(const url: ustring);
+    procedure DownloadImage(const imageUrl: ustring; isFavicon: Boolean; maxImageSize: UInt32;
+      bypassCache: Boolean; const callback: ICefDownloadImageCallback);
     procedure Print;
     procedure PrintToPdf(const path: ustring; const settings: TCefPdfPrintSettings; callback: ICefPdfPrintCallback);
     procedure Find(identifier: Integer; const searchText: ustring; forward_, matchCase, findNext: Boolean);
@@ -92,6 +95,7 @@ Type
     procedure ShowDevTools(var windowInfo: TCefWindowInfo; client: ICefClient;
       var settings: TCefBrowserSettings; const inspectElementAt: PCefPoint);
     procedure CloseDevTools;
+    function HasDevTools: Boolean;
     procedure GetNavigationEntries(visitor: ICefNavigationEntryVisior; currentOnly: Boolean);
     procedure SetMouseCursorChangeDisabled(disabled: Boolean);
     function GetIsMouseCursorChangeDisabled: Boolean;
@@ -394,6 +398,29 @@ Type
     class function UnWrap(data: Pointer): ICefJsDialogCallback;
   end;
 
+  TCefImageRef = class(TCefBaseRef, ICefImage)
+  protected
+    function IsEmpty: Boolean;
+    function IsSame(const that: ICefImage): Boolean;
+    function AddBitmap(scaleFactor: Single; pixelWidth, pixelHeight: Integer; colorType: TCefColorType;
+      alphaType: TCefAlphaType; const pixelData: Pointer; pixelDataSize: TSize): Boolean;
+    function AddPng(scaleFactor: Single; const pngData: Pointer; pngDataSize: TSize): Boolean;
+    function AddJpeg(scaleFactor: Single; const jpegData: Pointer; jpegDataSize: TSize): Boolean;
+    function GetWidth: TSize;
+    function GetHeight: TSize;
+    function HasRepresentation(scaleFactor: Single): Boolean;
+    function RemoveRepresentation(scaleFactor: Single): Boolean;
+    function GetRepresentationInfo(scaleFactor: Single; actualScaleFactor: PSingle;
+      pixelWidth, pixelHeight: PInteger): Boolean;
+    function GetAsBitmap(scaleFactor: Single; colorType: TCefColorType; alphaType: TCefAlphaType;
+      pixelWidth, pixelHeight: PInteger): ICefBinaryValue;
+    function GetAsPng(scaleFactor: Single; withTransparency: Boolean;
+      pixelWidth, pixelHeight: PInteger): ICefBinaryValue;
+    function GetAsJpeg(scaleFactor: Single; quality: Integer; pixelWidth, pixelHeight: PInteger): ICefBinaryValue;
+  public
+    class function UnWrap(data: Pointer): ICefImage;
+  end;
+
   TCefMenuModelRef = class(TCefBaseRef, ICefMenuModel)
   protected
     function Clear: Boolean;
@@ -462,9 +489,9 @@ Type
     function GetDeviceName: ustring;
     procedure SetDpi(dpi: Integer);
     function GetDpi: Integer;
-    procedure SetPageRanges(rangesCount: TSize; const ranges: TCefPageRangeArray);
+    procedure SetPageRanges(rangesCount: TSize; const ranges: TCefRangeArray);
     function GetPageRangesCount: TSize;
-    procedure GetPageRanges(rangesCount: TSize; out ranges: TCefPageRangeArray);
+    procedure GetPageRanges(rangesCount: TSize; out ranges: TCefRangeArray);
     procedure SetSelectionOnly(selectionOnly: Boolean);
     function IsSelectionOnly: Boolean;
     procedure SetCollate(collate: Boolean);
@@ -564,6 +591,10 @@ Type
     function GetAllPreferences(includeDefaults: Boolean): ICefDictionaryValue;
     function CanSetPreference(const name: ustring): Boolean;
     function SetPreference(const name: ustring; value: ICefValue; out error: ustring): Boolean;
+    procedure ClearCertificateExceptions(callback: ICefCompletionCallback);
+    procedure CloseAllConnections(callback: ICefCompletionCallback);
+    procedure ResolveHost(const origin: ustring; callback: ICefResolveCallback);
+    function ResolveHostCached(const origin: ustring; resolvedIps: TStrings): TCefErrorCode;
   public
     class function UnWrap(data: Pointer): ICefRequestContext;
     class function New(settings: TCefRequestContextSettings; handler: ICefRequestContextHandler): ICefRequestContext;
@@ -610,6 +641,8 @@ Type
   TCefResponseRef = class(TCefBaseRef, ICefResponse)
   protected
     function IsReadOnly: Boolean;
+    function GetError: TCefErrorCode;
+    procedure SetError(error: TCefErrorCode);
     function GetStatus: Integer;
     procedure SetStatus(status: Integer);
     function GetStatusText: ustring;
@@ -765,20 +798,6 @@ Type
       var exception: ustring): Boolean;
   public
     class function UnWrap(data: Pointer): ICefv8Handler;
-  end;
-
-  TCefFastV8Accessor = class(TCefV8AccessorOwn)
-  private
-    fGetter: TCefV8AccessorGetterProc;
-    fSetter: TCefV8AccessorSetterProc;
-  protected
-    function Get(const name: ustring; const obj: ICefv8Value;
-      out value: ICefv8Value; const exception: ustring): Boolean; override;
-    function Put(const name: ustring; const obj, value: ICefv8Value;
-      const exception: ustring): Boolean; override;
-  public
-    constructor Create(const getter: TCefV8AccessorGetterProc;
-      const setter: TCefV8AccessorSetterProc); reintroduce;
   end;
 
   TCefV8ExceptionRef = class(TCefBaseRef, ICefV8Exception)
@@ -1240,14 +1259,14 @@ begin
   PCefBrowserHost(fData)^.close_browser(fData, Ord(aForceClose));
 end;
 
+function TCefBrowserHostRef.TryCloseBrowser: Boolean;
+begin
+  Result := PCefBrowserHost(fData)^.try_close_browser(fData) <> 0;
+end;
+
 procedure TCefBrowserHostRef.SetFocus(focus: Boolean);
 begin
   PCefBrowserHost(fData)^.set_focus(fData, Ord(focus));
-end;
-
-procedure TCefBrowserHostRef.SetWindowVisibility(visible : Boolean);
-begin
-  PCefBrowserHost(fData)^.set_window_visibility(fData, Ord(visible));
 end;
 
 function TCefBrowserHostRef.GetWindowHandle : TCefWindowHandle;
@@ -1258,6 +1277,11 @@ end;
 function TCefBrowserHostRef.GetOpenerWindowHandle : TCefWindowHandle;
 begin
   Result := PCefBrowserHost(fData)^.get_opener_window_handle(fData);
+end;
+
+function TCefBrowserHostRef.HasView: Boolean;
+begin
+  Result := PCefBrowserHost(fData)^.has_view(fData) <> 0;
 end;
 
 function TCefBrowserHostRef.GetClient : ICefClient;
@@ -1291,6 +1315,16 @@ Var
 begin
   u := CefString(url);
   PCefBrowserHost(fData)^.start_download(fData, @u);
+end;
+
+procedure TCefBrowserHostRef.DownloadImage(const imageUrl: ustring; isFavicon: Boolean;
+  maxImageSize: UInt32; bypassCache: Boolean; const callback: ICefDownloadImageCallback);
+Var
+  i: TCefString;
+begin
+  i := CefString(imageUrl);
+  PCefBrowserHost(fData)^.download_image(fData, @i, Ord(isFavicon), maxImageSize,
+    Ord(bypassCache), CefGetData(callback));
 end;
 
 procedure TCefBrowserHostRef.Print;
@@ -1331,6 +1365,11 @@ end;
 procedure TCefBrowserHostRef.CloseDevTools;
 begin
   PCefBrowserHost(fData)^.close_dev_tools(fData);
+end;
+
+function TCefBrowserHostRef.HasDevTools: Boolean;
+begin
+  Result := PCefBrowserHost(fData)^.has_dev_tools(fData) <> 0;
 end;
 
 procedure TCefBrowserHostRef.GetNavigationEntries(visitor: ICefNavigationEntryVisior;
@@ -2691,6 +2730,95 @@ begin
   Else Result := nil;
 end;
 
+{ TCefImageRef }
+
+function TCefImageRef.IsEmpty: Boolean;
+begin
+  Result := PCefImage(fData)^.is_empty(fData) <> 0;
+end;
+
+function TCefImageRef.IsSame(const that: ICefImage): Boolean;
+begin
+  Result := PCefImage(fData)^.is_same(fData, CefGetData(that)) <> 0;
+end;
+
+function TCefImageRef.AddBitmap(scaleFactor: Single; pixelWidth, pixelHeight: Integer;
+  colorType: TCefColorType; alphaType: TCefAlphaType; const pixelData: Pointer;
+  pixelDataSize: TSize): Boolean;
+begin
+  Result := PCefImage(fData)^.add_bitmap(fData, scaleFactor, pixelWidth, pixelHeight, colorType,
+    alphaType, pixelData, pixelDataSize) <> 0;
+end;
+
+function TCefImageRef.AddPng(scaleFactor: Single; const pngData: Pointer;
+  pngDataSize: TSize): Boolean;
+begin
+  Result := PCefImage(fData)^.add_png(fData, scaleFactor, pngData, pngDataSize) <> 0;
+end;
+
+function TCefImageRef.AddJpeg(scaleFactor: Single; const jpegData: Pointer;
+  jpegDataSize: TSize): Boolean;
+begin
+  Result := PCefImage(fData)^.add_jpeg(fData, scaleFactor, jpegData, jpegDataSize) <> 0;
+end;
+
+function TCefImageRef.GetWidth: TSize;
+begin
+  Result := PCefImage(fData)^.get_width(fData);
+end;
+
+function TCefImageRef.GetHeight: TSize;
+begin
+  Result := PCefImage(fData)^.get_height(fData);
+end;
+
+function TCefImageRef.HasRepresentation(scaleFactor: Single): Boolean;
+begin
+  Result := PCefImage(fData)^.has_representation(fData, scaleFactor) <> 0;
+end;
+
+function TCefImageRef.RemoveRepresentation(scaleFactor: Single): Boolean;
+begin
+  Result := PCefImage(fData)^.remove_representation(fData, scaleFactor) <> 0;
+end;
+
+function TCefImageRef.GetRepresentationInfo(scaleFactor: Single; actualScaleFactor: PSingle;
+  pixelWidth, pixelHeight: PInteger): Boolean;
+begin
+  Result := PCefImage(fData)^.get_representation_info(fData, scaleFactor, actualScaleFactor,
+    pixelWidth, pixelHeight) <> 0;
+end;
+
+function TCefImageRef.GetAsBitmap(scaleFactor: Single; colorType: TCefColorType;
+  alphaType: TCefAlphaType; pixelWidth, pixelHeight: PInteger): ICefBinaryValue;
+begin
+  Result := TCefBinaryValueRef.UnWrap(
+    PCefImage(fData)^.get_as_bitmap(fData, scaleFactor, colorType, alphaType, pixelWidth, pixelHeight)
+  );
+end;
+
+function TCefImageRef.GetAsPng(scaleFactor: Single; withTransparency: Boolean;
+  pixelWidth, pixelHeight: PInteger): ICefBinaryValue;
+begin
+  Result := TCefBinaryValueRef.UnWrap(
+    PCefImage(fData)^.get_as_png(fData, scaleFactor, Ord(withTransparency), pixelWidth, pixelHeight)
+  );
+end;
+
+function TCefImageRef.GetAsJpeg(scaleFactor: Single; quality: Integer;
+  pixelWidth, pixelHeight: PInteger): ICefBinaryValue;
+begin
+  Result := TCefBinaryValueRef.UnWrap(
+    PCefImage(fData)^.get_as_jpeg(fData, scaleFactor, quality, pixelWidth, pixelHeight)
+  );
+end;
+
+class function TCefImageRef.UnWrap(data: Pointer): ICefImage;
+begin
+  If data <> nil then Result := Create(data) as ICefImage
+  Else Result := nil;
+end;
+
 { TCefMenuModelRef }
 
 function TCefMenuModelRef.Clear : Boolean;
@@ -3054,8 +3182,7 @@ begin
   Result := PCefPrintSettings(fData)^.get_dpi(fData);
 end;
 
-{$NOTE check twice}
-procedure TCefPrintSettingsRef.SetPageRanges(rangesCount: TSize; const ranges: TCefPageRangeArray);
+procedure TCefPrintSettingsRef.SetPageRanges(rangesCount: TSize; const ranges: TCefRangeArray);
 begin
   PCefPrintSettings(fData)^.set_page_ranges(fData, rangesCount, @ranges);
 end;
@@ -3065,7 +3192,7 @@ begin
   Result := PCefPrintSettings(fData)^.get_page_ranges_count(fData);
 end;
 
-procedure TCefPrintSettingsRef.GetPageRanges(rangesCount: TSize; out ranges: TCefPageRangeArray);
+procedure TCefPrintSettingsRef.GetPageRanges(rangesCount: TSize; out ranges: TCefRangeArray);
 begin
   PCefPrintSettings(fData)^.get_page_ranges(fData, rangesCount, @ranges);
 end;
@@ -3507,6 +3634,47 @@ begin
   error := CefStringClearAndGet(e);
 end;
 
+procedure TCefRequestContextRef.ClearCertificateExceptions(callback: ICefCompletionCallback);
+begin
+  PCefRequestContext(fData)^.clear_certificate_exceptions(fData, CefGetData(callback));
+end;
+
+procedure TCefRequestContextRef.CloseAllConnections(callback: ICefCompletionCallback);
+begin
+  PCefRequestContext(fData)^.close_all_connections(fData, CefGetData(callback));
+end;
+
+procedure TCefRequestContextRef.ResolveHost(const origin: ustring; callback: ICefResolveCallback);
+Var
+  o: TCefString;
+begin
+  o := CefString(origin);
+  PCefRequestContext(fData)^.resolve_host(fData, @o, CefGetData(callback));
+end;
+
+function TCefRequestContextRef.ResolveHostCached(const origin: ustring;
+  resolvedIps: TStrings): TCefErrorCode;
+Var
+  o, str: TCefString;
+  list: TCefStringList;
+  i: Integer;
+begin
+  list := cef_string_list_alloc();
+  try
+    o := CefString(origin);
+    PCefRequestContext(fData)^.resolve_host_cached(fData, @o, resolvedIps);
+
+    FillChar(str, SizeOf(str), 0);
+    For i := 0 to cef_string_list_size(list) - 1 do
+    begin
+      cef_string_list_value(list, i, @str);
+      resolvedIps.Add(CefStringClearAndGet(str));
+    end;
+  finally
+    cef_string_list_free(list);
+  end;
+end;
+
 class function TCefRequestContextRef.UnWrap(data: Pointer): ICefRequestContext;
 begin
   If data <> nil then Result := Create(data) as ICefRequestContext
@@ -3522,7 +3690,7 @@ end;
 class function TCefRequestContextRef.Shared(other: ICefRequestContext;
   handler: ICefRequestContextHandler): ICefRequestContext;
 begin
-  Result := UnWrap(create_context_shared(CefGetData(other), CefGetData(handler)));
+  Result := UnWrap(cef_create_context_shared(CefGetData(other), CefGetData(handler)));
 end;
 
 class function TCefRequestContextRef.Global: ICefRequestContext;
@@ -3630,6 +3798,16 @@ end;
 function TCefResponseRef.IsReadOnly : Boolean;
 begin
   Result := PCefResponse(fData)^.is_read_only(fData) <> 0;
+end;
+
+function TCefResponseRef.GetError: TCefErrorCode;
+begin
+  Result := PCefResponse(fData)^.get_error(fData);
+end;
+
+procedure TCefResponseRef.SetError(error: TCefErrorCode);
+begin
+  PCefResponse(fData)^.set_error(fData, error);
 end;
 
 function TCefResponseRef.GetStatus : Integer;
@@ -4273,29 +4451,6 @@ class function TCefv8HandlerRef.UnWrap(data : Pointer) : ICefv8Handler;
 begin
   If data <> nil then Result := Create(data) as ICefv8Handler
   Else Result := nil;
-end;
-
-{ TCefFastV8Accessor }
-
-function TCefFastV8Accessor.Get(const name: ustring; const obj: ICefv8Value; out value: ICefv8Value;
-  const exception: ustring): Boolean;
-begin
-  If Assigned(FGetter) then Result := FGetter(name, obj, value, exception)
-  Else Result := False;
-end;
-
-function TCefFastV8Accessor.Put(const name: ustring; const obj, value: ICefv8Value;
-  const exception: ustring): Boolean;
-begin
-  If Assigned(FSetter) then FSetter(name, obj, value, exception)
-  Else Result := False;
-end;
-
-constructor TCefFastV8Accessor.Create(const getter: TCefV8AccessorGetterProc;
-  const setter: TCefV8AccessorSetterProc);
-begin
-  fGetter := getter;
-  fSetter := setter;
 end;
 
 { TCefV8ExceptionRef }
