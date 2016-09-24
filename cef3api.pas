@@ -716,6 +716,19 @@ Type
     // Return the handler for printing on Linux. If a print handler is not
     // provided then printing will not be supported on the Linux platform.
     get_print_handler: function(self: PCefBrowserProcessHandler): PCefPrintHandler; cconv;
+
+    // Called from any thread when work has been scheduled for the browser process
+    // main (UI) thread. This callback is used in combination with CefSettings.
+    // external_message_pump and cef_do_message_loop_work() in cases where the CEF
+    // message loop must be integrated into an existing application message loop
+    // (see additional comments and warnings on CefDoMessageLoopWork). This
+    // callback should schedule a cef_do_message_loop_work() call to happen on the
+    // main (UI) thread. |delay_ms| is the requested delay in milliseconds. If
+    // |delay_ms| is <= 0 then the call should happen reasonably soon. If
+    // |delay_ms| is > 0 then the call should be scheduled to happen after the
+    // specified delay and any currently pending scheduled call should be
+    // cancelled.
+    on_schedule_message_pump_work: procedure(self: PCefBrowserProcessHandler; delay_ms: Int64); cconv;
   end;
 
 
@@ -2198,12 +2211,15 @@ Type
 
     // Called when the browser begins loading a frame. The |frame| value will
     // never be NULL -- call the is_main() function to check if this frame is the
-    // main frame. Multiple frames may be loading at the same time. Sub-frames may
-    // start or continue loading after the main frame load has ended. This
-    // function will always be called for all frames irrespective of whether the
-    // request completes successfully. For notification of overall browser load
-    // status use OnLoadingStateChange instead.
-    on_load_start: procedure(self: PCefLoadHandler; browser: PCefBrowser; frame: PCefFrame); cconv;
+    // main frame. |transition_type| provides information about the source of the
+    // navigation and an accurate value is only available in the browser process.
+    // Multiple frames may be loading at the same time. Sub-frames may start or
+    // continue loading after the main frame load has ended. This function will
+    // always be called for all frames irrespective of whether the request
+    // completes successfully. For notification of overall browser load status use
+    // OnLoadingStateChange instead.
+    on_load_start: procedure(self: PCefLoadHandler; browser: PCefBrowser; frame: PCefFrame;
+      transition_type: TCefTransitionType); cconv;
 
     // Called when the browser is done loading a frame. The |frame| value will
     // never be NULL -- call the is_main() function to check if this frame is the
@@ -2714,7 +2730,7 @@ Type
     // be |width|*|height|*4 bytes in size and represents a BGRA image with an
     // upper-left origin.
     on_paint: procedure(self: PCefRenderHandler; browser: PCefBrowser; type_: TCefPaintElementType;
-      dirtyRectsCount: csize_t; const dirtyRects: PCefRectArray;
+      dirtyRectsCount: csize_t; const dirtyRects: TCefRectArray;
       const buffer: Pointer; width, height: Integer); cconv;
 
     // Called when the browser's cursor has changed. If |type| is CT_CUSTOM then
@@ -5107,11 +5123,18 @@ Var
   cef_shutdown: procedure(); cdecl;
 
   // Perform a single iteration of CEF message loop processing. This function is
-  // used to integrate the CEF message loop into an existing application message
-  // loop. Care must be taken to balance performance against excessive CPU usage.
-  // This function should only be called on the main application thread and only
-  // if cef_initialize() is called with a CefSettings.multi_threaded_message_loop
-  // value of false (0). This function will not block.
+  // provided for cases where the CEF message loop must be integrated into an
+  // existing application message loop. Use of this function is not recommended
+  // for most users; use either the cef_run_message_loop() function or
+  // CefSettings.multi_threaded_message_loop if possible. When using this function
+  // care must be taken to balance performance against excessive CPU usage. It is
+  // recommended to enable the CefSettings.external_message_pump option when using
+  // this function so that
+  // cef_browser_process_handler_t::on_schedule_message_pump_work() callbacks can
+  // facilitate the scheduling process. This function should only be called on the
+  // main application thread and only if cef_initialize() is called with a
+  // CefSettings.multi_threaded_message_loop value of false (0). This function
+  // will not block.
   cef_do_message_loop_work: procedure(); cdecl;
 
   // Run the CEF message loop. Use this function instead of an application-

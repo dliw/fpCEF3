@@ -346,6 +346,7 @@ Type
     procedure OnBeforeChildProcessLaunch(const commandLine: ICefCommandLine);
     procedure OnRenderProcessThreadCreated(extraInfo:ICefListValue);
     function GetPrintHandler: ICefPrintHandler;
+    procedure OnScheduleMessagePumpWork(delayMs: Int64);
   end;
 
   ICefCompletionCallback = interface(ICefBase) ['{F0B6A26E-BACF-4FB9-B487-D24F632849F8}']
@@ -770,7 +771,7 @@ Type
 
   ICefLoadHandler = interface(ICefBase) ['{2C63FB82-345D-4A5B-9858-5AE7A85C9F49}']
     procedure OnLoadingStateChange(const browser: ICefBrowser; isLoading, canGoBack, canGoForward: Boolean);
-    procedure OnLoadStart(const browser: ICefBrowser; const frame: ICefFrame);
+    procedure OnLoadStart(const browser: ICefBrowser; const frame: ICefFrame; transitionType: TCefTransitionType);
     procedure OnLoadEnd(const browser: ICefBrowser; const frame: ICefFrame; httpStatusCode: Integer);
     procedure OnLoadError(const browser: ICefBrowser; const frame: ICefFrame; errorCode: TCefErrorCode;
       const errorText, failedUrl: ustring);
@@ -911,7 +912,7 @@ Type
     procedure OnPopupShow(const browser: ICefBrowser; show: Boolean);
     procedure OnPopupSize(const browser: ICefBrowser; const rect: PCefRect);
     procedure OnPaint(const browser: ICefBrowser; aType: TCefPaintElementType;
-      dirtyRectsCount: TSize; const dirtyRects: PCefRectArray; const buffer: Pointer;
+      dirtyRectsCount: TSize; const dirtyRects: TCefRectArray; const buffer: Pointer;
       width, height: Integer);
     procedure OnCursorChange(const browser: ICefBrowser; cursor: TCefCursorHandle; type_: TCefCursorType;
       const customCursorInfo: PCefCursorInfo);

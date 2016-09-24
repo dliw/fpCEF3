@@ -117,6 +117,7 @@ Type
     procedure OnBeforeChildProcessLaunch(const commandLine: ICefCommandLine); virtual;
     procedure OnRenderProcessThreadCreated(extraInfo: ICefListValue); virtual;
     function GetPrintHandler: ICefPrintHandler; virtual;
+    procedure OnScheduleMessagePumpWork(delayMs: Int64); virtual;
   public
     constructor Create; virtual;
   end;
@@ -312,7 +313,7 @@ Type
   TCefLoadHandlerOwn = class(TCefBaseOwn, ICefLoadHandler)
   protected
     procedure OnLoadingStateChange(const browser: ICefBrowser; isLoading, canGoBack, canGoForward: Boolean); virtual;
-    procedure OnLoadStart(const browser: ICefBrowser; const frame: ICefFrame); virtual;
+    procedure OnLoadStart(const browser: ICefBrowser; const frame: ICefFrame; transitionType: TCefTransitionType); virtual;
     procedure OnLoadEnd(const browser: ICefBrowser; const frame: ICefFrame; httpStatusCode: Integer); virtual;
     procedure OnLoadError(const browser: ICefBrowser; const frame: ICefFrame; errorCode: TCefErrorCode;
       const errorText, failedUrl: ustring); virtual;
@@ -338,7 +339,7 @@ Type
     procedure OnPopupShow(const browser: ICefBrowser; show: Boolean); virtual;
     procedure OnPopupSize(const browser: ICefBrowser; const rect: PCefRect); virtual;
     procedure OnPaint(const browser: ICefBrowser; kind: TCefPaintElementType;
-      dirtyRectsCount: TSize; const dirtyRects: PCefRectArray;
+      dirtyRectsCount: TSize; const dirtyRects: TCefRectArray;
       const buffer: Pointer; width, height: Integer); virtual;
     procedure OnCursorChange(const browser: ICefBrowser; cursor: TCefCursorHandle; type_: TCefCursorType;
       const customCursorInfo: PCefCursorInfo); virtual;
@@ -997,6 +998,12 @@ begin
   Result := CefGetData(TCefBrowserProcessHandlerOwn(CefGetObject(self)).GetPrintHandler());
 end;
 
+procedure cef_browser_process_handler_on_schedule_message_pump_work(self: PCefBrowserProcessHandler;
+  delay_ms: Int64); cconv;
+begin
+  TCefBrowserProcessHandlerOwn(CefGetObject(self)).OnScheduleMessagePumpWork(delay_ms);
+end;
+
 procedure TCefBrowserProcessHandlerOwn.OnContextInitialized;
 begin
   { empty }
@@ -1017,6 +1024,11 @@ begin
   Result := nil;
 end;
 
+procedure TCefBrowserProcessHandlerOwn.OnScheduleMessagePumpWork(delayMs: Int64);
+begin
+  { empty }
+end;
+
 constructor TCefBrowserProcessHandlerOwn.Create;
 begin
   inherited CreateData(SizeOf(TCefBrowserProcessHandler));
@@ -1026,6 +1038,7 @@ begin
     on_before_child_process_launch := @cef_browser_process_handler_on_before_child_process_launch;
     on_render_process_thread_created := @cef_browser_process_handler_on_render_process_thread_created;
     get_print_handler := @cef_browser_process_handler_get_print_handler;
+    on_schedule_message_pump_work := @cef_browser_process_handler_on_schedule_message_pump_work;
   end;
 end;
 
@@ -1963,10 +1976,11 @@ begin
       canGoForward <> 0);
 end;
 
-procedure cef_load_handler_on_load_start(self: PCefLoadHandler; browser: PCefBrowser; frame: PCefFrame); cconv;
+procedure cef_load_handler_on_load_start(self: PCefLoadHandler; browser: PCefBrowser;
+  frame: PCefFrame; transition_type: TCefTransitionType); cconv;
 begin
   TCefLoadHandlerOwn(CefGetObject(self)).
-    OnLoadStart(TCefBrowserRef.UnWrap(browser), TCefFrameRef.UnWrap(frame));
+    OnLoadStart(TCefBrowserRef.UnWrap(browser), TCefFrameRef.UnWrap(frame), transition_type);
 end;
 
 procedure cef_load_handler_on_load_end(self: PCefLoadHandler; browser: PCefBrowser; frame: PCefFrame;
@@ -1990,7 +2004,7 @@ begin
   { empty }
 end;
 
-procedure TCefLoadHandlerOwn.OnLoadStart(const browser: ICefBrowser; const frame: ICefFrame);
+procedure TCefLoadHandlerOwn.OnLoadStart(const browser: ICefBrowser; const frame: ICefFrame; transitionType: TCefTransitionType);
 begin
   { empty }
 end;
@@ -2099,7 +2113,7 @@ begin
 end;
 
 procedure cef_render_handler_on_paint(self: PCefRenderHandler; browser: PCefBrowser;
-  type_: TCefPaintElementType; dirtyRectsCount: TSize; const dirtyRects: PCefRectArray;
+  type_: TCefPaintElementType; dirtyRectsCount: TSize; const dirtyRects: TCefRectArray;
   const buffer: Pointer; width, height: Integer); cconv;
 begin
   TCefRenderHandlerOwn(CefGetObject(self)).
@@ -2167,7 +2181,7 @@ begin
 end;
 
 procedure TCefRenderHandlerOwn.OnPaint(const browser : ICefBrowser; kind: TCefPaintElementType;
-  dirtyRectsCount: TSize; const dirtyRects: PCefRectArray; const buffer: Pointer;
+  dirtyRectsCount: TSize; const dirtyRects: TCefRectArray; const buffer: Pointer;
   width, height: Integer);
 begin
   { empty }

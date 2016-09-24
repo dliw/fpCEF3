@@ -268,7 +268,7 @@ Type
 
       { LoadHandler }
       procedure doOnLoadingStateChange(const Browser: ICefBrowser; isLoading, canGoBack, canGoForward: Boolean); virtual;
-      procedure doOnLoadStart(const Browser: ICefBrowser; const Frame: ICefFrame); virtual;
+      procedure doOnLoadStart(const Browser: ICefBrowser; const Frame: ICefFrame; transitionType: TCefTransitionType); virtual;
       procedure doOnLoadEnd(const Browser: ICefBrowser; const Frame: ICefFrame; httpStatusCode: Integer); virtual;
       procedure doOnLoadError(const Browser: ICefBrowser; const Frame: ICefFrame; errorCode: TCefErrorCode;
         const errorText, failedUrl: ustring); virtual;
@@ -282,7 +282,7 @@ Type
       procedure doOnPopupShow(const Browser: ICefBrowser; doshow: Boolean); virtual;
       procedure doOnPopupSize(const Browser: ICefBrowser; const rect: PCefRect); virtual;
       procedure doOnPaint(const Browser: ICefBrowser; kind: TCefPaintElementType;
-        dirtyRectsCount: TSize; const dirtyRects: PCefRectArray;
+        dirtyRectsCount: TSize; const dirtyRects: TCefRectArray;
         const buffer: Pointer; awidth, aheight: Integer); virtual;
       procedure doOnCursorChange(const browser: ICefBrowser; aCursor: TCefCursorHandle; type_: TCefCursorType;
         const customCursorInfo: PCefCursorInfo); virtual;
@@ -536,7 +536,7 @@ Type
     class procedure OnTimer(Sender : TObject);
   public
     constructor Create(const crm: IChromiumEvents); override;
-    procedure Cleanup;
+    destructor Destroy; override;
     procedure StartTimer;
   end;
 
@@ -586,11 +586,10 @@ begin
   {$ENDIF}
 end;
 
-procedure TLCLClientHandler.Cleanup;
+destructor TLCLClientHandler.Destroy;
 begin
-  { TODO : Check, why Destroy; override never gets called }
   {$IFDEF DEBUG}
-  Debugln('LCLClientHandler.Cleanup');
+  Debugln('LCLClientHandler.Destroy');
   {$ENDIF}
 
   {$IFNDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
@@ -608,7 +607,7 @@ begin
   end;
   {$ENDIF}
 
-  // inherited;
+  inherited;
 end;
 
 procedure TLCLClientHandler.StartTimer;
@@ -714,7 +713,7 @@ begin
     fBrowserId := fBrowser.Identifier;
 {$ENDIF}
 
-    (FHandler as TLCLClientHandler).StartTimer;
+    (fHandler as TLCLClientHandler).StartTimer;
     Load(fDefaultUrl);
   end;
 end;
@@ -876,7 +875,6 @@ begin
 
   If fHandler <> nil then
   begin
-    (fHandler as TLCLClientHandler).Cleanup;
     (fHandler as ICefClientHandler).Disconnect;
     fHandler := nil;
   end;
@@ -1139,9 +1137,10 @@ begin
     fOnLoadingStateChange(Self, Browser, isLoading, canGoBack, canGoForward);
 end;
 
-procedure TCustomChromium.doOnLoadStart(const Browser: ICefBrowser; const Frame: ICefFrame);
+procedure TCustomChromium.doOnLoadStart(const Browser: ICefBrowser; const Frame: ICefFrame;
+  transitionType: TCefTransitionType);
 begin
-  If Assigned(fOnLoadStart) then fOnLoadStart(Self, Browser, Frame);
+  If Assigned(fOnLoadStart) then fOnLoadStart(Self, Browser, Frame, transitionType);
 end;
 
 procedure TCustomChromium.doOnLoadEnd(const Browser: ICefBrowser; const Frame: ICefFrame;
@@ -1189,7 +1188,7 @@ begin
 end;
 
 procedure TCustomChromium.doOnPaint(const Browser: ICefBrowser; kind: TCefPaintElementType;
-  dirtyRectsCount: TSize; const dirtyRects: PCefRectArray; const buffer: Pointer; awidth, aheight: Integer);
+  dirtyRectsCount: TSize; const dirtyRects: TCefRectArray; const buffer: Pointer; awidth, aheight: Integer);
 begin
   { empty }
 end;

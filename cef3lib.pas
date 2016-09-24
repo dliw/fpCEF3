@@ -168,6 +168,7 @@ Var
   CefSingleProcess: Boolean = False;
   CefNoSandbox: Boolean = True;
   CefBrowserSubprocessPath: ustring = '';
+  CefExternalMessagePump: Boolean = False;
   CefWindowlessRenderingEnabled: Boolean = False;
   CefCachePath: ustring = '';
   CefCommandLineArgsDisabled: Boolean = False;
@@ -432,6 +433,7 @@ begin
 {$ELSE}
   Settings.multi_threaded_message_loop := Ord(False);
 {$ENDIF}
+  Settings.external_message_pump := Ord(CefExternalMessagePump);
   Settings.windowless_rendering_enabled := Ord(CefWindowlessRenderingEnabled);
   Settings.cache_path := CefString(CefCachePath);
   Settings.command_line_args_disabled := Ord(CefCommandLineArgsDisabled);

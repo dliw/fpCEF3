@@ -7,7 +7,7 @@ Uses
   cthreads,
   {$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, Main, bgrabitmappack;
+  Forms, lazopenglcontext, Main;
 
 {$R *.res}
 

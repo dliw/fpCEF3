@@ -110,7 +110,7 @@ Type
 
   { LoadHandler }
   TOnLoadingStateChange = procedure(Sender: TObject; const browser: ICefBrowser; isLoading, canGoBack, canGoForward: Boolean) of object;
-  TOnLoadStart = procedure(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame) of object;
+  TOnLoadStart = procedure(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame; transitionType: TCefTransitionType) of object;
   TOnLoadEnd = procedure(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame; httpStatusCode: Integer) of object;
   TOnLoadError = procedure(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame; errorCode: TCefErrorCode;
     const errorText, failedUrl: ustring) of object;
@@ -129,7 +129,7 @@ Type
   TOnPopupSize = procedure(Sender: TObject; const Browser: ICefBrowser;
     const rect: PCefRect) of object;
   TOnPaint = procedure(Sender: TObject; const Browser: ICefBrowser;
-    kind: TCefPaintElementType; dirtyRectsCount: Cardinal; const dirtyRects: PCefRectArray;
+    kind: TCefPaintElementType; dirtyRectsCount: Cardinal; const dirtyRects: TCefRectArray;
     const buffer: Pointer; awidth, aheight: Integer) of object;
   TOnCursorChange = procedure(Sender: TObject; const browser: ICefBrowser; cursor: TCefCursorHandle;
     type_: TCefCursorType; const customCursorInfo: PCefCursorInfo) of object;
@@ -186,7 +186,6 @@ Type
     fJavascriptAccessClipboard: TCefState;
     fJavascriptDomPaste: TCefState;
     fCaretBrowsing: TCefState;
-    fJava: TCefState;
     fPlugins: TCefState;
     fUniversalAccessFromFileUrls: TCefState;
     fFileAccessFromFileUrls: TCefState;
@@ -207,7 +206,6 @@ Type
     property JavascriptAccessClipboard: TCefState read fJavascriptAccessClipboard write fJavascriptAccessClipboard default STATE_DEFAULT;
     property JavascriptDomPaste: TCefState read fJavascriptDomPaste write fJavascriptDomPaste default STATE_DEFAULT;
     property CaretBrowsing: TCefState read fCaretBrowsing write fCaretBrowsing default STATE_DEFAULT;
-    property Java: TCefState read fJava write fJava default STATE_DEFAULT;
     property Plugins: TCefState read fPlugins write fPlugins default STATE_DEFAULT;
     property UniversalAccessFromFileUrls: TCefState read fUniversalAccessFromFileUrls write fUniversalAccessFromFileUrls default STATE_DEFAULT;
     property FileAccessFromFileUrls: TCefState read fFileAccessFromFileUrls write fFileAccessFromFileUrls default STATE_DEFAULT;
@@ -335,7 +333,7 @@ Type
 
     { CefLoadHandler }
     procedure doOnLoadingStateChange(const browser: ICefBrowser; isLoading, canGoBack, canGoForward: Boolean);
-    procedure doOnLoadStart(const browser: ICefBrowser; const frame: ICefFrame);
+    procedure doOnLoadStart(const browser: ICefBrowser; const frame: ICefFrame; transitionType: TCefTransitionType);
     procedure doOnLoadEnd(const browser: ICefBrowser; const frame: ICefFrame; httpStatusCode: Integer);
     procedure doOnLoadError(const browser: ICefBrowser; const frame: ICefFrame; errorCode: TCefErrorCode;
       const errorText, failedUrl: ustring);
@@ -349,7 +347,7 @@ Type
     procedure doOnPopupShow(const browser: ICefBrowser; show: Boolean);
     procedure doOnPopupSize(const browser: ICefBrowser; const rect: PCefRect);
     procedure doOnPaint(const browser: ICefBrowser; aType: TCefPaintElementType;
-      dirtyRectsCount: TSize; const dirtyRects: PCefRectArray; const buffer: Pointer;
+      dirtyRectsCount: TSize; const dirtyRects: TCefRectArray; const buffer: Pointer;
       width, height: Integer);
     procedure doOnCursorChange(const browser: ICefBrowser; cursor: TCefCursorHandle; type_: TCefCursorType;
       const customCursorInfo: PCefCursorInfo);
@@ -587,7 +585,7 @@ Type
     fEvent: IChromiumEvents;
   protected
     procedure OnLoadingStateChange(const browser: ICefBrowser; isLoading, canGoBack, canGoForward: Boolean); override;
-    procedure OnLoadStart(const browser: ICefBrowser; const frame: ICefFrame); override;
+    procedure OnLoadStart(const browser: ICefBrowser; const frame: ICefFrame; transitionType: TCefTransitionType); override;
     procedure OnLoadEnd(const browser: ICefBrowser; const frame: ICefFrame; httpStatusCode: Integer); override;
     procedure OnLoadError(const browser: ICefBrowser; const frame: ICefFrame; errorCode: TCefErrorCode;
       const errorText, failedUrl: ustring); override;
@@ -607,7 +605,7 @@ Type
     procedure OnPopupShow(const browser: ICefBrowser; show: Boolean); override;
     procedure OnPopupSize(const browser: ICefBrowser; const rect: PCefRect); override;
     procedure OnPaint(const browser: ICefBrowser; kind: TCefPaintElementType;
-      dirtyRectsCount: TSize; const dirtyRects: PCefRectArray;
+      dirtyRectsCount: TSize; const dirtyRects: TCefRectArray;
       const buffer: Pointer; width, height: Integer); override;
     procedure OnCursorChange(const browser: ICefBrowser; cursor: TCefCursorHandle; type_: TCefCursorType;
       const customCursorInfo: PCefCursorInfo); override;
@@ -1141,10 +1139,10 @@ begin
   fEvent.doOnLoadingStateChange(browser, isLoading, canGoBack, canGoForward);
 end;
 
-procedure TCustomLoadHandler.OnLoadStart(const browser : ICefBrowser;
-  const frame : ICefFrame);
+procedure TCustomLoadHandler.OnLoadStart(const browser: ICefBrowser; const frame: ICefFrame;
+  transitionType: TCefTransitionType);
 begin
-  fEvent.doOnLoadStart(Browser, Frame);
+  fEvent.doOnLoadStart(Browser, Frame, transitionType);
 end;
 
 { TCustomRenderHandler }
@@ -1188,7 +1186,7 @@ begin
 end;
 
 procedure TCustomRenderHandler.OnPaint(const browser: ICefBrowser; kind: TCefPaintElementType;
-  dirtyRectsCount: TSize; const dirtyRects: PCefRectArray; const buffer: Pointer;
+  dirtyRectsCount: TSize; const dirtyRects: TCefRectArray; const buffer: Pointer;
   width, height: Integer);
 begin
   fEvent.doOnPaint(Browser, kind, dirtyRectsCount, dirtyRects, buffer, width, height);

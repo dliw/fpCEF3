@@ -7,6 +7,7 @@ object Mainform: TMainform
   ClientHeight = 475
   ClientWidth = 762
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   LCLVersion = '1.6.0.4'
   object BGo: TButton
     AnchorSideTop.Control = Owner
@@ -53,42 +54,59 @@ object Mainform: TMainform
     TabOrder = 2
     Text = 'http://'
   end
-  object OSRPanel: TPanel
+  object OSRPanel: TOpenGLControl
     AnchorSideLeft.Control = Owner
     AnchorSideTop.Control = EUrl
     AnchorSideTop.Side = asrBottom
     AnchorSideRight.Control = Owner
     AnchorSideRight.Side = asrBottom
-    AnchorSideBottom.Control = Owner
-    AnchorSideBottom.Side = asrBottom
+    AnchorSideBottom.Control = CBAnimate
     Left = 0
-    Height = 430
-    Top = 45
+    Height = 404
+    Top = 40
     Width = 762
     Anchors = [akTop, akLeft, akRight, akBottom]
-    BorderSpacing.Top = 10
-    BevelOuter = bvNone
-    ClientHeight = 430
-    ClientWidth = 762
-    TabOrder = 3
+    BorderSpacing.Top = 5
+    BorderSpacing.Bottom = 5
     OnEnter = OSRPanelEnter
     OnExit = OSRPanelExit
-    object PaintBox: TPaintBox
-      Left = 0
-      Height = 430
-      Top = 0
-      Width = 762
-      Align = alClient
-      OnMouseDown = PaintBoxMouseDown
-      OnMouseMove = PaintBoxMouseMove
-      OnMouseUp = PaintBoxMouseUp
-      OnMouseWheel = PaintBoxMouseWheel
-      OnResize = PaintBoxResize
-    end
+    OnMouseDown = OSRPanelMouseDown
+    OnMouseMove = OSRPanelMouseMove
+    OnMouseUp = OSRPanelMouseUp
+    OnMouseWheel = OSRPanelMouseWheel
+    OnPaint = OSRPanelPaint
+    OnResize = OSRPanelResize
+  end
+  object CBAnimate: TCheckBox
+    AnchorSideLeft.Control = LUrl
+    AnchorSideBottom.Control = Owner
+    AnchorSideBottom.Side = asrBottom
+    Left = 8
+    Height = 26
+    Top = 449
+    Width = 74
+    Anchors = [akLeft, akBottom]
+    Caption = 'animate'
+    OnChange = CBAnimateChange
+    TabOrder = 4
+  end
+  object CBShowUpdate: TCheckBox
+    AnchorSideLeft.Control = CBAnimate
+    AnchorSideLeft.Side = asrBottom
+    AnchorSideBottom.Control = Owner
+    AnchorSideBottom.Side = asrBottom
+    Left = 92
+    Height = 26
+    Top = 449
+    Width = 103
+    Anchors = [akLeft, akBottom]
+    BorderSpacing.Left = 10
+    Caption = 'show update'
+    TabOrder = 5
   end
   object Chromium: TChromiumOSR
-    OnGetRootScreenRect = ChromiumGetRootScreenRect
     OnGetViewRect = ChromiumGetViewRect
+    OnGetScreenPoint = ChromiumGetScreenPoint
     OnPaint = ChromiumPaint
     DefaultUrl = 'about:blank'
     WindowlessFrameRate = 30

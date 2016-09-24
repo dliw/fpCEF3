@@ -26,7 +26,6 @@
 
 # OSRDemo
   Basic example on how to use TChromiumOSR.
-  BGRAControls are needed for this example (http://wiki.lazarus.freepascal.org/BGRAControls).
 
 # SubProcess
   Minimal subprocess, can be used as is as long as no custom render handler is needed.

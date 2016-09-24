@@ -230,7 +230,7 @@ Type
 
     { LoadHandler }
     procedure doOnLoadingStateChange(const Browser: ICefBrowser; isLoading, canGoBack, canGoForward: Boolean); virtual;
-    procedure doOnLoadStart(const Browser: ICefBrowser; const Frame: ICefFrame); virtual;
+    procedure doOnLoadStart(const Browser: ICefBrowser; const Frame: ICefFrame; transitionType: TCefTransitionType); virtual;
     procedure doOnLoadEnd(const Browser: ICefBrowser; const Frame: ICefFrame; httpStatusCode: Integer); virtual;
     procedure doOnLoadError(const Browser: ICefBrowser; const Frame: ICefFrame; errorCode: TCefErrorCode;
       const errorText, failedUrl: ustring); virtual;
@@ -244,7 +244,7 @@ Type
     procedure doOnPopupShow(const Browser: ICefBrowser; doshow: Boolean); virtual;
     procedure doOnPopupSize(const Browser: ICefBrowser; const rect: PCefRect); virtual;
     procedure doOnPaint(const Browser: ICefBrowser; kind: TCefPaintElementType;
-      dirtyRectsCount: TSize; const dirtyRects: PCefRectArray;
+      dirtyRectsCount: TSize; const dirtyRects: TCefRectArray;
       const buffer: Pointer; awidth, aheight: Integer); virtual;
     procedure doOnCursorChange(const browser: ICefBrowser; aCursor: TCefCursorHandle; type_: TCefCursorType;
       const customCursorInfo: PCefCursorInfo); virtual;
@@ -515,7 +515,7 @@ Type
     class procedure OnTimer(Sender : TObject);
   public
     constructor Create(const crm: IChromiumEvents); override;
-    procedure Cleanup;
+    destructor Destroy; override;
     procedure StartTimer;
   end;
 
@@ -565,11 +565,10 @@ begin
   {$ENDIF}
 end;
 
-procedure TOSRClientHandler.Cleanup;
+destructor TOSRClientHandler.Destroy;
 begin
-  { TODO : Check, why Destroy; override never gets called }
   {$IFDEF DEBUG}
-  Debugln('LCLClientHandler.Cleanup');
+  Debugln('OSRClientHandler.Cleanup');
   {$ENDIF}
 
   {$IFNDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
@@ -587,7 +586,7 @@ begin
   end;
   {$ENDIF}
 
-  // inherited;
+  inherited;
 end;
 
 procedure TOSRClientHandler.StartTimer;
@@ -661,13 +660,13 @@ begin
     If Assigned(fChromiumContext) then fRequestContext := fChromiumContext.GetRequestContext;
 
     {$IFDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
-      CefBrowserHostCreateBrowser(@info, FHandler, FDefaultUrl, @settings, fRequestContext);
+      CefBrowserHostCreateBrowser(@info, fHandler, UTF8Decode(fDefaultUrl), @settings, fRequestContext);
     {$ELSE}
-      FBrowser := CefBrowserHostCreateBrowserSync(@info, FHandler, '', @settings, fRequestContext);
+      fBrowser := CefBrowserHostCreateBrowserSync(@info, fHandler, UTF8Decode(fDefaultUrl), @settings, fRequestContext);
       FBrowserId := FBrowser.Identifier;
     {$ENDIF}
 
-    (FHandler as TOSRClientHandler).StartTimer;
+    (fHandler as TOSRClientHandler).StartTimer;
   end;
 end;
 
@@ -932,9 +931,10 @@ begin
     FOnLoadingStateChange(Self, Browser, isLoading, canGoBack, canGoForward);
 end;
 
-procedure TCustomChromiumOSR.doOnLoadStart(const Browser : ICefBrowser; const Frame : ICefFrame);
+procedure TCustomChromiumOSR.doOnLoadStart(const Browser: ICefBrowser; const Frame: ICefFrame;
+  transitionType: TCefTransitionType);
 begin
-  If Assigned(FOnLoadStart) then FOnLoadStart(Self, Browser, frame);
+  If Assigned(FOnLoadStart) then FOnLoadStart(Self, Browser, Frame, transitionType);
 end;
 
 procedure TCustomChromiumOSR.doOnLoadEnd(const Browser : ICefBrowser;
@@ -989,7 +989,7 @@ begin
 end;
 
 procedure TCustomChromiumOSR.doOnPaint(const Browser : ICefBrowser;
-  kind : TCefPaintElementType; dirtyRectsCount : TSize; const dirtyRects : PCefRectArray;
+  kind : TCefPaintElementType; dirtyRectsCount : TSize; const dirtyRects : TCefRectArray;
   const buffer : Pointer; awidth, aheight : Integer);
 begin
   If Assigned(FOnPaint) then
@@ -1143,7 +1143,7 @@ begin
   begin
     fHandler := TOSRClientHandler.Create(Self);
 
-    If not Assigned(FHandler) then raise Exception.Create('FHandler is nil');
+    If not Assigned(fHandler) then raise Exception.Create('FHandler is nil');
   end;
 
   fOptions := TChromiumOptions.Create;
@@ -1164,16 +1164,15 @@ begin
   begin
     fBrowser.StopLoad;
     fBrowser.Host.CloseBrowser(True);
+    fBrowser := nil;
   end;
 
   If fHandler <> nil then
   begin
-    (fHandler as TOSRClientHandler).Cleanup;
     (fHandler as ICefClientHandler).Disconnect;
+    fHandler := nil;
   end;
 
-  fHandler := nil;
-  fBrowser := nil;
   fFontOptions.Free;
   fOptions.Free;
 
