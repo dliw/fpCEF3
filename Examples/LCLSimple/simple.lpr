@@ -12,8 +12,11 @@ Uses
 {$R *.res}
 
 begin
-  Application.Title := 'Simple';
   RequireDerivedFormResource := True;
+  Application.Title := 'Simple';
+  {$IFDEF WINDOWS}
+  Application.MainFormOnTaskBar := True;
+  {$ENDIF}
   Application.Initialize;
   Application.CreateForm(TMainform, Mainform);
   Application.Run;

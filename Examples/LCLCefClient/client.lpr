@@ -11,6 +11,9 @@ Uses
 
 begin
   RequireDerivedFormResource := True;
+  {$IFDEF WINDOWS}
+  Application.MainFormOnTaskBar := True;
+  {$ENDIF}
   Application.Initialize;
   Application.CreateForm(TFMain, FMain);
   Application.Run;
