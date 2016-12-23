@@ -344,8 +344,11 @@ end;
 
 function CefString(const str: ustring): TCefString;
 begin
-  Result.str := PChar16(PWideChar(str));
   Result.length := Length(str);
+
+  If Result.length > 0 then Result.str := PChar16(PWideChar(str))
+  Else Result.str := nil;
+
   Result.dtor := nil;
 end;
 

@@ -687,6 +687,7 @@ begin
       fParentForm := GetParentForm(Self);
 
       {$IFDEF LCLGTK2}
+        gtk_widget_realize(PGtkWidget(fParentForm.Handle));
         info.parent_window := gdk_window_xwindow(PGtkWidget(fParentForm.Handle)^.window);
       {$ENDIF}
       {$IFDEF LCLQT}

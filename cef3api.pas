@@ -5999,7 +5999,7 @@ Uses Math;
 Const
   CefLibrary: String = {$IFDEF WINDOWS}'libcef.dll'{$ELSE}'libcef.so'{$ENDIF};
 Var
-  LibHandle : THandle = 0;
+  LibHandle : TLibHandle = 0;
 
 
 { ***  cef_string_types.h *** }
