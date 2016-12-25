@@ -34,8 +34,8 @@
       </Other>
     </CompilerOptions>
     <Description Value="Chromium component for Lazarus"/>
-    <Version Major="3" Minor="2743"/>
-    <Files Count="11">
+    <Version Major="3" Minor="2743" Release="1"/>
+    <Files Count="12">
       <Item1>
         <Filename Value="../cef.inc"/>
         <Type Value="Include"/>
@@ -83,6 +83,11 @@
         <HasRegisterProc Value="True"/>
         <UnitName Value="cef3context"/>
       </Item11>
+      <Item12>
+        <Filename Value="cef3cocoa.pas"/>
+        <AddToUsesPkgSection Value="False"/>
+        <UnitName Value="cef3cocoa"/>
+      </Item12>
     </Files>
     <RequiredPkgs Count="3">
       <Item1>

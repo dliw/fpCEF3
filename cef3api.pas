@@ -5997,7 +5997,11 @@ Implementation
 Uses Math;
 
 Const
-  CefLibrary: String = {$IFDEF WINDOWS}'libcef.dll'{$ELSE}'libcef.so'{$ENDIF};
+  CefLibrary: String =
+    {$IFDEF WINDOWS}'libcef.dll'{$ENDIF}
+    {$IFDEF LINUX}'libcef.so'{$ENDIF}
+    {$IFDEF DARWIN}'Chromium Embedded Framework'{$ENDIF};
+
 Var
   LibHandle : TLibHandle = 0;
 
@@ -6026,6 +6030,51 @@ begin
 end;
 { ***                     *** }
 
+{$IFDEF DARWIN}
+  function LoadLibraryFromBundlePath(const CefLibrary: String): TLibHandle;
+  Var
+    ExeDir, FWName, LibPath: String;
+  begin
+    ExeDir := ExtractFileDir(ExpandFileName(ParamStr(0)));
+    FWName := ChangeFileExt(CefLibrary, '.framework');
+
+    // first attempt: main application
+    // Contents
+    //   MacOS   <- ExeDir
+    //     exe
+    //   Frameworks
+    //     name.framework   <- FWName
+    //       name           <- LibPath
+    LibPath := ExtractFileDir(ExeDir) + PathDelim + 'Frameworks' + PathDelim + FWName + PathDelim + CefLibrary;
+
+    Result := LoadLibrary(LibPath);
+    If Result <> 0 then Exit;
+
+
+    // second attempt: subprocess
+    //   Frameworks
+    //     name.framework   <- FWName
+    //       name           <- LibPath
+    //     subapp.app
+    //       Contents
+    //         MacOS   <- ExeDir
+    //           exe
+    LibPath := ExtractFileDir(ExeDir);  // Contents
+    LibPath := ExtractFileDir(LibPath); // subapp.app
+    LibPath := ExtractFileDir(LibPath); // Frameworks
+    LibPath := LibPath + PathDelim + FWName + PathDelim + CefLibrary;
+
+    Result := LoadLibrary(LibPath);
+    If Result <> 0 then Exit;
+
+
+    // third attempt: console application
+    LibPath := ExeDir + PathDelim + FWName + PathDelim + CefLibrary;
+    Result := LoadLibrary(LibPath);
+  end;
+
+{$ENDIF}
+
 function CefLoadLibrary: Boolean;
 begin
   {$IFDEF DEBUG}
@@ -6037,7 +6086,10 @@ begin
     Set8087CW(Get8087CW or $3F); // deactivate FPU exception
     SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
 
-    LibHandle := LoadLibrary(PChar(CefLibrary));
+    LibHandle := LoadLibrary(CefLibrary);
+    {$IFDEF DARWIN}
+      If LibHandle = 0 then LibHandle := LoadLibraryFromBundlePath(CefLibrary);
+    {$ENDIF}
     If LibHandle = 0 then RaiseLastOsError;
 
     Pointer(cef_string_wide_set)             := GetProcAddress(LibHandle, 'cef_string_wide_set');

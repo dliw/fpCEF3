@@ -8,7 +8,7 @@ object Mainform: TMainform
   ClientWidth = 762
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  LCLVersion = '1.6.0.4'
+  LCLVersion = '1.6.2.0'
   object BGo: TButton
     AnchorSideTop.Control = Owner
     AnchorSideRight.Control = Owner

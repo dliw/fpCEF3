@@ -7,7 +7,7 @@ object Mainform: TMainform
   ClientHeight = 476
   ClientWidth = 810
   OnCreate = FormCreate
-  LCLVersion = '1.6.0.4'
+  LCLVersion = '1.6.2.0'
   object BGo: TButton
     AnchorSideTop.Control = Owner
     AnchorSideRight.Control = Owner

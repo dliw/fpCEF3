@@ -3,9 +3,9 @@ Program subprocess;
 {$mode objfpc}{$H+}
 
 Uses
-  {$IFDEF UNIX}{$IFDEF UseCThreads}
+  {$IFDEF UNIX}
   cthreads,
-  {$ENDIF}{$ENDIF}
+  {$ENDIF}
   cef3types, cef3api;
 
 Var

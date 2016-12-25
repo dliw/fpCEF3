@@ -61,8 +61,13 @@ end;
 
 procedure TMainform.FormCreate(Sender: TObject);
 begin
-  {$INFO subprocess is set here, comment to use main program as subprocess}
-  CefBrowserSubprocessPath := '.' + PathDelim + 'subprocess'{$IFDEF WINDOWS}+'.exe'{$ENDIF};
+  {$IFDEF DARWIN}
+    // Uncomment for a single process application
+    //CefSingleProcess := True;
+  {$ELSE}
+    {$INFO subprocess is set here, comment out to use the main program as subprocess}
+    CefBrowserSubprocessPath := '.' + PathDelim + 'subprocess'{$IFDEF WINDOWS}+'.exe'{$ENDIF};
+  {$ENDIF}
 end;
 
 end.

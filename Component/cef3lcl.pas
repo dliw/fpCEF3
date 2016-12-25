@@ -37,17 +37,14 @@ Unit cef3lcl;
     {$DEFINE TargetDefined}
   {$ENDIF}
 {$ENDIF}
+{$IFDEF DARWIN}
+  // Allow installation as design time package
+  {$DEFINE TargetDefined}
 
-(*
-{$IFDEF LCLGTK}
-  {$IFDEF Linux}
-    {$DEFINE TargetDefined}
+  {$IFNDEF LCLCOCOA}
+    {$WARNING This LCL widgetset is not yet supported}
   {$ENDIF}
 {$ENDIF}
-{$IFDEF LCLCarbon}
-  {$DEFINE TargetDefined}
-{$ENDIF}
-*)
 
 {$IFNDEF TargetDefined}
   {$ERROR This LCL widgetset/OS is not yet supported}
@@ -65,6 +62,9 @@ Uses
   {$ENDIF}
   {$IFDEF LCLQT}
   qt4, qtwidgets,
+  {$ENDIF}
+  {$IFDEF LCLCOCOA}
+  CocoaInt, cef3cocoa,
   {$ENDIF}
   cef3types, cef3lib, cef3intf, cef3gui, cef3context;
 
@@ -665,7 +665,7 @@ Var
   info: TCefWindowInfo;
   settings: TCefBrowserSettings;
 
-{$IFDEF WINDOWS}
+{$IF DEFINED(WINDOWS) OR DEFINED(DARWIN)}
   rect : TRect;
 {$ENDIF}
 begin
@@ -698,6 +698,15 @@ begin
       info.y := Top;
       info.width := Width;
 	    info.height := Height;
+    {$ENDIF}
+    {$IFDEF LCLCOCOA}
+      rect := GetClientRect;
+
+      info.parent_view := TCefWindowHandle(Handle);
+      info.x := rect.Left;
+      info.y := rect.Top;
+      info.width := rect.Right - rect.Left;
+      info.height := rect.Bottom - rect.Top;
     {$ENDIF}
 
     FillChar(settings, SizeOf(TCefBrowserSettings), 0);
@@ -843,6 +852,10 @@ begin
 
   If not (csDesigning in ComponentState) then
   begin
+    {$IF DEFINED(DARWIN) AND NOT DEFINED(LCLCOCOA)}
+      raise Exception.Create('This widgetset is not yet supported');
+    {$ENDIF}
+
     fHandler := TLCLClientHandler.Create(Self);
 
     If not Assigned(fHandler) then raise Exception.Create('fHandler is nil');
@@ -1328,5 +1341,11 @@ procedure TCustomChromium.doOnRenderProcessTerminated(const Browser: ICefBrowser
 begin
   If Assigned(fOnRenderProcessTerminated) then fOnRenderProcessTerminated(Self, Browser, Status);
 end;
+
+
+Initialization
+  {$IFDEF LCLCOCOA}
+    InitCRApplication;
+  {$ENDIF}
 
 end.

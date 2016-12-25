@@ -4,7 +4,10 @@ fpCEF3
 Chromium Embedded Framework for Free Pascal
 
 ## How to get started
-Install cef3.lpk into Lazarus
+Install `cef3.lpk` into Lazarus. A good starting point is the `LCLSimple` project, available in the `Examples` directory.
+
+**Important**: All examples use [build modes](http://wiki.freepascal.org/IDE_Window:_Compiler_Options#Selecting_the_active_build_mode). Make sure to select the correct one, otherwise compilation will fail.
+
 
 ### Windows
 Download CEF3 from [here][1a] or [here][1b] and copy all files from either `Debug` or `Release` to the folder your .exe is / will be in.
@@ -21,6 +24,11 @@ Make sure to include `cthreads` as the first unit in your main program.
 #### General notes
 Apart from the files in the `Debug` or `Release` folder, CEF needs the files / folders from the `Resources` folder. Unless you set `CefResourcesDirPath` and `CefLocalesDirPath`, CEF expects them to be in the folder your executable is in.  
 However in any case `icudtl.dat` __must__ be in the same folder as the CEF library!
+
+
+### macOS
+Download the CEF3 framework from [here][1a] or [here][1b] and follow the description on the [wiki][wiki]. Please note that most of the hints and notes in this readme don't apply for macOS.
+
 
 ## Hints
 
@@ -61,8 +69,7 @@ See changelog or release tag for the currently supported version, other versions
 
 - Windows
 - Linux with GTK2 or QT
-
-The plain header is ready for Mac, but the component needs to be adopted.
+- macOS with Cocoa
 
 ### Is there a documentation for fpCEF?
 No, but you can find information in
@@ -83,10 +90,10 @@ To a certain amount - yes.
 ## Links:
  *  [Chromium Embedded Framework](https://bitbucket.org/chromiumembedded/cef)
  *  [Delphi CEF](https://github.com/hgourvest/dcef3)
- *  [WACEF](https://bitbucket.org/WaspAce/wacef)
 
  *  [fpCEF3](http://github.com/dliw/fpCEF3)
 
+[wiki]:https://github.com/dliw/fpCEF3/wiki/macOS
 [1a]:http://www.magpcss.net/cef_downloads
 [1b]:http://www.cefbuilds.com
 [2]:http://magpcss.org/ceforum/apidocs3/
