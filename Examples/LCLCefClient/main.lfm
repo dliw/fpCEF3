@@ -7,7 +7,7 @@ object FMain: TFMain
   ClientHeight = 533
   ClientWidth = 1201
   OnCreate = FormCreate
-  LCLVersion = '1.6.0.4'
+  LCLVersion = '1.6.2.0'
   object LUrl: TStaticText
     AnchorSideTop.Control = Owner
     Left = 8
@@ -101,5 +101,17 @@ object FMain: TFMain
   object TabIcons: TImageList
     left = 1152
     top = 48
+  end
+  object SaveFile: TSaveDialog
+    left = 1152
+    top = 88
+  end
+  object OpenFile: TOpenDialog
+    left = 1120
+    top = 88
+  end
+  object OpenFolder: TSelectDirectoryDialog
+    left = 1088
+    top = 88
   end
 end

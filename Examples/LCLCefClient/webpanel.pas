@@ -6,6 +6,7 @@ Interface
 
 Uses
   Classes, SysUtils, Controls, ComCtrls, FileUtil, Forms, LCLProc, Graphics, strutils, LazFileUtils,
+  Dialogs,
   cef3types, cef3lib, cef3intf, cef3own, cef3lcl,
   FaviconGetter;
 
@@ -35,6 +36,14 @@ Type
     procedure ChromiumContextMenuCommand(Sender: TObject; const Browser: ICefBrowser;
       const Frame: ICefFrame; const params: ICefContextMenuParams; commandId: Integer;
       eventFlags: TCefEventFlags; out Result: Boolean);
+
+    procedure ChromiumFileDialog(Sender: TObject; const Browser: ICefBrowser;
+      mode: TCefFileDialogMode; const title, defaultFileName: ustring; acceptFilters: TStrings;
+      selectedAcceptFilter: Integer; const callback: ICefFileDialogCallback; out Result: Boolean);
+
+    procedure ChromiumBeforeDownload(Sender: TObject; const Browser: ICefBrowser;
+      const downloadItem: ICefDownloadItem; const suggestedName: ustring;
+      const callback: ICefBeforeDownloadCallback);
 
     procedure IconReady(const Success: Boolean; const Icon: TIcon);
   protected
@@ -198,7 +207,6 @@ begin
   end;
 end;
 
-
 procedure TWebPanel.ChromiumContextMenuCommand(Sender: TObject; const Browser: ICefBrowser;
   const Frame: ICefFrame; const params: ICefContextMenuParams; commandId: Integer;
   eventFlags: TCefEventFlags; out Result: Boolean);
@@ -212,6 +220,170 @@ begin
     Ord(CLIENT_ID_EXIT): Application.Terminate;
   Else Result := False;
   end;
+end;
+
+procedure TWebPanel.ChromiumFileDialog(Sender: TObject; const Browser: ICefBrowser;
+  mode: TCefFileDialogMode; const title, defaultFileName: ustring; acceptFilters: TStrings;
+  selectedAcceptFilter: Integer; const callback: ICefFileDialogCallback; out Result: Boolean);
+Var
+  modeType: TCefFileDialogMode;
+  success: Boolean = False;
+  files: TStringList;
+  LCLDialog: TOpenDialog;
+
+
+function GetDescriptionFromMimeType(const mimeType: String): String;
+Const
+  WildCardMimeTypes: array[0..3] of array[0..1] of String = (
+    ('audio', 'Audio Files'),
+    ('image', 'Image Files'),
+    ('text', 'Text Files'),
+    ('video', 'Video Files'));
+Var
+  i: Integer;
+begin
+  Result := '';
+
+  For i := 0 to High(WildCardMimeTypes) do
+  begin
+    If AnsiCompareText(mimeType, WildCardMimeTypes[i][0] + '/*') = 0 then
+    begin
+      Result := WildCardMimeTypes[i][1];
+      Break;
+    end;
+  end;
+end;
+
+procedure AddFilters(includeAll: Boolean);
+Var
+  hasFilter: Boolean = False;
+  Filter, Line, Descr: String;
+  Ext: TStringList;
+  sepPos: SizeInt;
+  i, k: Integer;
+begin
+  Filter := '';
+  Ext := TStringList.Create;
+  Ext.Delimiter := ';';
+
+  For i := 0 to acceptFilters.Count - 1 do
+  begin
+    Line := acceptFilters[i];
+
+    If Line = '' then Continue;
+
+    sepPos := Pos('|', Line);
+    If  sepPos <> 0 then
+    begin
+      // treat as a filter of the form "Filter Name|.ext1;.ext2;.ext3"
+
+      Descr := Copy(Line, 1, sepPos - 1);
+      Line := StringReplace(Copy(Line, sepPos + 1, Length(Line) - sepPos), '.', '*.', [rfReplaceAll]);
+    end
+    Else
+    begin
+      Ext.Clear;
+      Descr := '';
+
+      If AnsiStartsStr('.', Line) then
+      begin
+        // treat as an extension beginning with the '.' character
+        Ext.Add('*' + Line);
+      end
+      Else
+      begin
+        // convert mime type to one or more extensions
+        Descr := GetDescriptionFromMimeType(Line);
+        CefGetExtensionsForMimeType(Line, Ext);
+
+        For k := 0 to Ext.Count - 1 do Ext[k] := '*.' + Ext[k];
+      end;
+
+      If Ext.Count = 0 then Continue;
+
+      // combine extensions, reuse Line
+      Line := Ext.DelimitedText;
+    end;
+
+    If Descr = '' then Descr := Line
+    {$IFDEF LCLGTK2}
+      Else Descr := Descr + ' (' + Line + ')'
+    {$ENDIF};
+
+    If Length(Filter) > 0 then Filter := Filter + '|';
+    Filter := Filter + Descr + '|' + Line;
+
+    hasFilter := True;
+  end;
+
+  // if there are filters, add *.* filter
+  If includeAll and hasFilter then
+    Filter := Filter + '|All files' + {$IFDEF LCLGTK2}' (*.*)' +{$ENDIF} '|*.*';
+
+  LCLDialog.Filter := Filter;
+
+  If hasFilter then LCLDialog.FilterIndex := selectedAcceptFilter;
+
+  FreeAndNil(Ext);
+end;
+
+begin
+  // Remove modifier flags
+  modeType := TCefFileDialogMode(LongWord(mode) and LongWord(FILE_DIALOG_TYPE_MASK));
+
+  Case modeType of
+    FILE_DIALOG_OPEN,
+    FILE_DIALOG_OPEN_MULTIPLE: LCLDialog := FMain.OpenFile;
+    FILE_DIALOG_OPEN_FOLDER: LCLDialog := FMain.OpenFolder;
+    FILE_DIALOG_SAVE: LCLDialog := FMain.SaveFile;
+  Else
+    raise Exception.Create('Unimpemented dialog type.');
+  end;
+
+  If modeType = FILE_DIALOG_OPEN_MULTIPLE then
+    LCLDialog.Options := LCLDialog.Options + [ofAllowMultiSelect];
+
+  If modeType = FILE_DIALOG_SAVE then
+  begin
+    If Boolean(LongWord(mode) and LongWord(FILE_DIALOG_OVERWRITEPROMPT_FLAG)) then
+      LCLDialog.Options := LCLDialog.Options + [ofOverwritePrompt];
+
+    If defaultFileName <> '' then
+    begin
+      If DirectoryExists(ExtractFileDir(defaultFileName)) then FMain.SaveFile.FileName := defaultFileName
+      Else FMain.SaveFile.FileName := ExtractFileName(defaultFileName);
+    end;
+  end;
+
+  If Boolean(LongWord(mode) and LongWord(FILE_DIALOG_HIDEREADONLY_FLAG)) then
+    LCLDialog.Options := LCLDialog.Options + [ofHideReadOnly];
+
+  AddFilters(True);
+
+  Success := FMain.SaveFile.Execute;
+
+  If success then
+  begin
+    files := TStringList.Create;
+
+    If modeType = FILE_DIALOG_OPEN_MULTIPLE then files.AddStrings(LCLDialog.Files)
+    Else files.Add(LCLDialog.FileName);
+
+    callback.Cont(FMain.SaveFile.FilterIndex, files);
+
+    FreeAndNil(files);
+  end
+  Else callback.Cancel;
+
+  Result := True;
+end;
+
+procedure TWebPanel.ChromiumBeforeDownload(Sender: TObject; const Browser: ICefBrowser;
+  const downloadItem: ICefDownloadItem; const suggestedName: ustring;
+  const callback: ICefBeforeDownloadCallback);
+begin
+  // Show "Save As" dialog, download to default temp directory
+  callback.Cont('', True);
 end;
 
 procedure TWebPanel.IconReady(const Success: Boolean; const Icon: TIcon);
@@ -264,6 +436,12 @@ begin
 
     fChromium.OnBeforeContextMenu := @ChromiumBeforeContextMenu;
     fChromium.OnContextMenuCommand := @ChromiumContextMenuCommand;
+
+    {$IFDEF LINUX}
+      fChromium.OnFileDialog := @ChromiumFileDialog;
+    {$ENDIF}
+
+    fChromium.OnBeforeDownload := @ChromiumBeforeDownload;
   end
   Else raise Exception.Create('Chromium already initialized.');
 end;

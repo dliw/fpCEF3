@@ -36,9 +36,9 @@ Type
   { ContextMenuHandler }
   TOnBeforeContextMenu = procedure(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame;
     const params: ICefContextMenuParams; const model: ICefMenuModel) of object;
-  TOnRunContextMenu = procedure(Sender: TObject; const browser: ICefBrowser; const frame: ICefFrame;
-    const params: ICefContextMenuParams; const model: ICefMenuModel;
-    const callback: ICefRunContextMenuCallback; out Result: Boolean) of object;
+  TOnRunContextMenu = procedure(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame;
+    const Params: ICefContextMenuParams; const Model: ICefMenuModel;
+    const Callback: ICefRunContextMenuCallback; out Result: Boolean) of object;
   TOnContextMenuCommand = procedure(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame;
     const params: ICefContextMenuParams; commandId: Integer;
     eventFlags: TCefEventFlags; out Result: Boolean) of object;
@@ -47,7 +47,7 @@ Type
   { DialogHandler }
   TOnFileDialog = procedure(Sender: TObject; const Browser: ICefBrowser;
     mode: TCefFileDialogMode; const title, defaultFileName: ustring;
-    acceptFilters: TStrings; const callback: ICefFileDialogCallback;
+    acceptFilters: TStrings; selectedAcceptFilter: Integer; const callback: ICefFileDialogCallback;
     out Result: Boolean) of object;
 
   { DisplayHandler }

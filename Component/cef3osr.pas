@@ -739,7 +739,8 @@ function TCustomChromiumOSR.doOnFileDialog(const browser: ICefBrowser; mode: TCe
   const callback: ICefFileDialogCallback): Boolean;
 begin
   If Assigned(fOnFileDialog) then
-    fOnFileDialog(Self, browser, mode, title, defaultFileName, acceptFilters, callback, Result)
+    fOnFileDialog(Self, browser, mode, title, defaultFileName, acceptFilters, selectedAcceptFilter,
+      callback, Result)
   Else Result := False;
 end;
 

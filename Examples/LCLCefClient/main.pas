@@ -5,7 +5,7 @@ Unit Main;
 Interface
 
 Uses
-  Classes, SysUtils, Forms, Controls, StdCtrls, ComCtrls, LCLType, Menus,
+  Classes, SysUtils, Forms, Controls, StdCtrls, ComCtrls, LCLType, Menus, Dialogs,
   WebPanel;
 
 Type
@@ -14,6 +14,9 @@ Type
     BNewTab: TButton;
     BCloseTab: TButton;
     EUrl: TEdit;
+    OpenFile: TOpenDialog;
+    SaveFile: TSaveDialog;
+    OpenFolder: TSelectDirectoryDialog;
     TabIcons: TImageList;
     LUrl: TStaticText;
     Tabs: TPageControl;

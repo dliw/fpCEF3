@@ -941,22 +941,23 @@ end;
 function TCustomChromium.doOnContextMenuCommand(const Browser: ICefBrowser; const Frame: ICefFrame;
   const params: ICefContextMenuParams; commandId: Integer; eventFlags: TCefEventFlags): Boolean;
 begin
-  If Assigned(FOnContextMenuCommand) then
-    FOnContextMenuCommand(Self, Browser, Frame, params, commandId, eventFlags, Result)
+  If Assigned(fOnContextMenuCommand) then
+    fOnContextMenuCommand(Self, Browser, Frame, params, commandId, eventFlags, Result)
   Else Result := False;
 end;
 
 procedure TCustomChromium.doOnContextMenuDismissed(const Browser: ICefBrowser; const Frame: ICefFrame);
 begin
-  If Assigned(FOnContextMenuDismissed) then FOnContextMenuDismissed(Self, Browser, Frame);
+  If Assigned(fOnContextMenuDismissed) then fOnContextMenuDismissed(Self, Browser, Frame);
 end;
 
 function TCustomChromium.doOnFileDialog(const browser: ICefBrowser; mode: TCefFileDialogMode;
   const title, defaultFileName: ustring; acceptFilters: TStrings; selectedAcceptFilter: Integer;
   const callback: ICefFileDialogCallback): Boolean;
 begin
-  If Assigned(FOnFileDialog) then
-    FOnFileDialog(Self, browser, mode, title, defaultFileName, acceptFilters, callback, Result)
+  If Assigned(fOnFileDialog) then
+    fOnFileDialog(Self, browser, mode, title, defaultFileName, acceptFilters, selectedAcceptFilter,
+      callback, Result)
   Else Result := False;
 end;
 
@@ -984,7 +985,7 @@ end;
 function TCustomChromium.doOnTooltip(const Browser: ICefBrowser; var atext: ustring): Boolean;
 begin
   Result := False;
-  If Assigned(FOnTooltip) then FOnTooltip(Self, Browser, atext, Result);
+  If Assigned(fOnTooltip) then fOnTooltip(Self, Browser, atext, Result);
 end;
 
 procedure TCustomChromium.doOnStatusMessage(const Browser: ICefBrowser; const value: ustring);
