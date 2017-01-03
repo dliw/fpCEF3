@@ -471,6 +471,21 @@ Type
     class function UnWrap(data: Pointer): ICefMenuModel;
   end;
 
+  TCefPrintDialogCallbackRef = class(TCefBaseRef, ICefPrintDialogCallback)
+  protected
+    procedure Cont(settings: ICefPrintSettings);
+    procedure Cancel;
+  public
+    class function UnWrap(data: Pointer): ICefPrintDialogCallback;
+  end;
+
+  TCefPrintJobCallbackRef = class(TCefBaseRef, ICefPrintJobCallback)
+  protected
+    procedure Cont;
+  public
+    class function UnWrap(data: Pointer): ICefPrintJobCallback;
+  end;
+
   TCefPrintSettingsRef = class(TCefBaseRef, ICefPrintSettings)
   protected
     function IsValid: Boolean;
@@ -3117,6 +3132,37 @@ end;
 class function TCefMenuModelRef.UnWrap(data : Pointer) : ICefMenuModel;
 begin
   If data <> nil then Result := Create(data) as ICefMenuModel
+  Else Result := nil;
+end;
+
+{ TCefPrintDialogCallbackRef }
+
+procedure TCefPrintDialogCallbackRef.Cont(settings: ICefPrintSettings);
+begin
+  PCefPrintDialogCallback(fData)^.cont(fData, CefGetData(settings));
+end;
+
+procedure TCefPrintDialogCallbackRef.Cancel;
+begin
+  PCefPrintDialogCallback(fData)^.cancel(fData);
+end;
+
+class function TCefPrintDialogCallbackRef.UnWrap(data: Pointer): ICefPrintDialogCallback;
+begin
+  If data <> nil then Result := Create(data) as ICefPrintDialogCallback
+  Else Result := nil;
+end;
+
+{ TCefPrintJobCallbackRef }
+
+procedure TCefPrintJobCallbackRef.Cont;
+begin
+  PCefPrintJobCallback(fData)^.cont(fData);
+end;
+
+class function TCefPrintJobCallbackRef.UnWrap(data: Pointer): ICefPrintJobCallback;
+begin
+  If data <> nil then Result := Create(data) as ICefPrintJobCallback
   Else Result := nil;
 end;
 

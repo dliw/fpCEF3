@@ -329,6 +329,19 @@ Type
     constructor Create; virtual;
   end;
 
+  TCefPrintHandlerOwn = class(TCefBaseOwn, ICefPrintHandler)
+  protected
+    procedure OnPrintStart(const browser: ICefBrowser); virtual;
+    procedure OnPrintSettings(settings: ICefPrintSettings; getDefaults: Boolean); virtual;
+    function OnPrintDialog(hasSelection: Boolean; callback: ICefPrintDialogCallback): Boolean; virtual;
+    function OnPrintJob(const documentName, pdfFilePath: ustring;
+      callback: ICefPrintJobCallback): Boolean; virtual;
+    procedure OnPrintReset; virtual;
+    function GetPdfPaperSize(deviceUnitsPerInch: Integer): TSize; virtual;
+  public
+    constructor Create; virtual;
+  end;
+
   TCefRenderHandlerOwn = class(TCefBaseOwn, ICefRenderHandler)
   protected
     function GetRootScreenRect(const browser: ICefBrowser; rect: PCefRect): Boolean; virtual;
@@ -2067,6 +2080,96 @@ begin
   begin
     execute_command := @cef_menu_model_delegate_execute_command;
     menu_will_show := @cef_menu_model_delegate_menu_will_show;
+  end;
+end;
+
+{ TCefPrintHandlerOwn }
+
+procedure cef_print_handler_on_print_start(self: PCefPrintHandler; browser: PCefBrowser); cconv;
+begin
+  TCefPrintHandlerOwn(CefGetObject(self)).OnPrintStart(TCefBrowserRef.UnWrap(browser));
+end;
+
+procedure cef_print_handler_on_print_settings(self: PCefPrintHandler; settings: PCefPrintSettings;
+  get_defaults: Integer); cconv;
+begin
+  TCefPrintHandlerOwn(CefGetObject(self)).
+    OnPrintSettings(TCefPrintSettingsRef.UnWrap(settings), get_defaults <> 0);
+end;
+
+function cef_print_handler_on_print_dialog(self: PCefPrintHandler; has_selection: Integer;
+  callback: PCefPrintDialogCallback): Integer; cconv;
+begin
+  Result := Ord(TCefPrintHandlerOwn(CefGetObject(self)).
+    OnPrintDialog(has_selection <> 0, TCefPrintDialogCallbackRef.UnWrap(callback)));
+end;
+
+function cef_print_handler_on_print_job(self: PCefPrintHandler;
+  const document_name, pdf_file_path: PCefString; callback: PCefPrintJobCallback): Integer; cconv;
+Var
+  d, p: ustring;
+begin
+  d := CefString(document_name);
+  p := CefString(pdf_file_path);
+
+  Result := Ord(TCefPrintHandlerOwn(CefGetObject(self)).
+    OnPrintJob(d, p, TCefPrintJobCallbackRef.UnWrap(callback)));
+end;
+
+procedure cef_print_handler_on_print_reset(self: PCefPrintHandler); cconv;
+begin
+  TCefPrintHandlerOwn(CefGetObject(self)).OnPrintReset;
+end;
+
+function cef_print_handler_get_pdf_paper_size(self: PCefPrintHandler;
+  device_units_per_inch: Integer): TSize; cconv;
+begin
+  Result := TCefPrintHandlerOwn(CefGetObject(self)).GetPdfPaperSize(device_units_per_inch);
+end;
+
+procedure TCefPrintHandlerOwn.OnPrintStart(const browser: ICefBrowser);
+begin
+  { empty }
+end;
+
+procedure TCefPrintHandlerOwn.OnPrintSettings(settings: ICefPrintSettings; getDefaults: Boolean);
+begin
+  { empty }
+end;
+
+function TCefPrintHandlerOwn.OnPrintDialog(hasSelection: Boolean;
+  callback: ICefPrintDialogCallback): Boolean;
+begin
+  Result := False;
+end;
+
+function TCefPrintHandlerOwn.OnPrintJob(const documentName, pdfFilePath: ustring;
+  callback: ICefPrintJobCallback): Boolean;
+begin
+  Result := False;
+end;
+
+procedure TCefPrintHandlerOwn.OnPrintReset;
+begin
+  { empty }
+end;
+
+function TCefPrintHandlerOwn.GetPdfPaperSize(deviceUnitsPerInch: Integer): TSize;
+begin
+  Result := 0;
+end;
+
+constructor TCefPrintHandlerOwn.Create;
+begin
+  inherited CreateData(SizeOf(TCefPrintHandler));
+  With PCefPrintHandler(fData)^ do
+  begin
+    on_print_start := @cef_print_handler_on_print_start;
+    on_print_settings := @cef_print_handler_on_print_settings;
+    on_print_dialog := @cef_print_handler_on_print_dialog;
+    on_print_job := @cef_print_handler_on_print_job;
+    on_print_reset := @cef_print_handler_on_print_reset;
+    get_pdf_paper_size := @cef_print_handler_get_pdf_paper_size;
   end;
 end;
 

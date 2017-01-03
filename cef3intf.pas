@@ -854,7 +854,7 @@ Type
     procedure OnPrintStart(const browser: ICefBrowser);
     procedure OnPrintSettings(settings: ICefPrintSettings; getDefaults: Boolean);
     function OnPrintDialog(hasSelection: Boolean; callback: ICefPrintDialogCallback): Boolean;
-    function OnPrintJob(const documentName, pdfFilePath: ustring; callback: ICefPrintDialogCallback): Boolean;
+    function OnPrintJob(const documentName, pdfFilePath: ustring; callback: ICefPrintJobCallback): Boolean;
     procedure OnPrintReset;
     function GetPdfPaperSize(deviceUnitsPerInch: Integer): TSize;
   end;
