@@ -2567,7 +2567,7 @@ Type
 
     // Return the PDF paper size in device units. Used in combination with
     // cef_browser_host_t::print_to_pdf().
-    get_pdf_paper_size: function(self: PCefPrintHandler; device_units_per_inch: Integer): csize_t; cconv;
+    get_pdf_paper_size: function(self: PCefPrintHandler; device_units_per_inch: Integer): TCefSize; cconv;
   end;
 
 

@@ -40,7 +40,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="4">
+    <Units Count="5">
       <Unit0>
         <Filename Value="client.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -63,6 +63,11 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="FaviconGetter"/>
       </Unit3>
+      <Unit4>
+        <Filename Value="printhandler.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="PrintHandler"/>
+      </Unit4>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

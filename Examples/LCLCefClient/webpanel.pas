@@ -45,6 +45,8 @@ Type
       const downloadItem: ICefDownloadItem; const suggestedName: ustring;
       const callback: ICefBeforeDownloadCallback);
 
+    procedure PrintToPdf(const Browser: ICefBrowser);
+
     procedure IconReady(const Success: Boolean; const Icon: TIcon);
   protected
     procedure DoHide; override;
@@ -61,23 +63,36 @@ Type
     property Url: String read fUrl write fUrl;
   end;
 
+  { custom browser process handler }
+  TCustomBrowserProcessHandler = class(TCefBrowserProcessHandlerOwn)
+    private
+      fPrintHandler: ICefPrintHandler;
+    protected
+      function GetPrintHandler: ICefPrintHandler; override;
+    public
+      constructor Create; override;
+  end;
+
 
 Implementation
 
-Uses cef3ref, Main;
+Uses cef3ref, Main
+  {$IFDEF LINUX}, PrintHandler{$ENDIF};
+
+Const
+  // client menu IDs
+  CLIENT_ID_VISIT_COOKIES = Ord(MENU_ID_USER_FIRST) + 0;
+  CLIENT_ID_PRINT_TO_PDF  = Ord(MENU_ID_USER_FIRST) + 1;
+  CLIENT_ID_EXIT          = Ord(MENU_ID_USER_FIRST) + 2;
 
 Type
-  TClientMenuIDs = (
-    CLIENT_ID_VISIT_COOKIES = Ord(MENU_ID_USER_FIRST),
-    CLIENT_ID_EXIT
-  );
 
   TCefNewTabTask = class(TCefTaskOwn)
   protected
     fTargetUrl: ustring;
     procedure Execute; override;
   public
-    constructor Create(targetURL: ustring);
+    constructor Create(targetURL: ustring); reintroduce;
   end;
 
 
@@ -201,9 +216,10 @@ begin
     // Add seperator if the menu already contains items
     If model.GetCount > 0 then model.AddSeparator;
 
-    model.AddItem(Ord(CLIENT_ID_VISIT_COOKIES), '&Visit Cookies');
+    model.AddItem(CLIENT_ID_VISIT_COOKIES, '&Visit Cookies');
+    model.AddItem(CLIENT_ID_PRINT_TO_PDF, '&Print to PDF');
     model.AddSeparator;
-    model.AddItem(Ord(CLIENT_ID_EXIT), 'Exit');
+    model.AddItem(CLIENT_ID_EXIT, '&Exit');
   end;
 end;
 
@@ -216,8 +232,9 @@ begin
   Result := True;
 
   Case commandId of
-    Ord(CLIENT_ID_VISIT_COOKIES): TCefCookieManagerRef.Global(nil).VisitAllCookiesProc(@VisitCookies);
-    Ord(CLIENT_ID_EXIT): Application.Terminate;
+    CLIENT_ID_VISIT_COOKIES: TCefCookieManagerRef.Global(nil).VisitAllCookiesProc(@VisitCookies);
+    CLIENT_ID_PRINT_TO_PDF: PrintToPdf(Browser);
+    CLIENT_ID_EXIT: Application.Terminate;
   Else Result := False;
   end;
 end;
@@ -386,6 +403,39 @@ begin
   callback.Cont('', True);
 end;
 
+procedure PdfPrintCallback(const path: ustring; ok: Boolean);
+begin
+  If ok then ShowMessage('Successfully printed to pdf file.' + LineEnding + path)
+  Else ShowMessage('Failed to print to file.');
+end;
+
+procedure TWebPanel.PrintToPdf(const Browser: ICefBrowser);
+Var
+  PdfSettings: TCefPdfPrintSettings;
+begin
+  With FMain.SaveFile do
+  begin
+    Filter := 'PDF file|*.pdf';
+    FileName := 'output.pdf';
+    InitialDir := GetUserDir;
+  end;
+
+  If FMain.SaveFile.Execute then
+  begin
+    FillByte(PdfSettings, SizeOf(PdfSettings), 0);
+
+    With PdfSettings do
+    begin
+      // default page size is A4
+
+      header_footer_enabled := Ord(True);
+      backgrounds_enabled := Ord(True);
+    end;
+
+    Browser.Host.PrintToPdf(FMain.SaveFile.FileName, PdfSettings, TCefFastPdfPrintCallback.Create(@PdfPrintCallback));
+  end;
+end;
+
 procedure TWebPanel.IconReady(const Success: Boolean; const Icon: TIcon);
 begin
   Assert(CefCurrentlyOn(TID_UI));
@@ -480,6 +530,25 @@ begin
 end;
 
 
+{ TCustomBrowserProcessHandler }
+
+function TCustomBrowserProcessHandler.GetPrintHandler: ICefPrintHandler;
+begin
+  Result := fPrintHandler;
+end;
+
+constructor TCustomBrowserProcessHandler.Create;
+begin
+  inherited;
+
+  {$IFDEF LINUX}
+    fPrintHandler := TCustomPrintHandler.Create;
+  {$ELSE}
+    fPrintHandler := nil;
+  {$ENDIF}
+end;
+
+
 Initialization
   Path := GetCurrentDirUTF8 + DirectorySeparator;
 
@@ -487,6 +556,9 @@ Initialization
   CefLocalesDirPath := Path + 'Resources' + DirectorySeparator + 'locales';
   //CefCachePath := Path + 'Cache';
   //CefBrowserSubprocessPath := '.' + PathDelim + 'subprocess'{$IFDEF WINDOWS}+'.exe'{$ENDIF};
+
+  // register handler
+  CefBrowserProcessHandler := TCustomBrowserProcessHandler.Create;
 
   CefInitialize;
 

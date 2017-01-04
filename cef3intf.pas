@@ -856,7 +856,7 @@ Type
     function OnPrintDialog(hasSelection: Boolean; callback: ICefPrintDialogCallback): Boolean;
     function OnPrintJob(const documentName, pdfFilePath: ustring; callback: ICefPrintJobCallback): Boolean;
     procedure OnPrintReset;
-    function GetPdfPaperSize(deviceUnitsPerInch: Integer): TSize;
+    function GetPdfPaperSize(deviceUnitsPerInch: Integer): TCefSize;
   end;
 
   ICefPrintSettings = interface(ICefBase) ['{B9944259-B405-4773-A1F8-86E50B0CAEEF}']

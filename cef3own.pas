@@ -337,7 +337,7 @@ Type
     function OnPrintJob(const documentName, pdfFilePath: ustring;
       callback: ICefPrintJobCallback): Boolean; virtual;
     procedure OnPrintReset; virtual;
-    function GetPdfPaperSize(deviceUnitsPerInch: Integer): TSize; virtual;
+    function GetPdfPaperSize(deviceUnitsPerInch: Integer): TCefSize; virtual;
   public
     constructor Create; virtual;
   end;
@@ -2122,7 +2122,7 @@ begin
 end;
 
 function cef_print_handler_get_pdf_paper_size(self: PCefPrintHandler;
-  device_units_per_inch: Integer): TSize; cconv;
+  device_units_per_inch: Integer): TCefSize; cconv;
 begin
   Result := TCefPrintHandlerOwn(CefGetObject(self)).GetPdfPaperSize(device_units_per_inch);
 end;
@@ -2154,9 +2154,9 @@ begin
   { empty }
 end;
 
-function TCefPrintHandlerOwn.GetPdfPaperSize(deviceUnitsPerInch: Integer): TSize;
+function TCefPrintHandlerOwn.GetPdfPaperSize(deviceUnitsPerInch: Integer): TCefSize;
 begin
-  Result := 0;
+  FillByte(Result, SizeOf(Result), 0);
 end;
 
 constructor TCefPrintHandlerOwn.Create;
