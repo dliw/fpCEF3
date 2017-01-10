@@ -240,12 +240,13 @@ begin
 end;
 
 procedure TWebPanel.ChromiumFileDialog(Sender: TObject; const Browser: ICefBrowser;
-  mode: TCefFileDialogMode; const title, defaultFileName: ustring; acceptFilters: TStrings;
-  selectedAcceptFilter: Integer; const callback: ICefFileDialogCallback; out Result: Boolean);
+  Mode: TCefFileDialogMode; const Title, DefaultFileName: ustring; AcceptFilters: TStrings;
+  SelectedAcceptFilter: Integer; const Callback: ICefFileDialogCallback; out Result: Boolean);
 Var
-  modeType: TCefFileDialogMode;
-  success: Boolean = False;
-  files: TStringList;
+  ModeType: TCefFileDialogMode;
+  Success: Boolean = False;
+  Files: TStringList;
+  InitialDir: ustring;
   LCLDialog: TOpenDialog;
 
 
@@ -283,9 +284,9 @@ begin
   Ext := TStringList.Create;
   Ext.Delimiter := ';';
 
-  For i := 0 to acceptFilters.Count - 1 do
+  For i := 0 to AcceptFilters.Count - 1 do
   begin
-    Line := acceptFilters[i];
+    Line := AcceptFilters[i];
 
     If Line = '' then Continue;
 
@@ -335,20 +336,20 @@ begin
 
   // if there are filters, add *.* filter
   If includeAll and hasFilter then
-    Filter := Filter + '|All files' + {$IFDEF LCLGTK2}' (*.*)' +{$ENDIF} '|*.*';
+    Filter := Filter + '|All Files' + {$IFDEF LCLGTK2}' (*.*)' +{$ENDIF} '|*.*';
 
   LCLDialog.Filter := Filter;
 
-  If hasFilter then LCLDialog.FilterIndex := selectedAcceptFilter;
+  If hasFilter then LCLDialog.FilterIndex := SelectedAcceptFilter;
 
   FreeAndNil(Ext);
 end;
 
 begin
   // Remove modifier flags
-  modeType := TCefFileDialogMode(LongWord(mode) and LongWord(FILE_DIALOG_TYPE_MASK));
+  ModeType := TCefFileDialogMode(LongWord(Mode) and LongWord(FILE_DIALOG_TYPE_MASK));
 
-  Case modeType of
+  Case ModeType of
     FILE_DIALOG_OPEN,
     FILE_DIALOG_OPEN_MULTIPLE: LCLDialog := FMain.OpenFile;
     FILE_DIALOG_OPEN_FOLDER: LCLDialog := FMain.OpenFolder;
@@ -357,40 +358,44 @@ begin
     raise Exception.Create('Unimpemented dialog type.');
   end;
 
-  If modeType = FILE_DIALOG_OPEN_MULTIPLE then
+  If ModeType = FILE_DIALOG_OPEN_MULTIPLE then
     LCLDialog.Options := LCLDialog.Options + [ofAllowMultiSelect];
 
-  If modeType = FILE_DIALOG_SAVE then
+  If ModeType = FILE_DIALOG_SAVE then
   begin
-    If Boolean(LongWord(mode) and LongWord(FILE_DIALOG_OVERWRITEPROMPT_FLAG)) then
+    If Boolean(LongWord(Mode) and LongWord(FILE_DIALOG_OVERWRITEPROMPT_FLAG)) then
       LCLDialog.Options := LCLDialog.Options + [ofOverwritePrompt];
 
-    If defaultFileName <> '' then
+    If DefaultFileName <> '' then
     begin
-      If DirectoryExists(ExtractFileDir(defaultFileName)) then FMain.SaveFile.FileName := defaultFileName
-      Else FMain.SaveFile.FileName := ExtractFileName(defaultFileName);
+      InitialDir := ExtractFileDir(DefaultFileName);
+
+      If DirectoryExists(InitialDir) then LCLDialog.InitialDir := InitialDir
+      Else LCLDialog.InitialDir := GetUserDir;
+
+      LCLDialog.FileName := ExtractFileName(DefaultFileName);
     end;
   end;
 
-  If Boolean(LongWord(mode) and LongWord(FILE_DIALOG_HIDEREADONLY_FLAG)) then
+  If Boolean(LongWord(Mode) and LongWord(FILE_DIALOG_HIDEREADONLY_FLAG)) then
     LCLDialog.Options := LCLDialog.Options + [ofHideReadOnly];
 
   AddFilters(True);
 
   Success := FMain.SaveFile.Execute;
 
-  If success then
+  If Success then
   begin
-    files := TStringList.Create;
+    Files := TStringList.Create;
 
-    If modeType = FILE_DIALOG_OPEN_MULTIPLE then files.AddStrings(LCLDialog.Files)
-    Else files.Add(LCLDialog.FileName);
+    If ModeType = FILE_DIALOG_OPEN_MULTIPLE then Files.AddStrings(LCLDialog.Files)
+    Else Files.Add(LCLDialog.FileName);
 
-    callback.Cont(FMain.SaveFile.FilterIndex, files);
+    Callback.Cont(FMain.SaveFile.FilterIndex, Files);
 
-    FreeAndNil(files);
+    FreeAndNil(Files);
   end
-  Else callback.Cancel;
+  Else Callback.Cancel;
 
   Result := True;
 end;
