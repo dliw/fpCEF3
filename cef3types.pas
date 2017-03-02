@@ -33,7 +33,11 @@ Uses
   ctypes;
 
 Type
-  ustring = WideString;
+  {$IFDEF CEF_STRING_TYPE_UTF8}
+    ustring = UTF8String;
+  {$ELSE}
+    ustring = WideString;
+  {$ENDIF}
   rbstring = AnsiString;
 
   TUrlParts = record

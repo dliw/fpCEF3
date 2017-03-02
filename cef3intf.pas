@@ -204,8 +204,8 @@ Type
   TGetDataResource = function(resourceId: Integer; out data: Pointer; out dataSize: TSize): Boolean;
   TGetDataResourceForScale = function(resourceId: Integer; scaleFactor: TCefScaleFactor; out data: Pointer; out dataSize: TSize): Boolean;
   TCefStringVisitorProc = procedure(const str: ustring);
-  TCefV8AccessorGetterProc = function(const name: ustring; const obj: ICefv8Value; out value: ICefv8Value; const exception: string): Boolean;
-  TCefV8AccessorSetterProc = function(const name: ustring; const obj, value: ICefv8Value; const exception: string): Boolean;
+  TCefV8AccessorGetterProc = function(const name: ustring; const obj: ICefv8Value; out value: ICefv8Value; const exception: ustring): Boolean;
+  TCefV8AccessorSetterProc = function(const name: ustring; const obj, value: ICefv8Value; const exception: ustring): Boolean;
   TCefWebPluginInfoVisitorProc = function(const info: ICefWebPluginInfo; count, total: Integer): Boolean;
   TCefWebPluginIsUnstableProc = procedure(const path: ustring; unstable: Boolean);
 

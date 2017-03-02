@@ -346,7 +346,7 @@ function CefString(const str: ustring): TCefString;
 begin
   Result.length := Length(str);
 
-  If Result.length > 0 then Result.str := PChar16(PWideChar(str))
+  If Result.length > 0 then Result.str := PCefChar(PWideChar(str))
   Else Result.str := nil;
 
   Result.dtor := nil;
@@ -385,7 +385,7 @@ begin
   If str <> nil then cef_string_clear(str);
 end;
 
-procedure _free_string(str: PChar16); cconv;
+procedure _free_string(str: PCefChar); cconv;
 begin
   If str <> nil then FreeMem(str);
 end;
@@ -402,7 +402,7 @@ end;
 
 procedure CefStringSet(const str: PCefString; const value: ustring);
 begin
-  If str <> nil then cef_string_set(PWideChar(value), Length(value), str, 1);
+  If str <> nil then cef_string_set(PCefChar(value), Length(value), str, 1);
 end;
 
 { *** API *** }
