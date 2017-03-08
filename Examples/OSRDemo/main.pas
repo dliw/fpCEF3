@@ -100,7 +100,11 @@ end;
 procedure TMainform.CBAnimateChange(Sender: TObject);
 begin
   If CBAnimate.Checked then Application.OnIdle := @AppOnIdle
-  Else Application.OnIdle := nil;
+  Else
+  begin
+    Application.OnIdle := nil;
+    OSRPanel.Invalidate;
+  end;
 end;
 
 procedure TMainform.ChromiumGetScreenPoint(Sender: TObject; const Browser: ICefBrowser;
@@ -214,6 +218,8 @@ begin
 
   fTextureWidth := 0;
   fTextureHeigth := 0;
+
+  CBAnimateChange(Self);
 end;
 
 procedure TMainform.FormDestroy(Sender: TObject);

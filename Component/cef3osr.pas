@@ -126,6 +126,7 @@ Type
     fOnQuotaRequest: TOnQuotaRequest;
     fOnProtocolExecution: TOnProtocolExecution;
     fOnCertificateError: TOnCertificateError;
+    fOnSelectClientCertificate: TOnSelectClientCertificate;
     fOnPluginCrashed: TOnPluginCrashed;
     fOnRenderViewReady: TOnRenderViewReady;
     fOnRenderProcessTerminated: TOnRenderProcessTerminated;
@@ -264,7 +265,7 @@ Type
     function doOnGetResourceHandler(const Browser: ICefBrowser; const Frame: ICefFrame;
       const request: ICefRequest): ICefResourceHandler; virtual;
     procedure doOnResourceRedirect(const browser: ICefBrowser; const frame: ICefFrame;
-      const request: ICefRequest; var newUrl: ustring); virtual;
+      const request: ICefRequest; const response: ICefResponse; var newUrl: ustring); virtual;
     function doOnResourceResponse(const browser: ICefBrowser; const frame: ICefFrame;
       const request: ICefRequest; const response: ICefResponse): Boolean; virtual;
     function doOnGetResourceResponseFilter(const browser: ICefBrowser;
@@ -282,6 +283,9 @@ Type
       const url: ustring; out allowOsExecution: Boolean); virtual;
     function doOnCertificateError(const browser: ICefBrowser; certError: TCefErrorCode;
       const requestUrl: ustring; const sslInfo: ICefSslinfo; callback: ICefRequestCallback): Boolean;
+    function doOnSelectClientCertificate(const browser: ICefBrowser; isProxy: Boolean;
+      const host: ustring; port: Integer; certificatesCount: TSize;
+      certificates: ICefX509certificateArray; callback: ICefSelectClientCertificateCallback): Boolean;
     procedure doOnPluginCrashed(const Browser: ICefBrowser; const pluginPath: ustring); virtual;
     procedure doOnRenderViewReady(const browser: ICefBrowser); virtual;
     procedure doOnRenderProcessTerminated(const Browser: ICefBrowser; Status: TCefTerminationStatus); virtual;
@@ -337,11 +341,11 @@ Type
     property OnPreKeyEvent: TOnPreKeyEvent read fOnPreKeyEvent write fOnPreKeyEvent;
     property OnKeyEvent: TOnKeyEvent read fOnKeyEvent write fOnKeyEvent;
 
-    { LiveSpanHandler }
+    { LifeSpanHandler }
     property OnBeforePopup: TOnBeforePopup read fOnBeforePopup write fOnBeforePopup;
     property OnAfterCreated: TOnAfterCreated read fOnAfterCreated write fOnAfterCreated;
-    property OnBeforeClose: TOnBeforeClose read fOnBeforeClose write fOnBeforeClose;
     property OnClose: TOnClose read fOnClose write fOnClose;
+    property OnBeforeClose: TOnBeforeClose read fOnBeforeClose write fOnBeforeClose;
 
     { LoadHandler }
     property OnLoadingStateChange: TOnLoadingStateChange read fOnLoadingStateChange write fOnLoadingStateChange;
@@ -358,6 +362,7 @@ Type
     property OnPopupSize: TOnPopupSize read fOnPopupSize write fOnPopupSize;
     property OnPaint: TOnPaint read fOnPaint write fOnPaint;
     property OnCursorChange: TOnCursorChange read fOnCursorChange write fOnCursorChange;
+    property OnStartDragging: TOnStartDragging read fOnStartDragging write fOnStartDragging;
     property OnUpdateDragCursor: TOnUpdateDragCursor read fOnUpdateDragCursor write fOnUpdateDragCursor;
     property OnScrollOffsetChanged: TOnScrollOffsetChanged read fOnScrollOffsetChanged write fOnScrollOffsetChanged;
 
@@ -367,12 +372,14 @@ Type
     property OnBeforeResourceLoad: TOnBeforeResourceLoad read fOnBeforeResourceLoad write fOnBeforeResourceLoad;
     property OnGetResourceHandler: TOnGetResourceHandler read fOnGetResourceHandler write fOnGetResourceHandler;
     property OnResourceRedirect: TOnResourceRedirect read fOnResourceRedirect write fOnResourceRedirect;
+    property OnResourceResponse: TOnResourceResponse read fOnResourceResponse write fOnResourceResponse;
     property OnGetResourceResponseFilter: TOnGetResourceResponseFilter read fOnGetResourceResponseFilter write fOnGetResourceResponseFilter;
     property OnResourceLoadComplete: TOnResourceLoadComplete read fOnResourceLoadComplete write fOnResourceLoadComplete;
     property OnGetAuthCredentials: TOnGetAuthCredentials read fOnGetAuthCredentials write fOnGetAuthCredentials;
     property OnQuotaRequest: TOnQuotaRequest read fOnQuotaRequest write fOnQuotaRequest;
     property OnProtocolExecution: TOnProtocolExecution read fOnProtocolExecution write fOnProtocolExecution;
     property OnCertificateError: TOnCertificateError read fOnCertificateError write fOnCertificateError;
+    property OnSelectClientCertificate: TOnSelectClientCertificate read fOnSelectClientCertificate write fOnSelectClientCertificate;
     property OnPluginCrashed: TOnPluginCrashed read fOnPluginCrashed write fOnPluginCrashed;
     property OnRenderViewReady: TOnRenderViewReady read fOnRenderViewReady write fOnRenderViewReady;
     property OnRenderProcessTerminated: TOnRenderProcessTerminated read fOnRenderProcessTerminated write fOnRenderProcessTerminated;
@@ -448,8 +455,8 @@ Type
 
     property OnBeforePopup;
     property OnAfterCreated;
-    property OnBeforeClose;
     property OnClose;
+    property OnBeforeClose;
 
     property OnLoadingStateChange;
     property OnLoadStart;
@@ -464,6 +471,7 @@ Type
     property OnPopupSize;
     property OnPaint;
     property OnCursorChange;
+    property OnStartDragging;
     property OnUpdateDragCursor;
     property OnScrollOffsetChanged;
 
@@ -472,12 +480,14 @@ Type
     property OnBeforeResourceLoad;
     property OnGetResourceHandler;
     property OnResourceRedirect;
+    property OnResourceResponse;
     property OnGetResourceResponseFilter;
     property OnResourceLoadComplete;
     property OnGetAuthCredentials;
     property OnQuotaRequest;
     property OnProtocolExecution;
     property OnCertificateError;
+    property OnSelectClientCertificate;
     property OnPluginCrashed;
     property OnRenderViewReady;
     property OnRenderProcessTerminated;
@@ -1055,9 +1065,11 @@ begin
 end;
 
 procedure TCustomChromiumOSR.doOnResourceRedirect(const browser: ICefBrowser;
-  const frame: ICefFrame; const request: ICefRequest; var newUrl: ustring);
+  const frame: ICefFrame; const request: ICefRequest; const response: ICefResponse;
+  var newUrl: ustring);
 begin
-  If Assigned(fOnResourceRedirect) then fOnResourceRedirect(Self, browser, frame, request, newUrl);
+  If Assigned(fOnResourceRedirect) then
+    fOnResourceRedirect(Self, browser, frame, request, response, newUrl);
 end;
 
 function TCustomChromiumOSR.doOnResourceResponse(const browser: ICefBrowser;
@@ -1091,7 +1103,7 @@ function TCustomChromiumOSR.doOnGetAuthCredentials(const Browser: ICefBrowser;
 begin
   Result := False;
   If Assigned(FOnGetAuthCredentials) then
-    FOnGetAuthCredentials(Self, Browser, frame, isProxy, host, port, realm, scheme, callback, Result);
+    fOnGetAuthCredentials(Self, Browser, frame, isProxy, host, port, realm, scheme, callback, Result);
 end;
 
 function TCustomChromiumOSR.doOnQuotaRequest(const Browser: ICefBrowser;
@@ -1115,7 +1127,17 @@ function TCustomChromiumOSR.doOnCertificateError(const browser: ICefBrowser;
   callback: ICefRequestCallback): Boolean;
 begin
   If Assigned(FOnCertificateError) then
-    FOnCertificateError(Self, certError, requestUrl, callback, Result)
+    fOnCertificateError(Self, browser, certError, requestUrl, sslInfo, callback, Result)
+  Else Result := False;
+end;
+
+function TCustomChromiumOSR.doOnSelectClientCertificate(const browser: ICefBrowser;
+  isProxy: Boolean; const host: ustring; port: Integer; certificatesCount: TSize;
+  certificates: ICefX509certificateArray; callback: ICefSelectClientCertificateCallback): Boolean;
+begin
+  If Assigned(fOnSelectClientCertificate) then
+    fOnSelectClientCertificate(Self, browser, isProxy, host, port, certificatesCount, certificates,
+      callback, Result)
   Else Result := False;
 end;
 

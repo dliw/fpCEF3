@@ -125,8 +125,10 @@ Type
   PCefRequest = ^TCefRequest;
 
   PCefPostData = ^TCefPostData;
-  PCefPostDataElementArray = ^TCefPostDataElementArray;
   PCefPostDataElement = ^TCefPostDataElement;
+
+  TCefPostDataElementArray = array[0..(High(Integer) div SizeOf(PCefPostDataElement)) - 1] of PCefPostDataElement;
+  PCefPostDataElementArray = ^TCefPostDataElementArray;
 
   PCefResolveCallback = ^TCefResolveCallback;
   PCefRequestContext = ^TCefRequestContext;
@@ -134,6 +136,7 @@ Type
   PCefRequestContextHandler = ^TCefRequestContextHandler;
 
   PCefRequestCallback = ^TCefRequestCallback;
+  PCefSelectClientCertificateCallback = ^TCefSelectClientCertificateCallback;
   PCefRequestHandler = ^TCefRequestHandler;
 
   PCefResourceBundle = ^TCefResourceBundle;
@@ -149,8 +152,8 @@ Type
   PCefSchemeRegistrar = ^TCefSchemeRegistrar;
   PCefSchemeHandlerFactory = ^TCefSchemeHandlerFactory;
 
-  PCefSslcertPrincipal = ^TCefSslcertPrincipal;
   PCefSslinfo = ^TCefSslinfo;
+  PCefSslstatus = ^TCefSslstatus;
 
   PCefReadHandler = ^TCefReadHandler;
   PCefStreamReader = ^TCefStreamReader;
@@ -171,23 +174,32 @@ Type
   PCefV8Context = ^TCefV8Context;
   PCefV8Handler = ^TCefV8Handler;
   PCefV8Accessor = ^TCefV8Accessor;
+  PCefV8Interceptor = ^TCefV8Interceptor;
   PCefV8Exception = ^TCefV8Exception;
-  PPCefV8Value = ^PCefV8ValueArray;
   PCefV8Value = ^TCefV8Value;
+  TCefV8ValueArray = array[0..(High(Integer) div SizeOf(PCefV8Value)) - 1] of PCefV8Value;
+  PCefV8ValueArray = ^TCefV8ValueArray;
   PCefV8StackTrace = ^TCefV8StackTrace;
   PCefV8StackFrame = ^TCefV8StackFrame;
 
   PCefValue = ^TCefValue;
   PCefBinaryValue = ^TCefBinaryValue;
-  PCefBinaryValueArray = array of PCefBinaryValue;
+  TCefBinaryValueArray = array[0..(High(Integer) div SizeOf(PCefBinaryValue)) - 1] of PCefBinaryValue;
+  PCefBinaryValueArray = ^TCefBinaryValueArray;
   PCefDictionaryValue = ^TCefDictionaryValue;
   PCefListValue = ^TCefListValue;
 
   PCefWebPluginInfo = ^TCefWebPluginInfo;
   PCefWebPluginInfoVisitor = ^TCefWebPluginInfoVisitor;
   PCefWebPluginUnstableCallback = ^TCefWebPluginUnstableCallback;
+  PCefRegisterCdmCallback = ^TCefRegisterCdmCallback;
 
-  PCefXMLReader = ^TCefXMLReader;
+  PCefX509certPrincipal = ^TCefX509certPrincipal;
+  PCefX509certificate = ^TCefX509certificate;
+  TCefX509certificateArray = array[0..(High(Integer) div SizeOf(PCefX509certificate)) - 1] of PCefX509certificate;
+  PCefX509certificateArray = ^TCefX509certificateArray;
+
+  PCefXmlReader = ^TCefXmlReader;
 
   PCefZipReader = ^TCefZipReader;
 
@@ -684,6 +696,10 @@ Type
     // then all DragTarget* functions should be called before DragSource* mthods.
     // This function is only used when window rendering is disabled.
     drag_source_system_drag_ended: procedure(self: PCefBrowserHost); cconv;
+
+    // Returns the current visible navigation entry for this browser. This
+    // function can only be called on the UI thread.
+    get_visible_navigation_entry: function(self: PCefBrowserHost): PCefNavigationEntry; cconv;
   end;
 
 
@@ -1437,6 +1453,9 @@ Type
     //
     // The resulting string must be freed by calling cef_string_userfree_free().
     get_element_inner_text: function(self: PCefDomNode): PCefStringUserFree; cconv;
+
+    // Returns the bounds of the element.
+    get_element_bounds: function(self: PCefDomNode): TCefRect; cconv;
   end;
 
 
@@ -1549,7 +1568,7 @@ Type
     get_url: function(self: PCefDownloadItem): PCefStringUserFree; cconv;
 
     // Returns the original URL before any redirections.
-    ///
+    //
     // The resulting string must be freed by calling cef_string_userfree_free().
     get_original_url: function(self: PCefDownloadItem): PCefStringUserFree; cconv;
 
@@ -1686,7 +1705,7 @@ Type
     // never be called. If the last draggable region is removed from a document
     // this function will be called with an NULL vector.
     on_draggable_regions_changed: procedure(self: PCefDragHandler; browser: PCefBrowser;
-      regionsCount: csize_t; const regions: PCefDraggableRegionArray); cconv;
+      regionsCount: csize_t; regions: PCefDraggableRegionArray); cconv;
   end;
 
 
@@ -2103,7 +2122,7 @@ Type
     // has been fired.
     //
     // An application should handle top-level owner window close notifications by
-    // calling cef_browser_host_t::Tryclose_browser() or
+    // calling cef_browser_host_t::try_close_browser() or
     // cef_browser_host_t::CloseBrowser(false (0)) instead of allowing the window
     // to close immediately (see the examples below). This gives CEF an
     // opportunity to process the 'onbeforeunload' event and optionally cancel the
@@ -2133,7 +2152,7 @@ Type
     // The below examples describe what should happen during window close when the
     // browser is parented to an application-provided top-level window.
     //
-    // Example 1: Using cef_browser_host_t::Tryclose_browser(). This is
+    // Example 1: Using cef_browser_host_t::try_close_browser(). This is
     // recommended for clients using standard close handling and windows created
     // on the browser process UI thread. 1.  User clicks the window close button
     // which sends a close notification to
@@ -2459,6 +2478,14 @@ Type
 
     // The menu is about to show.
     menu_will_show: procedure(self: PCefMenuModelDelegate; menu_model: PCefMenuModel); cconv;
+
+    // The menu has closed.
+    menu_closed: procedure(self: PCefMenuModelDelegate; menu_model: PCefMenuModel); cconv;
+
+    // Optionally modify a menu item label. Return true (1) if |label| was
+    // modified.
+    format_label: function(self: PCefMenuModelDelegate; menu_model: PCefMenuModel;
+      label_: PCefString): Integer; cconv;
   end;
 
 
@@ -2509,6 +2536,9 @@ Type
     // response. May be 0 if the response has not yet been received or if the
     // navigation has not yet completed.
     get_http_status_code: function(self: PCefNavigationEntry): Integer; cconv;
+
+    // Returns the SSL information for this navigation entry.
+    get_sslstatus: function(self: PCefNavigationEntry): PCefSslstatus; cconv;
   end;
 
 
@@ -2614,7 +2644,7 @@ Type
     get_dpi: function(self: PCefPrintSettings): Integer; cconv;
 
     // Set the page ranges.
-    set_page_ranges: procedure(self: PCefPrintSettings; rangesCount: csize_t; const ranges: PCefRangeArray); cconv;
+    set_page_ranges: procedure(self: PCefPrintSettings; rangesCount: csize_t; ranges: PCefRangeArray); cconv;
 
     // Returns the number of page ranges that currently exist.
     get_page_ranges_count: function(self: PCefPrintSettings): csize_t; cconv;
@@ -2730,7 +2760,7 @@ Type
     // be |width|*|height|*4 bytes in size and represents a BGRA image with an
     // upper-left origin.
     on_paint: procedure(self: PCefRenderHandler; browser: PCefBrowser; type_: TCefPaintElementType;
-      dirtyRectsCount: csize_t; const dirtyRects: TCefRectArray;
+      dirtyRectsCount: csize_t; dirtyRects: PCefRectArray;
       const buffer: Pointer; width, height: Integer); cconv;
 
     // Called when the browser's cursor has changed. If |type| is CT_CUSTOM then
@@ -2964,8 +2994,6 @@ Type
     remove_elements: procedure(self: PCefPostData); cconv;
   end;
 
-  TCefPostDataElementArray = array[0..(High(Integer) div SizeOf(PCefPostDataElement)) - 1] of PCefPostDataElement;
-
   // Structure used to represent a single element in the request post data. The
   // functions of this structure may be called on any thread.
   TCefPostDataElement = record
@@ -3196,6 +3224,16 @@ Type
     cancel: procedure(self: PCefRequestCallback); cconv;
   end;
 
+  // Callback structure used to select a client certificate for authentication.
+  TCefSelectClientCertificateCallback = record
+    // Base structure.
+    base: TCefBase;
+
+    // Chooses the specified certificate for client certificate authentication.
+    // NULL value means that no client certificate should be used.
+    select: procedure(self: PCefSelectClientCertificateCallback; cert: PCefX509certificate); cconv;
+  end;
+
 
   // Implement this structure to handle events related to browser requests. The
   // functions of this structure will be called on the thread indicated.
@@ -3248,10 +3286,12 @@ Type
 
     // Called on the IO thread when a resource load is redirected. The |request|
     // parameter will contain the old URL and other request-related information.
-    // The |new_url| parameter will contain the new URL and can be changed if
-    // desired. The |request| object cannot be modified in this callback.
+    // The |response| parameter will contain the response that resulted in the
+    // redirect. The |new_url| parameter will contain the new URL and can be
+    // changed if desired. The |request| object cannot be modified in this
+    // callback.
     on_resource_redirect: procedure(self: PCefRequestHandler; browser: PCefBrowser;
-      frame: PCefFrame; request: PCefRequest; new_url: PCefString); cconv;
+      frame: PCefFrame; request: PCefRequest; response: PCefResponse; new_url: PCefString); cconv;
 
     // Called on the IO thread when a resource response is received. To allow the
     // resource to load normally return false (0). To redirect or retry the
@@ -3314,6 +3354,21 @@ Type
       cert_error: TCefErrorCode; const request_url: PCefString; ssl_info: PCefSslInfo;
       callback: PCefRequestCallback): Integer; cconv;
 
+    // Called on the UI thread when a client certificate is being requested for
+    // authentication. Return false (0) to use the default behavior and
+    // automatically select the first certificate available. Return true (1) and
+    // call cef_select_client_certificate_callback_t::Select either in this
+    // function or at a later time to select a certificate. Do not call Select or
+    // call it with NULL to continue without using any certificate. |isProxy|
+    // indicates whether the host is an HTTPS proxy or the origin server. |host|
+    // and |port| contains the hostname and port of the SSL server. |certificates|
+    // is the list of certificates to choose from; this list has already been
+    // pruned by Chromium so that it only contains certificates from issuers that
+    // the server trusts.
+    on_select_client_certificate: function(self: PCefRequestHandler; browser: PCefBrowser;
+      isProxy: Integer; const host: PCefString; port: Integer; certificatesCount: csize_t;
+      certificates: PCefX509CertificateArray; callback: PCefSelectClientCertificateCallback): Integer; cconv;
+
     // Called on the browser process UI thread when a plugin has crashed.
     // |plugin_path| is the path of the plugin that crashed.
     on_plugin_crashed: procedure(self: PCefRequestHandler; browser: PCefBrowser;
@@ -3348,7 +3403,6 @@ Type
     // The resulting string must be freed by calling cef_string_userfree_free().
     get_localized_string: function(self: PCefResourceBundle; string_id: Integer): PCefStringUserFree; cconv;
 
-    {$NOTE check twice}
     // Retrieves the contents of the specified scale independent |resource_id|. If
     // the value is found then |data| and |data_size| will be populated and this
     // function will return true (1). If the value is not found then this function
@@ -3614,50 +3668,6 @@ Type
 
 
 { *** cef_ssl_info_capi.h  *** }
-  // Structure representing the issuer or subject field of an X.509 certificate.
-  TCefSslcertPrincipal = record
-    // Base structure.
-    base: TCefBase;
-
-    // Returns a name that can be used to represent the issuer.  It tries in this
-    // order: CN, O and OU and returns the first non-NULL one found.
-    //
-    // The resulting string must be freed by calling cef_string_userfree_free().
-    get_display_name: function(self: PCefSslcertPrincipal): PCefStringUserFree; cconv;
-
-    // Returns the common name.
-    //
-    // The resulting string must be freed by calling cef_string_userfree_free().
-    get_common_name: function(self: PCefSslcertPrincipal): PCefStringUserFree; cconv;
-
-    // Returns the locality name.
-    //
-    // The resulting string must be freed by calling cef_string_userfree_free().
-    get_locality_name: function(self: PCefSslcertPrincipal): PCefStringUserFree; cconv;
-
-    // Returns the state or province name.
-    //
-    // The resulting string must be freed by calling cef_string_userfree_free().
-    get_state_or_province_name: function(self: PCefSslcertPrincipal): PCefStringUserFree; cconv;
-
-    // Returns the country name.
-    //
-    // The resulting string must be freed by calling cef_string_userfree_free().
-    get_country_name: function(self: PCefSslcertPrincipal): PCefStringUserFree; cconv;
-
-    // Retrieve the list of street addresses.
-    get_street_addresses: procedure(self: PCefSslcertPrincipal; addresses: TCefStringList); cconv;
-
-    // Retrieve the list of organization names.
-    get_organization_names: procedure(self: PCefSslcertPrincipal; names: TCefStringList); cconv;
-
-    // Retrieve the list of organization unit names.
-    get_organization_unit_names: procedure(self: PCefSslcertPrincipal; names: TCefStringList); cconv;
-
-    // Retrieve the list of domain components.
-    get_domain_components: procedure(self: PCefSslcertPrincipal; components: TCefStringList); cconv;
-  end;
-
   // Structure representing SSL information.
   TCefSslinfo = record
     // Base structure.
@@ -3667,54 +3677,32 @@ Type
     // certificate.
     get_cert_status: function(self: PCefSslinfo): TCefCertStatus; cconv;
 
-    // Returns true (1) if the certificate status has any error, major or minor.
-    is_cert_status_error: function(self: PCefSslinfo): Integer; cconv;
+    // Returns the X.509 certificate.
+    get_x509certificate: function(self: PCefSslinfo): PCefX509certificate; cconv;
+  end;
 
-    // Returns true (1) if the certificate status represents only minor errors
-    // (e.g. failure to verify certificate revocation).
-    is_cert_status_minor_error: function(self: PCefSslinfo): Integer; cconv;
 
-    // Returns the subject of the X.509 certificate. For HTTPS server certificates
-    // this represents the web server.  The common name of the subject should
-    // match the host name of the web server.
-    get_subject: function(self: PCefSslinfo): PCefSslcertPrincipal; cconv;
+{ ***  cef_ssl_status_capi.h  *** }
+  // Structure representing the SSL information for a navigation entry.
+  TCefSslstatus = record
+    // Base structure.
+    base: TCefBase;
 
-    // Returns the issuer of the X.509 certificate.
-    get_issuer: function(self: PCefSslinfo): PCefSslcertPrincipal; cconv;
+    // Returns true (1) if the status is related to a secure SSL/TLS connection.
+    is_secure_connection: function(self: PCefSslStatus): Integer; cconv;
 
-    // Returns the DER encoded serial number for the X.509 certificate. The value
-    // possibly includes a leading 00 byte.
-    get_serial_number: function(self: PCefSslinfo): PCefBinaryValue; cconv;
+    // Returns a bitmask containing any and all problems verifying the server
+    // certificate.
+    get_cert_status: function(self: PCefSslStatus): TCefCertStatus; cconv;
 
-    // Returns the date before which the X.509 certificate is invalid.
-    // CefTime.GetTimeT() will return 0 if no date was specified.
-    get_valid_start: function(self: PCefSslinfo): TCefTime; cconv;
+    // Returns the SSL version used for the SSL connection.
+    get_sslversion: function(self: PCefSslStatus): TCefSslVersion; cconv;
 
-    // Returns the date after which the X.509 certificate is invalid.
-    // CefTime.GetTimeT() will return 0 if no date was specified.
-    get_valid_expiry: function(self: PCefSslinfo): TCefTime; cconv;
+    // Returns a bitmask containing the page security content status.
+    get_content_status: function(self: PCefSslStatus): TCefSslContentStatus; cconv;
 
-    // Returns the DER encoded data for the X.509 certificate.
-    get_derencoded: function(self: PCefSslinfo): PCefBinaryValue; cconv;
-
-    // Returns the PEM encoded data for the X.509 certificate.
-    get_pemencoded: function(self: PCefSslinfo): PCefBinaryValue; cconv;
-
-    // Returns the number of certificates in the issuer chain. If 0, the
-    // certificate is self-signed.
-    get_issuer_chain_size: function(self: PCefSslinfo): csize_t; cconv;
-
-    // Returns the DER encoded data for the certificate issuer chain. If we failed
-    // to encode a certificate in the chain it is still present in the array but
-    // is an NULL string.
-    get_derencoded_issuer_chain: procedure(self: PCefSslinfo; chain_count: pcsize_t;
-      chain: PCefBinaryValueArray); cconv;
-
-    // Returns the PEM encoded data for the certificate issuer chain. If we failed
-    // to encode a certificate in the chain it is still present in the array but
-    // is an NULL string.
-    get_pemencoded_issuer_chain: procedure(self: PCefSslinfo; chain_count: pcsize_t;
-      chain: PCefBinaryValueArray); cconv;
+    // Returns the X.509 certificate.
+    get_x509certificate: function(self: PCefSslStatus): PCefX509certificate; cconv;
   end;
 
 
@@ -3989,46 +3977,48 @@ Type
     // Returns the task runner associated with this context. V8 handles can only
     // be accessed from the thread on which they are created. This function can be
     // called on any render process thread.
-    get_task_runner: function(self: PCefv8Context): PCefTaskRunner; cconv;
+    get_task_runner: function(self: PCefV8Context): PCefTaskRunner; cconv;
 
     // Returns true (1) if the underlying handle is valid and it can be accessed
     // on the current thread. Do not call any other functions if this function
     // returns false (0).
-    is_valid: function(self: PCefv8Context): Integer; cconv;
+    is_valid: function(self: PCefV8Context): Integer; cconv;
 
     // Returns the browser for this context. This function will return an NULL
     // reference for WebWorker contexts.
-    get_browser: function(self: PCefv8Context): PCefBrowser; cconv;
+    get_browser: function(self: PCefV8Context): PCefBrowser; cconv;
 
     // Returns the frame for this context. This function will return an NULL
     // reference for WebWorker contexts.
-    get_frame: function(self: PCefv8Context): PCefFrame; cconv;
+    get_frame: function(self: PCefV8Context): PCefFrame; cconv;
 
     // Returns the global object for this context. The context must be entered
     // before calling this function.
-    get_global: function(self: PCefv8Context): PCefv8Value; cconv;
+    get_global: function(self: PCefV8Context): PCefv8Value; cconv;
 
     // Enter this context. A context must be explicitly entered before creating a
     // V8 Object, Array, Function or Date asynchronously. exit() must be called
     // the same number of times as enter() before releasing this context. V8
     // objects belong to the context in which they are created. Returns true (1)
     // if the scope was entered successfully.
-    enter: function(self: PCefv8Context): Integer; cconv;
+    enter: function(self: PCefV8Context): Integer; cconv;
 
     // Exit this context. Call this function only after calling enter(). Returns
     // true (1) if the scope was exited successfully.
-    exit: function(self: PCefv8Context): Integer; cconv;
+    exit: function(self: PCefV8Context): Integer; cconv;
 
     // Returns true (1) if this object is pointing to the same handle as |that|
     // object.
-    is_same: function(self, that: PCefv8Context): Integer; cconv;
+    is_same: function(self, that: PCefV8Context): Integer; cconv;
 
-    // Evaluates the specified JavaScript code using this context's global object.
+    // Execute a string of JavaScript code in this V8 context. The |script_url|
+    // parameter is the URL where the script in question can be found, if any. The
+    // |start_line| parameter is the base line number to use for error reporting.
     // On success |retval| will be set to the return value, if any, and the
     // function will return true (1). On failure |exception| will be set to the
     // exception, if any, and the function will return false (0).
-    eval: function(self: PCefv8Context; const code: PCefString;
-      var retval: PCefv8Value; var exception: PCefV8Exception): Integer; cconv;
+    eval: function(self: PCefV8Context; const code, script_url: PCefString;
+      start_line: Integer; var retval: PCefV8Value; var exception: PCefV8Exception): Integer; cconv;
   end;
 
 
@@ -4045,8 +4035,8 @@ Type
     // function return value. If execution fails set |exception| to the exception
     // that will be thrown. Return true (1) if execution was handled.
     execute: function(self: PCefv8Handler; const name: PCefString; object_: PCefv8Value;
-      argumentsCount: csize_t; arguments: PPCefV8Value; out retval: PCefV8Value;
-      var exception: TCefString): Integer; cconv;
+      argumentsCount: csize_t; arguments: PCefV8ValueArray; out retval: PCefV8Value;
+      exception: PCefString): Integer; cconv;
   end;
 
 
@@ -4073,6 +4063,54 @@ Type
     // handled.
     set_: function(self: PCefV8Accessor; const name: PCefString;
       obj: PCefv8Value; value: PCefv8Value; exception: PCefString): Integer; cconv;
+  end;
+
+
+  // Structure that should be implemented to handle V8 interceptor calls. The
+  // functions of this structure will be called on the thread associated with the
+  // V8 interceptor. Interceptor's named property handlers (with first argument of
+  // type CefString) are called when object is indexed by string. Indexed property
+  // handlers (with first argument of type int) are called when object is indexed
+  // by integer.
+  TCefV8Interceptor = record
+    // Base structure.
+    base: TCefBase;
+
+    // Handle retrieval of the interceptor value identified by |name|. |object| is
+    // the receiver ('this' object) of the interceptor. If retrieval succeeds, set
+    // |retval| to the return value. If the requested value does not exist, don't
+    // set either |retval| or |exception|. If retrieval fails, set |exception| to
+    // the exception that will be thrown. If the property has an associated
+    // accessor, it will be called only if you don't set |retval|. Return true (1)
+    // if interceptor retrieval was handled, false (0) otherwise.
+    get_byname: function(self: PCefV8Interceptor; const name: PCefString; object_: PCefV8Value;
+      out retval: PCefV8Value; exception: PCefString): Integer; cconv;
+
+    // Handle retrieval of the interceptor value identified by |index|. |object|
+    // is the receiver ('this' object) of the interceptor. If retrieval succeeds,
+    // set |retval| to the return value. If the requested value does not exist,
+    // don't set either |retval| or |exception|. If retrieval fails, set
+    // |exception| to the exception that will be thrown. Return true (1) if
+    // interceptor retrieval was handled, false (0) otherwise.
+    get_byindex: function(self: PCefV8Interceptor; index: Integer; object_: PCefV8Value;
+      out retval: PCefV8Value; exception: PCefString): Integer; cconv;
+
+    // Handle assignment of the interceptor value identified by |name|. |object|
+    // is the receiver ('this' object) of the interceptor. |value| is the new
+    // value being assigned to the interceptor. If assignment fails, set
+    // |exception| to the exception that will be thrown. This setter will always
+    // be called, even when the property has an associated accessor. Return true
+    // (1) if interceptor assignment was handled, false (0) otherwise.
+    set_byname: function(self: PCefV8Interceptor; const name: PCefString; object_: PCefV8Value;
+      value: PCefV8Value; exception: PCefString): Integer; cconv;
+
+    // Handle assignment of the interceptor value identified by |index|. |object|
+    // is the receiver ('this' object) of the interceptor. |value| is the new
+    // value being assigned to the interceptor. If assignment fails, set
+    // |exception| to the exception that will be thrown. Return true (1) if
+    // interceptor assignment was handled, false (0) otherwise.
+    set_byindex: function(self: PCefV8Interceptor; index: Integer; object_: PCefV8Value;
+      value: PCefV8Value; exception: PCefString): Integer; cconv;
   end;
 
 
@@ -4171,28 +4209,22 @@ Type
     // object.
     is_same: function(self, that: PCefv8Value): Integer; cconv;
 
-    // Return a bool value.  The underlying data will be converted to if
-    // necessary.
+    // Return a bool value.
     get_bool_value: function(self: PCefv8Value): Integer; cconv;
 
-    // Return an int value.  The underlying data will be converted to if
-    // necessary.
+    // Return an int value.
     get_int_value: function(self: PCefv8Value): Integer; cconv;
 
-    // Return an unisgned int value.  The underlying data will be converted to if
-    // necessary.
+    // Return an unsigned int value.
     get_uint_value: function(self: PCefv8Value): UInt32; cconv;
 
-    // Return a double value.  The underlying data will be converted to if
-    // necessary.
+    // Return a double value.
     get_double_value: function(self: PCefv8Value): Double; cconv;
 
-    // Return a Date value.  The underlying data will be converted to if
-    // necessary.
+    // Return a Date value.
     get_date_value: function(self: PCefv8Value): TCefTime; cconv;
 
-    // Return a string value.  The underlying data will be converted to if
-    // necessary.
+    // Return a string value.
     //
     // The resulting string must be freed by calling cef_string_userfree_free().
     get_string_value: function(self: PCefv8Value): PCefStringUserFree; cconv;
@@ -4329,7 +4361,7 @@ Type
     // Returns NULL if this function is called incorrectly or an exception is
     // thrown.
     execute_function: function(self: PCefv8Value; object_: PCefv8Value;
-      argumentsCount: csize_t; const arguments: PPCefV8Value): PCefv8Value; cconv;
+      argumentsCount: csize_t; const arguments: PCefV8ValueArray): PCefv8Value; cconv;
 
     // Execute the function using the specified V8 context. |object| is the
     // receiver ('this' object) of the function. If |object| is NULL the specified
@@ -4338,10 +4370,8 @@ Type
     // success. Returns NULL if this function is called incorrectly or an
     // exception is thrown.
     execute_function_with_context: function(self: PCefv8Value; context: PCefv8Context;
-      object_: PCefv8Value; argumentsCount: csize_t; const arguments: PPCefV8Value): PCefv8Value; cconv;
+      object_: PCefv8Value; argumentsCount: csize_t; const arguments: PCefV8ValueArray): PCefv8Value; cconv;
   end;
-
-  PCefV8ValueArray = array[0..(High(Integer) div SizeOf(Integer)) - 1] of PCefV8Value;
 
 
   // Structure representing a V8 stack trace handle. V8 handles can only be
@@ -4885,11 +4915,123 @@ Type
   end;
 
 
+  // Implement this structure to receive notification when CDM registration is
+  // complete. The functions of this structure will be called on the browser
+  // process UI thread.
+  TCefRegisterCdmCallback = record
+    // Base structure.
+    base: TCefBase;
+
+    // Method that will be called when CDM registration is complete. |result| will
+    // be CEF_CDM_REGISTRATION_ERROR_NONE if registration completed successfully.
+    // Otherwise, |result| and |error_message| will contain additional information
+    // about why registration failed.
+    on_cdm_registration_complete: procedure(self: PCefRegisterCdmCallback;
+      result: TCefCdmRegistrationError; const error_message: PCefString); cconv;
+  end;
+
+
+{ ***  cef_x509_certificate_capi.h  *** }
+  // Structure representing the issuer or subject field of an X.509 certificate.
+  TCefX509certPrincipal = record
+    // Base structure.
+    base: TCefBase;
+
+    // Returns a name that can be used to represent the issuer. It tries in this
+    // order: Common Name (CN), Organization Name (O) and Organizational Unit Name
+    // (OU) and returns the first non-NULL one found.
+    //
+    // The resulting string must be freed by calling cef_string_userfree_free().
+    get_display_name: function(self: PCefX509certPrincipal): PCefStringUserFree; cconv;
+
+    // Returns the common name.
+    //
+    // The resulting string must be freed by calling cef_string_userfree_free().
+    get_common_name: function(self: PCefX509certPrincipal): PCefStringUserFree; cconv;
+
+    // Returns the locality name.
+    //
+    // The resulting string must be freed by calling cef_string_userfree_free().
+    get_locality_name: function(self: PCefX509certPrincipal): PCefStringUserFree; cconv;
+
+    // Returns the state or province name.
+    //
+    // The resulting string must be freed by calling cef_string_userfree_free().
+    get_state_or_province_name: function(self: PCefX509certPrincipal): PCefStringUserFree; cconv;
+
+    // Returns the country name.
+    //
+    // The resulting string must be freed by calling cef_string_userfree_free().
+    get_country_name: function(self: PCefX509certPrincipal): PCefStringUserFree; cconv;
+
+    // Retrieve the list of street addresses.
+    get_street_addresses: procedure(self: PCefX509certPrincipal; addresses: TCefStringList); cconv;
+
+    // Retrieve the list of organization names.
+    get_organization_names: procedure(self: PCefX509certPrincipal; names: TCefStringList); cconv;
+
+    // Retrieve the list of organization unit names.
+    get_organization_unit_names: procedure(self: PCefX509certPrincipal; names: TCefStringList) cconv;
+
+    // Retrieve the list of domain components.
+    get_domain_components: procedure(self: PCefX509certPrincipal; components: TCefStringList); cconv;
+  end;
+
+
+  // Structure representing a X.509 certificate.
+  TCefX509Certificate = record
+    // Base structure.
+    base: TCefBase;
+
+    // Returns the subject of the X.509 certificate. For HTTPS server certificates
+    // this represents the web server.  The common name of the subject should
+    // match the host name of the web server.
+    get_subject: function(self: PCefX509certificate): PCefX509certPrincipal; cconv;
+
+    // Returns the issuer of the X.509 certificate.
+    get_issuer: function(self: PCefX509Certificate): PCefX509certPrincipal; cconv;
+
+    // Returns the DER encoded serial number for the X.509 certificate. The value
+    // possibly includes a leading 00 byte.
+    get_serial_number: function(self: PCefX509Certificate): PCefBinaryValue; cconv;
+
+    // Returns the date before which the X.509 certificate is invalid.
+    // CefTime.GetTimeT() will return 0 if no date was specified.
+    get_valid_start: function(self: PCefX509Certificate): TCefTime; cconv;
+
+    // Returns the date after which the X.509 certificate is invalid.
+    // CefTime.GetTimeT() will return 0 if no date was specified.
+    get_valid_expiry: function(self: PCefX509Certificate): TCefTime; cconv;
+
+    // Returns the DER encoded data for the X.509 certificate.
+    get_derencoded: function(self: PCefX509Certificate): PCefBinaryValue; cconv;
+
+    // Returns the PEM encoded data for the X.509 certificate.
+    get_pemencoded: function(self: PCefX509Certificate): PCefBinaryValue; cconv;
+
+    // Returns the number of certificates in the issuer chain. If 0, the
+    // certificate is self-signed.
+    get_issuer_chain_size: function(self: PCefX509Certificate): Integer; cconv;
+
+    // Returns the DER encoded data for the certificate issuer chain. If we failed
+    // to encode a certificate in the chain it is still present in the array but
+    // is an NULL string.
+    get_derencoded_issuer_chain: procedure(self: PCefX509Certificate; chainCount: pcsize_t;
+      chain: PCefBinaryValueArray); cconv;
+
+    // Returns the PEM encoded data for the certificate issuer chain. If we failed
+    // to encode a certificate in the chain it is still present in the array but
+    // is an NULL string.
+    get_pemencoded_issuer_chain: procedure(self: PCefX509Certificate; chainCount: pcsize_t;
+      chain: PCefBinaryValueArray); cconv;
+  end;
+
+
 { ***  cef_xml_reader_capi.h  *** }
   // Structure that supports the reading of XML data via the libxml streaming API.
   // The functions of this structure should only be called on the thread that
   // creates the object.
-  TCefXMLReader = record
+  TCefXmlReader = record
     // Base structure.
     base: TCefBase;
 
@@ -5451,6 +5593,15 @@ Var
   cef_clear_scheme_handler_factories: function: Integer; cdecl;
 
 
+{ *** cef_ssl_info_capi.h *** }
+  // Returns true (1) if the certificate status has any error, major or minor.
+  cef_is_cert_status_error: function(status: TCefCertStatus): Integer; cdecl;
+
+  // Returns true (1) if the certificate status represents only minor errors (e.g.
+  // failure to verify certificate revocation).
+  cef_is_cert_status_minor_error: function(status: TCefCertStatus): Integer; cdecl;
+
+
 { ***  cef_stream_capi.h  *** }
   // Create a new cef_stream_reader_t object from a file.
   cef_stream_reader_create_for_file: function(const fileName: PCefString): PCefStreamReader; cdecl;
@@ -5643,12 +5794,12 @@ Var
   // Create a new TCefv8Value object of type string.
   cef_v8value_create_string: function(const value: PCefString): PCefv8Value; cdecl;
 
-  // Create a new TCefv8Value object of type object with optional accessor. This
-  // function should only be called from within the scope of a
-  // cef_render_process_handler_t, cef_v8handler_t or cef_v8accessor_t callback,
-  // or in combination with calling enter() and exit() on a stored cef_v8context_t
-  // reference.
-  cef_v8value_create_object: function(accessor: PCefV8Accessor): PCefv8Value; cdecl;
+  // Create a new cef_v8value_t object of type object with optional accessor
+  // and/or interceptor. This function should only be called from within the scope
+  // of a cef_render_process_handler_t, cef_v8handler_t or cef_v8accessor_t
+  // callback, or in combination with calling enter() and exit() on a stored
+  // cef_v8context_t reference.
+  cef_v8value_create_object: function(accessor: PCefV8Accessor; interceptor: PCefV8Interceptor): PCefv8Value; cdecl;
 
   // Create a new TCefv8Value object of type array with the specified |length|.
   // If |length| is negative the returned array will have length 0. This function
@@ -5706,6 +5857,51 @@ Var
   // Query if a plugin is unstable. Can be called on any thread in the browser
   // process.
   cef_is_web_plugin_unstable: procedure(const path: PCefString; callback: PCefWebPluginUnstableCallback); cdecl;
+
+  // Register the Widevine CDM plugin.
+  //
+  // The client application is responsible for downloading an appropriate
+  // platform-specific CDM binary distribution from Google, extracting the
+  // contents, and building the required directory structure on the local machine.
+  // The cef_browser_host_t::StartDownload function and CefZipArchive structure
+  // can be used to implement this functionality in CEF. Contact Google via
+  // https://www.widevine.com/contact.html for details on CDM download.
+  //
+  // |path| is a directory that must contain the following files:
+  //   1. manifest.json file from the CDM binary distribution (see below).
+  //   2. widevinecdm file from the CDM binary distribution (e.g.
+  //      widevinecdm.dll on on Windows, libwidevinecdm.dylib on OS X,
+  //      libwidevinecdm.so on Linux).
+  //   3. widevidecdmadapter file from the CEF binary distribution (e.g.
+  //      widevinecdmadapter.dll on Windows, widevinecdmadapter.plugin on OS X,
+  //      libwidevinecdmadapter.so on Linux).
+  //
+  // If any of these files are missing or if the manifest file has incorrect
+  // contents the registration will fail and |callback| will receive a |result|
+  // value of CEF_CDM_REGISTRATION_ERROR_INCORRECT_CONTENTS.
+  //
+  // The manifest.json file must contain the following keys:
+  //   A. "os": Supported OS (e.g. "mac", "win" or "linux").
+  //   B. "arch": Supported architecture (e.g. "ia32" or "x64").
+  //   C. "x-cdm-module-versions": Module API version (e.g. "4").
+  //   D. "x-cdm-interface-versions": Interface API version (e.g. "8").
+  //   E. "x-cdm-host-versions": Host API version (e.g. "8").
+  //   F. "version": CDM version (e.g. "1.4.8.903").
+  //   G. "x-cdm-codecs": List of supported codecs (e.g. "vp8,vp9.0,avc1").
+  //
+  // A through E are used to verify compatibility with the current Chromium
+  // version. If the CDM is not compatible the registration will fail and
+  // |callback| will receive a |result| value of
+  // CEF_CDM_REGISTRATION_ERROR_INCOMPATIBLE.
+  //
+  // |callback| will be executed asynchronously once registration is complete.
+  //
+  // On Linux this function must be called before cef_initialize() and the
+  // registration cannot be changed during runtime. If registration is not
+  // supported at the time that cef_register_widevine_cdm() is called then
+  // |callback| will receive a |result| value of
+  // CEF_CDM_REGISTRATION_ERROR_NOT_SUPPORTED.
+  cef_register_widevine_cdm: procedure(const path: PCefString; callback: PCefRegisterCdmCallback); cdecl;
 
 
 { ***  cef_xml_reader_capi.h  *** }
@@ -5962,22 +6158,29 @@ Var
 
 
 { ***  cef_version.h *** }
-  {$NOTE TODO add constants}
+
+Const
   // Returns CEF version information for the libcef library. The |entry|
   // parameter describes which version component will be returned:
-  // 0 - CEF_VERSION_MAJOR
-  // 1 - CEF_REVISION
-  // 2 - CHROME_VERSION_MAJOR
-  // 3 - CHROME_VERSION_MINOR
-  // 4 - CHROME_VERSION_BUILD
-  // 5 - CHROME_VERSION_PATCH
+  CEF_VERSION_MAJOR    = 0;
+  CEF_REVISION         = 1;
+  CHROME_VERSION_MAJOR = 2;
+  CHROME_VERSION_MINOR = 3;
+  CHROME_VERSION_BUILD = 4;
+  CHROME_VERSION_PATCH = 5;
+
+Var
   cef_version_info: function(entry: Integer): Integer; cdecl;
 
+
+Const
   // Returns CEF API hashes for the libcef library. The returned string is owned
   // by the library and should not be freed. The |entry| parameter describes which
   // hash value will be returned:
-  // 0 - CEF_API_HASH_PLATFORM
-  // 1 - CEF_API_HASH_UNIVERSAL
+  CEF_API_HASH_PLATFORM  = 0;
+  CEF_API_HASH_UNIVERSAL = 1;
+
+Var
   cef_api_hash: function(entry: Integer): PChar; cdecl;
 
 
@@ -6248,6 +6451,9 @@ begin
     Pointer(cef_register_scheme_handler_factory)     := GetProcAddress(LibHandle, 'cef_register_scheme_handler_factory');
     Pointer(cef_clear_scheme_handler_factories)      := GetProcAddress(LibHandle, 'cef_clear_scheme_handler_factories');
 
+    Pointer(cef_is_cert_status_error)                := GetProcAddress(LibHandle, 'cef_is_cert_status_error');
+    Pointer(cef_is_cert_status_minor_error)          := GetProcAddress(LibHandle, 'cef_is_cert_status_minor_error');
+
     Pointer(cef_stream_reader_create_for_file)       := GetProcAddress(LibHandle, 'cef_stream_reader_create_for_file');
     Pointer(cef_stream_reader_create_for_data)       := GetProcAddress(LibHandle, 'cef_stream_reader_create_for_data');
     Pointer(cef_stream_reader_create_for_handler)    := GetProcAddress(LibHandle, 'cef_stream_reader_create_for_handler');
@@ -6293,6 +6499,7 @@ begin
     Pointer(cef_unregister_internal_web_plugin)      := GetProcAddress(LibHandle, 'cef_unregister_internal_web_plugin');
     Pointer(cef_register_web_plugin_crash)           := GetProcAddress(LibHandle, 'cef_register_web_plugin_crash');
     Pointer(cef_is_web_plugin_unstable)              := GetProcAddress(LibHandle, 'cef_is_web_plugin_unstable');
+    Pointer(cef_register_widevine_cdm)               := GetProcAddress(LibHandle, 'cef_register_widevine_cdm');
 
     Pointer(cef_xml_reader_create)                   := GetProcAddress(LibHandle, 'cef_xml_reader_create');
 
@@ -6440,6 +6647,9 @@ begin
       Assigned(cef_register_scheme_handler_factory) and
       Assigned(cef_clear_scheme_handler_factories) and
 
+      Assigned(cef_is_cert_status_error) and
+      Assigned(cef_is_cert_status_minor_error) and
+
       Assigned(cef_stream_reader_create_for_file) and
       Assigned(cef_stream_reader_create_for_data) and
       Assigned(cef_stream_reader_create_for_handler) and
@@ -6485,6 +6695,7 @@ begin
       Assigned(cef_unregister_internal_web_plugin) and
       Assigned(cef_register_web_plugin_crash) and
       Assigned(cef_is_web_plugin_unstable) and
+      Assigned(cef_register_widevine_cdm) and
 
       Assigned(cef_xml_reader_create) and
 

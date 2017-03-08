@@ -6,7 +6,7 @@ Interface
 
 Uses
   Classes, SysUtils,
-  cef3types, cef3intf, cef3own;
+  cef3types, cef3own;
 
 Type
   { custom print handler }

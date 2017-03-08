@@ -36,7 +36,7 @@ Type
   {$IFDEF CEF_STRING_TYPE_UTF8}
     ustring = UTF8String;
   {$ELSE}
-    ustring = WideString;
+    ustring = UnicodeString;
   {$ENDIF}
   rbstring = AnsiString;
 
@@ -61,7 +61,7 @@ Type
   // modification. It is the user's responsibility to provide synchronization if
   // modifying CEF strings from multiple threads.
 
-  // CEF character type definitions. wchat_t is 2 bytes on Windows and 4 bytes on
+  // CEF character type definitions. wchar_t is 2 bytes on Windows and 4 bytes on
   // most other platforms.
   Char16 = WideChar;
   PChar16 = PWideChar;
@@ -551,6 +551,17 @@ Type
     // CefRequestContextSettings.ignore_certificate_errors value.
     ignore_certificate_error: Integer;
 
+    // Set to true (1) to enable date-based expiration of built in network
+    // security information (i.e. certificate transparency logs, HSTS preloading
+    // and pinning information). Enabling this option improves network security
+    // but may cause HTTPS load failures when using CEF binaries built more than
+    // 10 weeks in the past. See https://www.certificate-transparency.org/ and
+    // https://www.chromium.org/hsts for details. Also configurable using the
+    // "enable-net-security-expiration" command-line switch. Can be overridden for
+    // individual CefRequestContext instances via the
+    // CefRequestContextSettings.enable_net_security_expiration value.
+    enable_net_security_expiration: Integer;
+
     // Opaque background color used for accelerated content. By default the
     // background color will be white. Only the RGB compontents of the specified
     // value will be used. The alpha component must greater than 0 to enable use
@@ -602,6 +613,15 @@ Type
     // CefSettings.ignore_certificate_errors value. This value will be ignored if
     // |cache_path| matches the CefSettings.cache_path value.
     ignore_certificate_errors: Integer;
+
+    // Set to true (1) to enable date-based expiration of built in network
+    // security information (i.e. certificate transparency logs, HSTS preloading
+    // and pinning information). Enabling this option improves network security
+    // but may cause HTTPS load failures when using CEF binaries built more than
+    // 10 weeks in the past. See https://www.certificate-transparency.org/ and
+    // https://www.chromium.org/hsts for details. Can be set globally using the
+    // CefSettings.enable_net_security_expiration value.
+    enable_net_security_expiration: Integer;
 
     // Comma delimited ordered list of language codes without any whitespace that
     // will be used in the "Accept-Language" HTTP header. Can be set globally
@@ -881,102 +901,108 @@ Type
 
   // Supported error code values. See net\base\net_error_list.h for complete
   // descriptions of the error codes.
-  TCefHandlerErrorcode = Integer;
+  TCefErrorCode = Integer;
 
-  {$NOTE ascending order?}
-  TCefErrorCode = (
-    ERR_NONE = 0,
-    ERR_FAILED = -2,
-    ERR_ABORTED = -3,
-    ERR_INVALID_ARGUMENT = -4,
-    ERR_INVALID_HANDLE = -5,
-    ERR_FILE_NOT_FOUND = -6,
-    ERR_TIMED_OUT = -7,
-    ERR_FILE_TOO_BIG = -8,
-    ERR_UNEXPECTED = -9,
-    ERR_ACCESS_DENIED = -10,
-    ERR_NOT_IMPLEMENTED = -11,
-    ERR_CONNECTION_CLOSED = -100,
-    ERR_CONNECTION_RESET = -101,
-    ERR_CONNECTION_REFUSED = -102,
-    ERR_CONNECTION_ABORTED = -103,
-    ERR_CONNECTION_FAILED = -104,
-    ERR_NAME_NOT_RESOLVED = -105,
-    ERR_INTERNET_DISCONNECTED = -106,
-    ERR_SSL_PROTOCOL_ERROR = -107,
-    ERR_ADDRESS_INVALID = -108,
-    ERR_ADDRESS_UNREACHABLE = -109,
-    ERR_SSL_CLIENT_AUTH_CERT_NEEDED = -110,
-    ERR_TUNNEL_CONNECTION_FAILED = -111,
-    ERR_NO_SSL_VERSIONS_ENABLED = -112,
-    ERR_SSL_VERSION_OR_CIPHER_MISMATCH = -113,
-    ERR_SSL_RENEGOTIATION_REQUESTED = -114,
-    ERR_CERT_COMMON_NAME_INVALID = -200,
-    ERR_CERT_BEGIN = ERR_CERT_COMMON_NAME_INVALID,
-    ERR_CERT_DATE_INVALID = -201,
-    ERR_CERT_AUTHORITY_INVALID = -202,
-    ERR_CERT_CONTAINS_ERRORS = -203,
-    ERR_CERT_NO_REVOCATION_MECHANISM = -204,
-    ERR_CERT_UNABLE_TO_CHECK_REVOCATION = -205,
-    ERR_CERT_REVOKED = -206,
-    ERR_CERT_INVALID = -207,
-    ERR_CERT_WEAK_SIGNATURE_ALGORITHM = -208,
+Const
+    ERR_NONE = 0;
+    ERR_FAILED = -2;
+    ERR_ABORTED = -3;
+    ERR_INVALID_ARGUMENT = -4;
+    ERR_INVALID_HANDLE = -5;
+    ERR_FILE_NOT_FOUND = -6;
+    ERR_TIMED_OUT = -7;
+    ERR_FILE_TOO_BIG = -8;
+    ERR_UNEXPECTED = -9;
+    ERR_ACCESS_DENIED = -10;
+    ERR_NOT_IMPLEMENTED = -11;
+    ERR_CONNECTION_CLOSED = -100;
+    ERR_CONNECTION_RESET = -101;
+    ERR_CONNECTION_REFUSED = -102;
+    ERR_CONNECTION_ABORTED = -103;
+    ERR_CONNECTION_FAILED = -104;
+    ERR_NAME_NOT_RESOLVED = -105;
+    ERR_INTERNET_DISCONNECTED = -106;
+    ERR_SSL_PROTOCOL_ERROR = -107;
+    ERR_ADDRESS_INVALID = -108;
+    ERR_ADDRESS_UNREACHABLE = -109;
+    ERR_SSL_CLIENT_AUTH_CERT_NEEDED = -110;
+    ERR_TUNNEL_CONNECTION_FAILED = -111;
+    ERR_NO_SSL_VERSIONS_ENABLED = -112;
+    ERR_SSL_VERSION_OR_CIPHER_MISMATCH = -113;
+    ERR_SSL_RENEGOTIATION_REQUESTED = -114;
+    ERR_CERT_COMMON_NAME_INVALID = -200;
+    ERR_CERT_BEGIN = ERR_CERT_COMMON_NAME_INVALID;
+    ERR_CERT_DATE_INVALID = -201;
+    ERR_CERT_AUTHORITY_INVALID = -202;
+    ERR_CERT_CONTAINS_ERRORS = -203;
+    ERR_CERT_NO_REVOCATION_MECHANISM = -204;
+    ERR_CERT_UNABLE_TO_CHECK_REVOCATION = -205;
+    ERR_CERT_REVOKED = -206;
+    ERR_CERT_INVALID = -207;
+    ERR_CERT_WEAK_SIGNATURE_ALGORITHM = -208;
     // -209 is available: was ERR_CERT_NOT_IN_DNS.
-    ERR_CERT_NON_UNIQUE_NAME = -210,
-    ERR_CERT_WEAK_KEY = -211,
-    ERR_CERT_NAME_CONSTRAINT_VIOLATION = -212,
-    ERR_CERT_VALIDITY_TOO_LONG = -213,
-    ERR_CERT_END = ERR_CERT_VALIDITY_TOO_LONG,
-    ERR_INVALID_URL = -300,
-    ERR_DISALLOWED_URL_SCHEME = -301,
-    ERR_UNKNOWN_URL_SCHEME = -302,
-    ERR_TOO_MANY_REDIRECTS = -310,
-    ERR_UNSAFE_REDIRECT = -311,
-    ERR_UNSAFE_PORT = -312,
-    ERR_INVALID_RESPONSE = -320,
-    ERR_INVALID_CHUNKED_ENCODING = -321,
-    ERR_METHOD_NOT_SUPPORTED = -322,
-    ERR_UNEXPECTED_PROXY_AUTH = -323,
-    ERR_EMPTY_RESPONSE = -324,
-    ERR_RESPONSE_HEADERS_TOO_BIG = -325,
-    ERR_CACHE_MISS = -400,
-    ERR_INSECURE_RESPONSE = -501
-  );
+    ERR_CERT_NON_UNIQUE_NAME = -210;
+    ERR_CERT_WEAK_KEY = -211;
+    ERR_CERT_NAME_CONSTRAINT_VIOLATION = -212;
+    ERR_CERT_VALIDITY_TOO_LONG = -213;
+    ERR_CERT_END = ERR_CERT_VALIDITY_TOO_LONG;
+    ERR_INVALID_URL = -300;
+    ERR_DISALLOWED_URL_SCHEME = -301;
+    ERR_UNKNOWN_URL_SCHEME = -302;
+    ERR_TOO_MANY_REDIRECTS = -310;
+    ERR_UNSAFE_REDIRECT = -311;
+    ERR_UNSAFE_PORT = -312;
+    ERR_INVALID_RESPONSE = -320;
+    ERR_INVALID_CHUNKED_ENCODING = -321;
+    ERR_METHOD_NOT_SUPPORTED = -322;
+    ERR_UNEXPECTED_PROXY_AUTH = -323;
+    ERR_EMPTY_RESPONSE = -324;
+    ERR_RESPONSE_HEADERS_TOO_BIG = -325;
+    ERR_CACHE_MISS = -400;
+    ERR_INSECURE_RESPONSE = -501;
 
+
+Type
   // Supported certificate status code values. See net\cert\cert_status_flags.h
   // for more information. CERT_STATUS_NONE is new in CEF because we use an
   // enum while cert_status_flags.h uses a typedef and static const variables.
-  TCefCertStatus = (
-    CERT_STATUS_NONE = 0,
-    CERT_STATUS_COMMON_NAME_INVALID = 1 shl 0,
-    CERT_STATUS_DATE_INVALID = 1 shl 1,
-    CERT_STATUS_AUTHORITY_INVALID = 1 shl 2,
+  TCefCertStatusFlags = (
+    CERT_STATUS_COMMON_NAME_INVALID,         //= 1 shl 0
+    CERT_STATUS_DATE_INVALID,                //= 1 shl 1
+    CERT_STATUS_AUTHORITY_INVALID,           //= 1 shl 2
     // 1 << 3 is reserved for ERR_CERT_CONTAINS_ERRORS (not useful with WinHTTP).
-    CERT_STATUS_NO_REVOCATION_MECHANISM = 1 shl 4,
-    CERT_STATUS_UNABLE_TO_CHECK_REVOCATION = 1 shl 5,
-    CERT_STATUS_REVOKED = 1 shl 6,
-    CERT_STATUS_INVALID = 1 shl 7,
-    CERT_STATUS_WEAK_SIGNATURE_ALGORITHM = 1 shl 8,
+    CERT_STATUS_NO_REVOCATION_MECHANISM = 4, //= 1 shl 4
+    CERT_STATUS_UNABLE_TO_CHECK_REVOCATION,  //= 1 shl 5
+    CERT_STATUS_REVOKED,                     //= 1 shl 6
+    CERT_STATUS_INVALID,                     //= 1 shl 7
+    CERT_STATUS_WEAK_SIGNATURE_ALGORITHM,    //= 1 shl 8
     // 1 << 9 was used for CERT_STATUS_NOT_IN_DNS
-    CERT_STATUS_NON_UNIQUE_NAME = 1 shl 10,
-    CERT_STATUS_WEAK_KEY = 1 shl 11,
+    CERT_STATUS_NON_UNIQUE_NAME = 10,        //= 1 shl 10
+    CERT_STATUS_WEAK_KEY,                    //= 1 shl 11
     // 1 << 12 was used for CERT_STATUS_WEAK_DH_KEY
-    CERT_STATUS_PINNED_KEY_MISSING = 1 shl 13,
-    CERT_STATUS_NAME_CONSTRAINT_VIOLATION = 1 shl 14,
-    CERT_STATUS_VALIDITY_TOO_LONG = 1 shl 15,
+    CERT_STATUS_PINNED_KEY_MISSING =13,      //= 1 shl 13
+    CERT_STATUS_NAME_CONSTRAINT_VIOLATION,   //= 1 shl 14
+    CERT_STATUS_VALIDITY_TOO_LONG,           //= 1 shl 15
 
     // Bits 16 to 31 are for non-error statuses.
-    CERT_STATUS_IS_EV = 1 shl 16,
-    CERT_STATUS_REV_CHECKING_ENABLED = 1 shl 17,
+    CERT_STATUS_IS_EV,                       //= 1 shl 16
+    CERT_STATUS_REV_CHECKING_ENABLED,        //= 1 shl 17
     // Bit 18 was CERT_STATUS_IS_DNSSEC
-    CERT_STATUS_SHA1_SIGNATURE_PRESENT = 1 shl 19,
-    CERT_STATUS_CT_COMPLIANCE_FAILED = 1 shl 20
+    CERT_STATUS_SHA1_SIGNATURE_PRESENT = 19, //= 1 shl 19
+    CERT_STATUS_CT_COMPLIANCE_FAILED         //= 1 shl 20
   );
+  TCefCertStatus = set of TCefCertStatusFlags;
 
-  // The manner in which a link click should be opened.
+Const
+  CERT_STATUS_NONE: TCefCertStatus = [];
+
+
+Type
+  // The manner in which a link click should be opened. These constants match
+  // their equivalents in Chromium's window_open_disposition.h and should not be
+  // renumbered.
   TCefWindowOpenDisposition = (
     WOD_UNKNOWN,
-    WOD_SUPPRESS_OPEN,
     WOD_CURRENT_TAB,
     WOD_SINGLETON_TAB,
     WOD_NEW_FOREGROUND_TAB,
@@ -1005,22 +1031,31 @@ Type
 
   // V8 access control values.
   TCefV8AccessControl = (
-    //V8_ACCESS_CONTROL_DEFAULT               = 0,
-    V8_ACCESS_CONTROL_ALL_CAN_READ,         //= 1,
-    V8_ACCESS_CONTROL_ALL_CAN_WRITE,        //= 1 shl 1,
+    V8_ACCESS_CONTROL_ALL_CAN_READ,         //= 1 shl 0
+    V8_ACCESS_CONTROL_ALL_CAN_WRITE,        //= 1 shl 1
     V8_ACCESS_CONTROL_PROHIBITS_OVERWRITING //= 1 shl 2
   );
   TCefV8AccessControls = set of TCefV8AccessControl;
 
+Const
+  V8_ACCESS_CONTROL_DEFAULT: TCefV8AccessControls = [];
+
+
+Type
   // V8 property attribute values.
   TCefV8PropertyAttribute = (
-    //V8_PROPERTY_ATTRIBUTE_NONE       = 0,       // Writeable, Enumerable, Configurable
-    V8_PROPERTY_ATTRIBUTE_READONLY,  //= 1 shl 0, // Not writeable
-    V8_PROPERTY_ATTRIBUTE_DONTENUM,  //= 1 shl 1, // Not enumerable
+    V8_PROPERTY_ATTRIBUTE_READONLY,  //= 1 shl 0  // Not writeable
+    V8_PROPERTY_ATTRIBUTE_DONTENUM,  //= 1 shl 1  // Not enumerable
     V8_PROPERTY_ATTRIBUTE_DONTDELETE //= 1 shl 2  // Not configurable
   );
   TCefV8PropertyAttributes = set of TCefV8PropertyAttribute;
 
+Const
+  // Writeable, Enumerable, Configurable
+  V8_PROPERTY_ATTRIBUTE_NONE: TCefV8PropertyAttributes = [];
+
+
+Type
   // Post data elements may represent either bytes or files.
   TCefPostDataElementType = (
     PDE_TYPE_EMPTY  = 0,
@@ -1157,29 +1192,32 @@ Type
 
   // Flags used to customize the behavior of CefURLRequest.
   TCefUrlRequestFlag = (
-    // Default behavior.
-    //UR_FLAG_NONE                      = 0,
-
     // If set the cache will be skipped when handling the request.
-    UR_FLAG_SKIP_CACHE                = 1 shl 0,
+    UR_FLAG_SKIP_CACHE,               //= 1 shl 0
 
     // If set user name, password, and cookies may be sent with the request, and
     // cookies may be saved from the response.
-    UR_FLAG_ALLOW_CACHED_CREDENTIALS  = 1 shl 1,
+    UR_FLAG_ALLOW_CACHED_CREDENTIALS, //= 1 shl 1
 
     // If set upload progress events will be generated when a request has a body.
-    UR_FLAG_REPORT_UPLOAD_PROGRESS    = 1 shl 3,
+    UR_FLAG_REPORT_UPLOAD_PROGRESS,   //= 1 shl 3
 
     // If set the CefURLRequestClient::OnDownloadData method will not be called.
-    UR_FLAG_NO_DOWNLOAD_DATA          = 1 shl 6,
+    UR_FLAG_NO_DOWNLOAD_DATA,         //= 1 shl 6
 
     // If set 5XX redirect errors will be propagated to the observer instead of
     // automatically re-tried. This currently only applies for requests
     // originated in the browser process.
-    UR_FLAG_NO_RETRY_ON_5XX           = 1 shl 7
+    UR_FLAG_NO_RETRY_ON_5XX           //= 1 shl 7
   );
   TCefUrlRequestFlags = set of TCefUrlRequestFlag;
 
+Const
+  // Default behavior.
+  UR_FLAG_NONE: TCefUrlRequestFlags = [];
+
+
+Type
   // Flags that represent CefURLRequest status.
   TCefUrlRequestStatus = (
     // Unknown status.
@@ -1214,8 +1252,8 @@ Type
     width: Integer;
     height: Integer;
   end;
-
-  TCefRectArray = ^TCefRect;
+  TCefRectArray = array[0..(High(Integer) div SizeOf(TCefRect)) - 1] of TCefRect;
+  PCefRectArray = ^TCefRectArray;
 
   // Structure representing a size.
   PCefSize = ^TCefSize;
@@ -1230,9 +1268,9 @@ Type
     from: Integer;
     to_: Integer;
   end;
-
-  TCefRangeArray = array of TCefRange;
+  TCefRangeArray = array[0..(High(Integer) div SizeOf(TCefRange)) - 1] of TCefRange;
   PCefRangeArray = ^TCefRangeArray;
+
 
   // Structure representing insets.
   PCefInsets = ^TCefInsets;
@@ -1252,9 +1290,7 @@ Type
     // True (1) this this region is draggable and false (0) otherwise.
     draggable: Integer;
   end;
-
-  {$NOTE check twice}
-  TCefDraggableRegionArray = array of TCefDraggableRegion;
+  TCefDraggableRegionArray = array[0..(High(Integer) div SizeOf(TCefDraggableRegion)) - 1]  of TCefDraggableRegion;
   PCefDraggableRegionArray = ^TCefDraggableRegionArray;
 
   // Existing process IDs.
@@ -1362,52 +1398,54 @@ Type
   end;
 
 
+Const
   // Supported menu IDs. Non-English translations can be provided for the
   // IDS_MENU_* strings in CefResourceBundleHandler::GetLocalizedString().
-  TCefMenuId = (
-    // Navigation.
-    MENU_ID_BACK                = 100,
-    MENU_ID_FORWARD             = 101,
-    MENU_ID_RELOAD              = 102,
-    MENU_ID_RELOAD_NOCACHE      = 103,
-    MENU_ID_STOPLOAD            = 104,
 
-    // Editing.
-    MENU_ID_UNDO                = 110,
-    MENU_ID_REDO                = 111,
-    MENU_ID_CUT                 = 112,
-    MENU_ID_COPY                = 113,
-    MENU_ID_PASTE               = 114,
-    MENU_ID_DELETE              = 115,
-    MENU_ID_SELECT_ALL          = 116,
+  // Navigation.
+  MENU_ID_BACK           = 100;
+  MENU_ID_FORWARD        = 101;
+  MENU_ID_RELOAD         = 102;
+  MENU_ID_RELOAD_NOCACHE = 103;
+  MENU_ID_STOPLOAD       = 104;
 
-    // Miscellaneous.
-    MENU_ID_FIND                = 130,
-    MENU_ID_PRINT               = 131,
-    MENU_ID_VIEW_SOURCE         = 132,
+  // Editing.
+  MENU_ID_UNDO           = 110;
+  MENU_ID_REDO           = 111;
+  MENU_ID_CUT            = 112;
+  MENU_ID_COPY           = 113;
+  MENU_ID_PASTE          = 114;
+  MENU_ID_DELETE         = 115;
+  MENU_ID_SELECT_ALL     = 116;
 
-    // Spell checking word correction suggestions.
-    MENU_ID_SPELLCHECK_SUGGESTION_0    = 200,
-    MENU_ID_SPELLCHECK_SUGGESTION_1    = 201,
-    MENU_ID_SPELLCHECK_SUGGESTION_2    = 202,
-    MENU_ID_SPELLCHECK_SUGGESTION_3    = 203,
-    MENU_ID_SPELLCHECK_SUGGESTION_4    = 204,
-    MENU_ID_SPELLCHECK_SUGGESTION_LAST = 204,
-    MENU_ID_NO_SPELLING_SUGGESTIONS    = 205,
-    MENU_ID_ADD_TO_DICTIONARY          = 206,
+  // Miscellaneous.
+  MENU_ID_FIND           = 130;
+  MENU_ID_PRINT          = 131;
+  MENU_ID_VIEW_SOURCE    = 132;
 
-    // Custom menu items originating from the renderer process. For example,
-    // plugin placeholder menu items or Flash menu items.
-    MENU_ID_CUSTOM_FIRST        = 220,
-    MENU_ID_CUSTOM_LAST         = 250,
+  // Spell checking word correction suggestions.
+  MENU_ID_SPELLCHECK_SUGGESTION_0    = 200;
+  MENU_ID_SPELLCHECK_SUGGESTION_1    = 201;
+  MENU_ID_SPELLCHECK_SUGGESTION_2    = 202;
+  MENU_ID_SPELLCHECK_SUGGESTION_3    = 203;
+  MENU_ID_SPELLCHECK_SUGGESTION_4    = 204;
+  MENU_ID_SPELLCHECK_SUGGESTION_LAST = 204;
+  MENU_ID_NO_SPELLING_SUGGESTIONS    = 205;
+  MENU_ID_ADD_TO_DICTIONARY          = 206;
 
-    // All user-defined menu IDs should come between MENU_ID_USER_FIRST and
-    // MENU_ID_USER_LAST to avoid overlapping the Chromium and CEF ID ranges
-    // defined in the tools/gritsettings/resource_ids file.
-    MENU_ID_USER_FIRST          = 26500,
-    MENU_ID_USER_LAST           = 28500
-  );
+  // Custom menu items originating from the renderer process. For example,
+  // plugin placeholder menu items or Flash menu items.
+  MENU_ID_CUSTOM_FIRST   = 220;
+  MENU_ID_CUSTOM_LAST    = 250;
 
+  // All user-defined menu IDs should come between MENU_ID_USER_FIRST and
+  // MENU_ID_USER_LAST to avoid overlapping the Chromium and CEF ID ranges
+  // defined in the tools/gritsettings/resource_ids file.
+  MENU_ID_USER_FIRST     = 26500;
+  MENU_ID_USER_LAST      = 28500;
+
+
+Type
   // Mouse button types.
   TCefMouseButtonType = (
     MBT_LEFT = 0,
@@ -1423,24 +1461,28 @@ Type
 
   // Supported event bit flags.
   TCefEventFlag = (
-    //EVENTFLAG_NONE                = 0,
-    EVENTFLAG_CAPS_LOCK_ON,        //= 1 shl 0,
-    EVENTFLAG_SHIFT_DOWN,          //= 1 shl 1,
-    EVENTFLAG_CONTROL_DOWN,        //= 1 shl 2,
-    EVENTFLAG_ALT_DOWN,            //= 1 shl 3,
-    EVENTFLAG_LEFT_MOUSE_BUTTON,   //= 1 shl 4,
-    EVENTFLAG_MIDDLE_MOUSE_BUTTON, //= 1 shl 5,
-    EVENTFLAG_RIGHT_MOUSE_BUTTON,  //= 1 shl 6,
+    EVENTFLAG_CAPS_LOCK_ON,        //= 1 shl 0
+    EVENTFLAG_SHIFT_DOWN,          //= 1 shl 1
+    EVENTFLAG_CONTROL_DOWN,        //= 1 shl 2
+    EVENTFLAG_ALT_DOWN,            //= 1 shl 3
+    EVENTFLAG_LEFT_MOUSE_BUTTON,   //= 1 shl 4
+    EVENTFLAG_MIDDLE_MOUSE_BUTTON, //= 1 shl 5
+    EVENTFLAG_RIGHT_MOUSE_BUTTON,  //= 1 shl 6
 
     // Mac OS-X command key.
-    EVENTFLAG_COMMAND_DOWN,        //= 1 shl 7,
-    EVENTFLAG_NUM_LOCK_ON,         //= 1 shl 8,
-    EVENTFLAG_IS_KEY_PAD,          //= 1 shl 9,
-    EVENTFLAG_IS_LEFT,             //= 1 shl 10,
+    EVENTFLAG_COMMAND_DOWN,        //= 1 shl 7
+    EVENTFLAG_NUM_LOCK_ON,         //= 1 shl 8
+    EVENTFLAG_IS_KEY_PAD,          //= 1 shl 9
+    EVENTFLAG_IS_LEFT,             //= 1 shl 10
     EVENTFLAG_IS_RIGHT             //= 1 shl 11
   );
   TCefEventFlags = set of TCefEventFlag;
 
+Const
+  EVENTFLAG_NONE: TCefEventFlags = [];
+
+
+Type
   // Structure representing mouse event information.
   PCefMouseEvent = ^TCefMouseEvent;
   TCefMouseEvent = record
@@ -1466,29 +1508,33 @@ Type
   );
 
   // Supported context menu type flags.
-  TCefContextMenuTypeFlags = (
-    // No node is selected.
-    CM_TYPEFLAG_NONE        = 0,
-
+  TCefContextMenuTypeFlag = (
     // The top page is selected.
-    CM_TYPEFLAG_PAGE        = 1 shl 0,
+    CM_TYPEFLAG_PAGE,      //= 1 shl 0
 
     // A subframe page is selected.
-    CM_TYPEFLAG_FRAME       = 1 shl 1,
+    CM_TYPEFLAG_FRAME,     //= 1 shl 1
 
     // A link is selected.
-    CM_TYPEFLAG_LINK        = 1 shl 2,
+    CM_TYPEFLAG_LINK,      //= 1 shl 2
 
     // A media node is selected.
-    CM_TYPEFLAG_MEDIA       = 1 shl 3,
+    CM_TYPEFLAG_MEDIA,     //= 1 shl 3
 
     // There is a textual or mixed selection that is selected.
-    CM_TYPEFLAG_SELECTION   = 1 shl 4,
+    CM_TYPEFLAG_SELECTION, //= 1 shl 4
 
     // An editable element is selected.
-    CM_TYPEFLAG_EDITABLE    = 1 shl 5
+    CM_TYPEFLAG_EDITABLE   //= 1 shl 5
   );
+  TCefContextMenuTypeFlags = set of TCefContextMenuTypeFlag;
 
+Const
+  // No node is selected.
+  CM_TYPEFLAG_NONE: TCefContextMenuTypeFlags = [];
+
+
+Type
   // Supported context menu media types.
   TCefContextMenuMediaType = (
     // No special node is in context.
@@ -1512,34 +1558,42 @@ Type
 
   // Supported context menu media state bit flags.
   TCefContextMenuMediaStateFlag = (
-    //CM_MEDIAFLAG_NONE                  = 0,
-    CM_MEDIAFLAG_ERROR,                //= 1 shl 0,
-    CM_MEDIAFLAG_PAUSED,               //= 1 shl 1,
-    CM_MEDIAFLAG_MUTED,                //= 1 shl 2,
-    CM_MEDIAFLAG_LOOP,                 //= 1 shl 3,
-    CM_MEDIAFLAG_CAN_SAVE,             //= 1 shl 4,
-    CM_MEDIAFLAG_HAS_AUDIO,            //= 1 shl 5,
-    CM_MEDIAFLAG_HAS_VIDEO,            //= 1 shl 6,
-    CM_MEDIAFLAG_CONTROL_ROOT_ELEMENT, //= 1 shl 7,
-    CM_MEDIAFLAG_CAN_PRINT,            //= 1 shl 8,
+    CM_MEDIAFLAG_ERROR,                //= 1 shl 0
+    CM_MEDIAFLAG_PAUSED,               //= 1 shl 1
+    CM_MEDIAFLAG_MUTED,                //= 1 shl 2
+    CM_MEDIAFLAG_LOOP,                 //= 1 shl 3
+    CM_MEDIAFLAG_CAN_SAVE,             //= 1 shl 4
+    CM_MEDIAFLAG_HAS_AUDIO,            //= 1 shl 5
+    CM_MEDIAFLAG_HAS_VIDEO,            //= 1 shl 6
+    CM_MEDIAFLAG_CONTROL_ROOT_ELEMENT, //= 1 shl 7
+    CM_MEDIAFLAG_CAN_PRINT,            //= 1 shl 8
     CM_MEDIAFLAG_CAN_ROTATE            //= 1 shl 9
   );
   TCefContextMenuMediaStateFlags = set of TCefContextMenuMediaStateFlag;
 
+Const
+  CM_MEDIAFLAG_NONE: TCefContextMenuMediaStateFlags = [];
+
+
+Type
   // Supported context menu edit state bit flags.
   TCefContextMenuEditStateFlag = (
-    //CM_EDITFLAG_NONE            = 0,
-    CM_EDITFLAG_CAN_UNDO,       //= 1 shl 0,
-    CM_EDITFLAG_CAN_REDO,       //= 1 shl 1,
-    CM_EDITFLAG_CAN_CUT,        //= 1 shl 2,
-    CM_EDITFLAG_CAN_COPY,       //= 1 shl 3,
-    CM_EDITFLAG_CAN_PASTE,      //= 1 shl 4,
-    CM_EDITFLAG_CAN_DELETE,     //= 1 shl 5,
-    CM_EDITFLAG_CAN_SELECT_ALL, //= 1 shl 6,
+    CM_EDITFLAG_CAN_UNDO,       //= 1 shl 0
+    CM_EDITFLAG_CAN_REDO,       //= 1 shl 1
+    CM_EDITFLAG_CAN_CUT,        //= 1 shl 2
+    CM_EDITFLAG_CAN_COPY,       //= 1 shl 3
+    CM_EDITFLAG_CAN_PASTE,      //= 1 shl 4
+    CM_EDITFLAG_CAN_DELETE,     //= 1 shl 5
+    CM_EDITFLAG_CAN_SELECT_ALL, //= 1 shl 6
     CM_EDITFLAG_CAN_TRANSLATE   //= 1 shl 7
- );
- TCefContextMenuEditStateFlags = set of TCefContextMenuEditStateFlag;
+  );
+  TCefContextMenuEditStateFlags = set of TCefContextMenuEditStateFlag;
 
+Const
+  CM_EDITFLAG_NONE: TCefContextMenuEditStateFlags = [];
+
+
+Type
   // Key event types.
   TCefKeyEventType = (
     // Notification that a key transitioned from "up" to "down".
@@ -1885,29 +1939,26 @@ Type
   end;
 
   // URI unescape rules passed to CefURIDecode().
-  TCefUriUnescapeRule = (
-    // Don't unescape anything at all.
-    UU_NONE = 0,
-
+  TCefUriUnescapeRuleFlags = (
     // Don't unescape anything special, but all normal unescaping will happen.
     // This is a placeholder and can't be combined with other flags (since it's
     // just the absence of them). All other unescape rules imply "normal" in
     // addition to their special meaning. Things like escaped letters, digits,
     // and most symbols will get unescaped with this mode.
-    UU_NORMAL = 1 shl 0,
+    UU_NORMAL,                                   //= 1 shl 0
 
     // Convert %20 to spaces. In some places where we're showing URLs, we may
     // want this. In places where the URL may be copied and pasted out, then
     // you wouldn't want this since it might not be interpreted in one piece
     // by other applications.
-    UU_SPACES = 1 shl 1,
+    UU_SPACES,                                   //= 1 shl 1
 
     // Unescapes '/' and '\\'. If these characters were unescaped, the resulting
     // URL won't be the same as the source one. Moreover, they are dangerous to
     // unescape in strings that will be used as file paths or names. This value
     // should only be used when slashes don't have special meaning, like data
     // URLs.
-    UU_PATH_SEPARATORS = 1 shl 2,
+    UU_PATH_SEPARATORS,                          //= 1 shl 2
 
     // Unescapes various characters that will change the meaning of URLs,
     // including '%', '+', '&', '#'. Does not unescape path separators.
@@ -1915,7 +1966,7 @@ Type
     // as the source one. This flag is used when generating final output like
     // filenames for URLs where we won't be interpreting as a URL and want to do
     // as much unescaping as possible.
-    UU_URL_SPECIAL_CHARS_EXCEPT_PATH_SEPARATORS = 1 shl 3,
+    UU_URL_SPECIAL_CHARS_EXCEPT_PATH_SEPARATORS, //= 1 shl 3
 
     // Unescapes characters that can be used in spoofing attempts (such as LOCK)
     // and control characters (such as BiDi control characters and %01).  This
@@ -1924,22 +1975,33 @@ Type
     //
     // DO NOT use UU_SPOOFING_AND_CONTROL_CHARS if the URL is going to be
     // displayed in the UI for security reasons.
-    UU_SPOOFING_AND_CONTROL_CHARS = 1 shl 4,
+    UU_SPOOFING_AND_CONTROL_CHARS,               //= 1 shl 4
 
     // URL queries use "+" for space. This flag controls that replacement.
-    UU_REPLACE_PLUS_WITH_SPACE = 1 shl 5
+    UU_REPLACE_PLUS_WITH_SPACE                   //= 1 shl 5
   );
+  TCefUriUnescapeRule = set of TCefUriUnescapeRuleFlags;
 
+Const
+  // Don't unescape anything at all.
+  UU_NONE: TCefUriUnescapeRule = [];
+
+
+Type
   // Options that can be passed to CefParseJSON.
-  TCefJsonParserOptions = (
-    // Parses the input strictly according to RFC 4627. See comments in Chromium's
-    // base/json/json_reader.h file for known limitations/deviations from the RFC.
-    JSON_PARSER_RFC = 0,
-
+  TCefJsonParserOptionsFlags = (
     // Allows commas to exist after the last element in structures.
-    JSON_PARSER_ALLOW_TRAILING_COMMAS = 1 shl 0
+    JSON_PARSER_ALLOW_TRAILING_COMMAS //= 1 shl 0
   );
+  TCefJsonParserOptions = set of TCefJsonParserOptionsFlags;
 
+Const
+  // Parses the input strictly according to RFC 4627. See comments in Chromium's
+  // base/json/json_reader.h file for known limitations/deviations from the RFC.
+  JSON_PARSER_RFC: TCefJsonParserOptions = [];
+
+
+Type
   // Error codes that can be returned from CefParseJSONAndReturnError.
   PCefJsonParserError = ^TCefJsonParserError;
   TCefJsonParserError = (
@@ -1956,27 +2018,31 @@ Type
   );
 
   // Options that can be passed to CefWriteJSON.
-  TCefJsonWriterOptions = (
-    // Default behavior.
-    JSON_WRITER_DEFAULT = 0,
-
+  TCefJsonWriterOptionsFlags = (
     // This option instructs the writer that if a Binary value is encountered,
     // the value (and key if within a dictionary) will be omitted from the
     // output, and success will be returned. Otherwise, if a binary value is
     // encountered, failure will be returned.
-    JSON_WRITER_OMIT_BINARY_VALUES = 1 shl 0,
+    JSON_WRITER_OMIT_BINARY_VALUES,            //= 1 shl 0
 
     // This option instructs the writer to write doubles that have no fractional
     // part as a normal integer (i.e., without using exponential notation
     // or appending a '.0') as long as the value is within the range of a
     // 64-bit int.
-    JSON_WRITER_OMIT_DOUBLE_TYPE_PRESERVATION = 1 shl 1,
+    JSON_WRITER_OMIT_DOUBLE_TYPE_PRESERVATION, //= 1 shl 1
 
     // Return a slightly nicer formatted json string (pads with whitespace to
     // help with readability).
-    JSON_WRITER_PRETTY_PRINT = 1 shl 2
+    JSON_WRITER_PRETTY_PRINT                   //= 1 shl 2
   );
+  TCefJsonWriterOptions = set of TCefJsonWriterOptionsFlags;
 
+Const
+  // Default behavior.
+  JSON_WRITER_DEFAULT: TCefJsonWriterOptions = [];
+
+
+Type
   // Margin type for PDF printing.
   TCefPdfPrintMarginType = (
     // Default margins.
@@ -2229,6 +2295,47 @@ Type
     CEF_MENU_ANCHOR_TOPLEFT,
     CEF_MENU_ANCHOR_TOPRIGHT,
     CEF_MENU_ANCHOR_BOTTOMCENTER
+  );
+
+  // Supported SSL version values. See net/ssl/ssl_connection_status_flags.h
+  // for more information.
+  TCefSslVersion = (
+    SSL_CONNECTION_VERSION_UNKNOWN = 0,  // Unknown SSL version.
+    SSL_CONNECTION_VERSION_SSL2 = 1,
+    SSL_CONNECTION_VERSION_SSL3 = 2,
+    SSL_CONNECTION_VERSION_TLS1 = 3,
+    SSL_CONNECTION_VERSION_TLS1_1 = 4,
+    SSL_CONNECTION_VERSION_TLS1_2 = 5,
+    // Reserve 6 for TLS 1.3.
+    SSL_CONNECTION_VERSION_QUIC = 7
+  );
+
+  // Supported SSL content status flags. See content/public/common/ssl_status.h
+  // for more information.
+  TCefSslContentStatusFlags = (
+    SSL_CONTENT_DISPLAYED_INSECURE_CONTENT, //= 1 shl 0
+    SSL_CONTENT_RAN_INSECURE_CONTENT        //= 1 shl 1
+  );
+  TCefSslContentStatus = set of TCefSslContentStatusFlags;
+
+Const
+  SSL_CONTENT_NORMAL_CONTENT: TCefSslContentStatus = [];
+
+
+Type
+  // Error codes for CDM registration. See cef_web_plugin.h for details.
+  TCefCdmRegistrationError = (
+    // No error. Registration completed successfully.
+    CEF_CDM_REGISTRATION_ERROR_NONE,
+
+    // Required files or manifest contents are missing.
+    CEF_CDM_REGISTRATION_ERROR_INCORRECT_CONTENTS,
+
+    // The CDM is incompatible with the current Chromium version.
+    CEF_CDM_REGISTRATION_ERROR_INCOMPATIBLE,
+
+    // CDM registration is not supported at this time.
+    CEF_CDM_REGISTRATION_ERROR_NOT_SUPPORTED
   );
 
 Implementation

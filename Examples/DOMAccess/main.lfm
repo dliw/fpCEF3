@@ -8,7 +8,7 @@ object Mainform: TMainform
   ClientHeight = 587
   ClientWidth = 921
   OnCreate = FormCreate
-  LCLVersion = '1.4.2.0'
+  LCLVersion = '1.6.4.0'
   object BGo: TButton
     AnchorSideTop.Control = Owner
     AnchorSideRight.Control = Owner
@@ -83,6 +83,6 @@ object Mainform: TMainform
     OnTitleChange = ChromiumTitleChange
     OnKeyEvent = ChromiumKeyEvent
     OnLoadEnd = ChromiumLoadEnd
-    DefaultUrl = 'www.google.de'
+    DefaultUrl = 'https://github.com/dliw/fpCEF3'
   end
 end

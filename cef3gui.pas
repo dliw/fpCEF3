@@ -149,7 +149,7 @@ Type
   TOnGetResourceHandler = procedure(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame;
     const request: ICefRequest; out Result: ICefResourceHandler) of object;
   TOnResourceRedirect = procedure(Sender: TObject; const browser: ICefBrowser; const frame: ICefFrame;
-    const request: ICefRequest; var newUrl: ustring) of object;
+    const request: ICefRequest; const response: ICefResponse; var newUrl: ustring) of object;
   TOnResourceResponse = procedure(Sender: TObject; browser: ICefBrowser; frame: ICefFrame; request: ICefRequest;
     response: ICefResponse; out Result: Boolean) of object;
   TOnGetResourceResponseFilter = procedure(Sender: TObject; const browser: ICefBrowser;
@@ -166,8 +166,13 @@ Type
     out Result: Boolean) of object;
   TOnProtocolExecution = procedure(Sender: TObject; const Browser: ICefBrowser;
     const url: ustring; out allowOsExecution: Boolean) of object;
-  TOnCertificateError = procedure(Sender: TObject; certError: TCefErrorcode; const requestUrl: ustring;
-    callback: ICefRequestCallback; out Result: Boolean) of object;
+  TOnCertificateError = procedure(Sender: TObject; const Browser: ICefBrowser;
+      certError: TCefErrorCode; const requestUrl: ustring; const sslInfo: ICefSslinfo;
+      callback: ICefRequestCallback; out Result: Boolean) of object;
+  TOnSelectClientCertificate = procedure(Sender: TObject; const browser: ICefBrowser; isProxy: Boolean;
+      const host: ustring; port: Integer; certificatesCount: TSize;
+      certificates: ICefX509certificateArray; callback: ICefSelectClientCertificateCallback;
+      out Result: Boolean) of object;
   TOnPluginCrashed = procedure(Sender: TObject; const browser: ICefBrowser; const plugin_path: ustring) of object;
   TOnRenderViewReady = procedure(Sender: TObject; const browser: ICefBrowser) of object;
   TOnRenderProcessTerminated = procedure(Sender: TObject; const browser: ICefBrowser; status: TCefTerminationStatus) of object;
@@ -366,7 +371,7 @@ Type
     function doOnGetResourceHandler(const browser: ICefBrowser; const frame: ICefFrame;
       const request: ICefRequest): ICefResourceHandler;
     procedure doOnResourceRedirect(const browser: ICefBrowser; const frame: ICefFrame;
-      const request: ICefRequest; var newUrl: ustring);
+      const request: ICefRequest; const response: ICefResponse; var newUrl: ustring);
     function doOnResourceResponse(const browser: ICefBrowser; const frame: ICefFrame;
       const request: ICefRequest; const response: ICefResponse): Boolean;
     function doOnGetResourceResponseFilter(const browser: ICefBrowser;
@@ -384,6 +389,9 @@ Type
       out allowOsExecution: Boolean);
     function doOnCertificateError(const browser: ICefBrowser; certError: TCefErrorCode;
       const requestUrl: ustring; const sslInfo: ICefSslinfo; callback: ICefRequestCallback): Boolean;
+    function doOnSelectClientCertificate(const browser: ICefBrowser; isProxy: Boolean;
+      const host: ustring; port: Integer; certificatesCount: TSize;
+      certificates: ICefX509certificateArray; callback: ICefSelectClientCertificateCallback): Boolean;
     procedure doOnPluginCrashed(const browser: ICefBrowser; const plugin_path: ustring);
     procedure doOnRenderViewReady(const browser: ICefBrowser);
     procedure doOnRenderProcessTerminated(const browser: ICefBrowser; status: TCefTerminationStatus);
@@ -630,7 +638,7 @@ Type
     function GetResourceHandler(const browser: ICefBrowser; const frame: ICefFrame;
       const request: ICefRequest): ICefResourceHandler; override;
     procedure OnResourceRedirect(const browser: ICefBrowser; const frame: ICefFrame;
-      const request: ICefRequest; var newUrl: ustring); override;
+      const request: ICefRequest; const response: ICefResponse; var newUrl: ustring); override;
     function OnResourceResponse(const browser: ICefBrowser; const frame: ICefFrame;
       const request: ICefRequest; const response: ICefResponse): Boolean; override;
     function GetResourceResponseFilter(const browser: ICefBrowser; const frame: ICefFrame;
@@ -647,6 +655,9 @@ Type
       out allowOsExecution: Boolean); override;
     function OnCertificateError(const browser: ICefBrowser; certError: TCefErrorCode;
       const requestUrl: ustring; const sslInfo: ICefSslinfo; callback: ICefRequestCallback): Boolean; override;
+    function OnSelectClientCertificate(const browser: ICefBrowser; isProxy: Boolean; const host: ustring;
+      port: Integer; certificatesCount: TSize; certificates: ICefX509certificateArray;
+      callback: ICefSelectClientCertificateCallback): Boolean; override;
     procedure OnPluginCrashed(const browser: ICefBrowser; const plugin_path: ustring); override;
     procedure OnRenderViewReady(browser: ICefBrowser); override;
     procedure OnRenderProcessTerminated(const browser: ICefBrowser; status: TCefTerminationStatus); override;
@@ -679,6 +690,7 @@ begin
     4: Result := fSansSerifFontFamily;
     5: Result := fCursiveFontFamily;
     6: Result := fFantasyFontFamily;
+  Else Result := fStandardFontFamily;
   end;
 end;
 
@@ -1250,9 +1262,10 @@ begin
 end;
 
 procedure TCustomRequestHandler.OnResourceRedirect(const browser: ICefBrowser;
-  const frame: ICefFrame; const request: ICefRequest; var newUrl: ustring);
+  const frame: ICefFrame; const request: ICefRequest; const response: ICefResponse;
+  var newUrl: ustring);
 begin
-  fEvent.doOnResourceRedirect(browser, frame, request, newUrl);
+  fEvent.doOnResourceRedirect(browser, frame, request, response, newUrl);
 end;
 
 function TCustomRequestHandler.OnResourceResponse(const browser: ICefBrowser;
@@ -1300,6 +1313,14 @@ function TCustomRequestHandler.OnCertificateError(const browser: ICefBrowser;
   callback: ICefRequestCallback): Boolean;
 begin
   Result := fEvent.doOnCertificateError(browser, certError, requestUrl, sslInfo, callback);
+end;
+
+function TCustomRequestHandler.OnSelectClientCertificate(const browser: ICefBrowser;
+  isProxy: Boolean; const host: ustring; port: Integer; certificatesCount: TSize;
+  certificates: ICefX509certificateArray; callback: ICefSelectClientCertificateCallback): Boolean;
+begin
+  Result := fEvent.doOnSelectClientCertificate(browser, isProxy, host, port, certificatesCount,
+    certificates, callback);
 end;
 
 procedure TCustomRequestHandler.OnPluginCrashed(const browser: ICefBrowser;

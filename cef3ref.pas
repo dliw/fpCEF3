@@ -27,7 +27,7 @@ Unit cef3ref;
 Interface
 
 Uses
-  Classes, SysUtils, ctypes,
+  Classes, SysUtils,
   {$IFDEF DEBUG}LCLProc,{$ENDIF}
   cef3api, cef3types, cef3intf, cef3own;
 
@@ -84,7 +84,7 @@ Type
     procedure RunFileDialog(mode: TCefFileDialogMode; const title, defaultFileName: ustring;
       acceptFilters: TStrings; selectedAcceptFilter: Integer; const callback: ICefRunFileDialogCallback);
     procedure RunFileDialogProc(mode: TCefFileDialogMode; const title, defaultFileName: ustring;
-      acceptFilters: TStrings; selectedAcceptFilter: Integer; const callback : TCefRunFileDialogCallbackProc);
+      acceptFilters: TStrings; selectedAcceptFilter: Integer; const proc: TCefRunFileDialogCallbackProc);
     procedure StartDownload(const url: ustring);
     procedure DownloadImage(const imageUrl: ustring; isFavicon: Boolean; maxImageSize: UInt32;
       bypassCache: Boolean; const callback: ICefDownloadImageCallback);
@@ -96,7 +96,8 @@ Type
       var settings: TCefBrowserSettings; const inspectElementAt: PCefPoint);
     procedure CloseDevTools;
     function HasDevTools: Boolean;
-    procedure GetNavigationEntries(visitor: ICefNavigationEntryVisior; currentOnly: Boolean);
+    procedure GetNavigationEntries(const visitor: ICefNavigationEntryVisitor; currentOnly: Boolean);
+    procedure GetNavigationEntriesProc(const proc: TCefNavigationEntryVisitorProc; currentOnly: Boolean);
     procedure SetMouseCursorChangeDisabled(disabled: Boolean);
     function GetIsMouseCursorChangeDisabled: Boolean;
     procedure ReplaceMisspelling(const word: ustring);
@@ -122,6 +123,7 @@ Type
     procedure DragTargetDrop(const event: TCefMouseEvent);
     procedure DragSourceEndedAt(x,y: Integer; op: TCefDragOperationsMask);
     procedure DragSourceSystemDragEnded;
+    function GetVisibleNavigationEntry: ICefNavigationEntry;
   public
     class function UnWrap(data: Pointer): ICefBrowserHost;
   end;
@@ -198,7 +200,8 @@ Type
 
   TCefCookieManagerRef = class(TCefBaseRef, ICefCookieManager)
   protected
-    procedure SetSupportedSchemes(schemes: TStrings; callback: ICefCompletionCallback);
+    procedure SetSupportedSchemes(schemes: TStrings; const callback: ICefCompletionCallback);
+    procedure SetSupportedSchemesProc(schemes: TStrings; const proc: TCefCompletionCallbackProc);
     function VisitAllCookies(const visitor: ICefCookieVisitor): Boolean;
     function VisitAllCookiesProc(const visitor: TCefCookieVisitorProc): Boolean;
     function VisitUrlCookies(const url: ustring;
@@ -207,9 +210,14 @@ Type
       includeHttpOnly: Boolean; const visitor: TCefCookieVisitorProc): Boolean;
     function SetCookie(const url: ustring; const name, value, domain, path: ustring; secure, httponly,
       hasExpires: Boolean; const creation, lastAccess, expires: TDateTime;
-      callback: ICefSetCookieCallback): Boolean;
+      const callback: ICefSetCookieCallback): Boolean;
+    function SetCookieProc(const url: ustring; const name, value, domain, path: ustring; secure, httponly,
+      hasExpires: Boolean; const creation, lastAccess, expires: TDateTime;
+      const proc: TCefSetCookieCallbackProc): Boolean;
     function DeleteCookies(const url, cookieName: ustring;
-      callback: ICefDeleteCookiesCallback): Boolean;
+      const callback: ICefDeleteCookiesCallback): Boolean;
+    function DeleteCookiesProc(const url, cookieName: ustring;
+      const proc: TCefDeleteCookiesCallbackProc): Boolean;
     function SetStoragePath(const path: ustring; PersistSessionCookies: Boolean;
       callback: ICefCompletionCallback): Boolean;
     function FlushStore(handler: ICefCompletionCallback): Boolean;
@@ -275,6 +283,7 @@ Type
     procedure GetElementAttributes(const attrMap: ICefStringMap);
     function SetElementAttribute(const attrName, value: ustring): Boolean;
     function GetElementInnerText: ustring;
+    function GetElementBounds: TCefRect;
   public
     class function UnWrap(data: Pointer): ICefDomNode;
   end;
@@ -372,7 +381,7 @@ Type
     function GetParent: ICefFrame;
     function GetUrl: ustring;
     function GetBrowser: ICefBrowser;
-    function GetV8Context: ICefv8Context;
+    function GetV8Context: ICefV8Context;
     procedure VisitDom(const visitor: ICefDomVisitor);
     procedure VisitDomProc(const proc: TCefDomVisitorProc);
   public
@@ -471,6 +480,22 @@ Type
     class function UnWrap(data: Pointer): ICefMenuModel;
   end;
 
+  TCefNavigationEntryRef = class(TCefBaseRef, ICefNavigationEntry)
+  protected
+    function IsValid: Boolean;
+    function GetUrl: ustring;
+    function GetDisplayUrl: ustring;
+    function GetOriginalUrl: ustring;
+    function GetTitle: ustring;
+    function GetTransitionType: TCefTransitionType;
+    function HasPostData: Boolean;
+    function GetCompletionTime: TDateTime;
+    function GetHttpStatusCode: Integer;
+    function GetSslStatus: ICefSslStatus;
+  public
+    class function UnWrap(data: Pointer): ICefNavigationEntry;
+  end;
+
   TCefPrintDialogCallbackRef = class(TCefBaseRef, ICefPrintDialogCallback)
   protected
     procedure Cont(settings: ICefPrintSettings);
@@ -561,7 +586,7 @@ Type
     function IsReadOnly: Boolean;
     function HasExcludedElements: Boolean;
     function GetElementCount: TSize;
-    function GetElements(Count: TSize): IInterfaceList; // ICefPostDataElement
+    procedure GetElements(Count: TSize; out elements: ICefPostDataElementArray);
     function RemoveElement(const element: ICefPostDataElement): Integer;
     function AddElement(const element: ICefPostDataElement): Integer;
     procedure RemoveElements;
@@ -603,7 +628,8 @@ Type
     function SetPreference(const name: ustring; value: ICefValue; out error: ustring): Boolean;
     procedure ClearCertificateExceptions(callback: ICefCompletionCallback);
     procedure CloseAllConnections(callback: ICefCompletionCallback);
-    procedure ResolveHost(const origin: ustring; callback: ICefResolveCallback);
+    procedure ResolveHost(const origin: ustring; const callback: ICefResolveCallback);
+    procedure ResolveHostProc(const origin: ustring; const proc: TCefResolveCallbackProc);
     function ResolveHostCached(const origin: ustring; resolvedIps: TStrings): TCefErrorCode;
   public
     class function UnWrap(data: Pointer): ICefRequestContext;
@@ -635,6 +661,13 @@ Type
     procedure Cancel;
   public
      class function UnWrap(data: Pointer): ICefRequestCallback;
+  end;
+
+  TCefSelectClientCertificateCallbackRef = class(TCefBaseRef, ICefSelectClientCertificateCallback)
+  protected
+    procedure Select(cert: ICefX509certificate);
+  public
+    class function UnWrap(data: Pointer): ICefSelectClientCertificateCallback;
   end;
 
   TCefResourceBundleRef = class(TCefBaseRef, ICefResourceBundle)
@@ -675,38 +708,23 @@ Type
     class function UnWrap(data: Pointer): ICefSchemeRegistrar;
   end;
 
-  TCefSslcertPrincipalRef = class(TCefBaseRef, ICefSslcertPrincipal)
-  protected
-    function GetDisplayName: ustring;
-    function GetCommonName: ustring;
-    function GetLocalityName: ustring;
-    function GetStateOrProvinceName: ustring;
-    function GetCountryName: ustring;
-    procedure GetStreetAddresses(addresses: TStrings);
-    procedure GetOriganizationNames(names: TStrings);
-    procedure GetOriganizationUnitNames(names: TStrings);
-    procedure GetDomainComponents(components: TStrings);
-  public
-    class function UnWrap(data: Pointer): ICefSslcertPrincipal;
-  end;
-
   TCefSslinfoRef = class(TCefBaseRef, ICefSslinfo)
   protected
     function GetCertStatus: TCefCertStatus;
-    function IsCertStatusError: Boolean;
-    function IsCertStatusMinorError: Boolean;
-    function GetSubject: ICefSslcertPrincipal;
-    function GetIssuer: ICefSslcertPrincipal;
-    function GetSerialNumber: ICefBinaryValue;
-    function GetValidStart: TDateTime;
-    function GetValidExpiry: TDateTime;
-    function GetDerencoded: ICefBinaryValue;
-    function GetPemencoded: ICefBinaryValue;
-    function GetIssuerChainSize: TSize;
-    procedure GetDerencodedIssuerChain(out chain: ICefBinaryValueArray);
-    procedure GetPemencodedIssuerChain(out chain: ICefBinaryValueArray);
+    function GetX509Certificate: ICefx509Certificate;
   public
     class function UnWrap(data: Pointer): ICefSslinfo;
+  end;
+
+  TCefSslstatusRef = class(TCefBaseRef, ICefSslstatus)
+  protected
+    function IsSecureConnection: Boolean;
+    function GetCertStatus: TCefCertStatus;
+    function GetSslVersion: TCefSslVersion;
+    function GetContentStatus: TCefSslContentStatus;
+    function Getx509Certificate: ICefx509Certificate;
+  public
+    class function UnWrap(data: Pointer): ICefSslstatus;
   end;
 
   TCefStreamReaderRef = class(TCefBaseRef, ICefStreamReader)
@@ -784,30 +802,31 @@ Type
     class function UnWrap(data: Pointer): ICefUrlRequestClient;
   end;
 
-  TCefv8ContextRef = class(TCefBaseRef, ICefv8Context)
+  TCefV8ContextRef = class(TCefBaseRef, ICefV8Context)
   protected
     function GetTaskRunner:ICefTaskRunner;
     function IsValid: Boolean;
     function GetBrowser: ICefBrowser;
     function GetFrame: ICefFrame;
-    function GetGlobal: ICefv8Value;
+    function GetGlobal: ICefV8Value;
     function Enter: Boolean;
     function Exit: Boolean;
-    function IsSame(const that: ICefv8Context): Boolean;
-    function Eval(const code: ustring; var retval: ICefv8Value; var exception: ICefV8Exception): Boolean;
+    function IsSame(const that: ICefV8Context): Boolean;
+    function Eval(const code, scriptUrl: ustring; startLine: Integer; var retval: ICefV8Value;
+      var exception: ICefV8Exception): Boolean;
   public
-    class function UnWrap(data: Pointer): ICefv8Context;
-    class function Current: ICefv8Context;
-    class function Entered: ICefv8Context;
+    class function UnWrap(data: Pointer): ICefV8Context;
+    class function Current: ICefV8Context;
+    class function Entered: ICefV8Context;
   end;
 
-  TCefv8HandlerRef = class(TCefBaseRef, ICefv8Handler)
+  TCefV8HandlerRef = class(TCefBaseRef, ICefV8Handler)
   protected
-    function Execute(const name: ustring; const obj: ICefv8Value;
-      const arguments: ICefv8ValueArray; var retval: ICefv8Value;
+    function Execute(const name: ustring; const obj: ICefV8Value;
+      const arguments: ICefV8ValueArray; var retval: ICefV8Value;
       var exception: ustring): Boolean;
   public
-    class function UnWrap(data: Pointer): ICefv8Handler;
+    class function UnWrap(data: Pointer): ICefV8Handler;
   end;
 
   TCefV8ExceptionRef = class(TCefBaseRef, ICefV8Exception)
@@ -824,7 +843,7 @@ Type
     class function UnWrap(data: Pointer): ICefV8Exception;
   end;
 
-  TCefv8ValueRef = class(TCefBaseRef, ICefv8Value)
+  TCefV8ValueRef = class(TCefBaseRef, ICefV8Value)
   protected
     function IsValid:boolean;
     function IsUndefined: Boolean;
@@ -838,7 +857,7 @@ Type
     function IsObject: Boolean;
     function IsArray: Boolean;
     function IsFunction: Boolean;
-    function IsSame(const that: ICefv8Value): Boolean;
+    function IsSame(const that: ICefV8Value): Boolean;
     function GetBoolValue: Boolean;
     function GetIntValue: Integer;
     function GetUIntValue: Cardinal;
@@ -855,40 +874,39 @@ Type
     function HasValueByIndex(index: Integer): Boolean;
     function DeleteValueByKey(const key: ustring): Boolean;
     function DeleteValueByIndex(index: Integer): Boolean;
-    function GetValueByKey(const key: ustring): ICefv8Value;
-    function GetValueByIndex(index: Integer): ICefv8Value;
-    function SetValueByKey(const key: ustring; const value: ICefv8Value;
+    function GetValueByKey(const key: ustring): ICefV8Value;
+    function GetValueByIndex(index: Integer): ICefV8Value;
+    function SetValueByKey(const key: ustring; const value: ICefV8Value;
       attribute: TCefV8PropertyAttributes): Boolean;
-    function SetValueByIndex(index: Integer; const value: ICefv8Value): Boolean;
+    function SetValueByIndex(index: Integer; const value: ICefV8Value): Boolean;
     function SetValueByAccessor(const key: ustring; settings: TCefV8AccessControls;
       attribute: TCefV8PropertyAttributes): Boolean;
     function GetKeys(const keys: TStrings): Integer;
-    function SetUserData(const data: ICefv8Value): Boolean;
-    function GetUserData: ICefv8Value;
+    function SetUserData(const data: ICefV8Value): Boolean;
+    function GetUserData: ICefV8Value;
     function GetExternallyAllocatedMemory: Integer;
     function AdjustExternallyAllocatedMemory(changeInBytes: Integer): Integer;
     function GetArrayLength: Integer;
     function GetFunctionName: ustring;
-    function GetFunctionHandler: ICefv8Handler;
-    function ExecuteFunction(const obj: ICefv8Value;
-      const arguments: ICefv8ValueArray): ICefv8Value;
-    function ExecuteFunctionWithContext(const context: ICefv8Context;
-      const obj: ICefv8Value; const arguments: ICefv8ValueArray): ICefv8Value;
+    function GetFunctionHandler: ICefV8Handler;
+    function ExecuteFunction(const obj: ICefV8Value;
+      const arguments: ICefV8ValueArray): ICefV8Value;
+    function ExecuteFunctionWithContext(const context: ICefV8Context;
+      const obj: ICefV8Value; const arguments: ICefV8ValueArray): ICefV8Value;
   public
-    class function UnWrap(data: Pointer): ICefv8Value;
-    class function NewUndefined: ICefv8Value;
-    class function NewNull: ICefv8Value;
-    class function NewBool(value: Boolean): ICefv8Value;
-    class function NewInt(value: Integer): ICefv8Value;
-    class function NewUInt(value: Cardinal): ICefv8Value;
-    class function NewDouble(value: Double): ICefv8Value;
-    class function NewDate(value: TDateTime): ICefv8Value;
-    class function NewString(const str: ustring): ICefv8Value;
-    class function NewObject(const Accessor: ICefV8Accessor): ICefv8Value;
-    class function NewObjectProc(const getter: TCefV8AccessorGetterProc;
-      const setter: TCefV8AccessorSetterProc): ICefv8Value;
-    class function NewArray(len: Integer): ICefv8Value;
-    class function NewFunction(const name: ustring; const handler: ICefv8Handler): ICefv8Value;
+    class function UnWrap(data: Pointer): ICefV8Value;
+    class function NewUndefined: ICefV8Value;
+    class function NewNull: ICefV8Value;
+    class function NewBool(value: Boolean): ICefV8Value;
+    class function NewInt(value: Integer): ICefV8Value;
+    class function NewUInt(value: Cardinal): ICefV8Value;
+    class function NewDouble(value: Double): ICefV8Value;
+    class function NewDate(value: TDateTime): ICefV8Value;
+    class function NewString(const str: ustring): ICefV8Value;
+    class function NewObject(const Accessor: ICefV8Accessor;
+        const Interceptor: ICefV8Interceptor): ICefV8Value;
+    class function NewArray(len: Integer): ICefV8Value;
+    class function NewFunction(const name: ustring; const handler: ICefV8Handler): ICefV8Value;
   end;
 
   TCefV8StackTraceRef = class(TCefBaseRef, ICefV8StackTrace)
@@ -1038,6 +1056,37 @@ Type
     class function UnWrap(data: Pointer): ICefWebPluginInfo;
   end;
 
+  TCefX509certPrincipalRef = class(TCefBaseRef, ICefX509certPrincipal)
+  protected
+    function GetDisplayName: ustring;
+    function GetCommonName: ustring;
+    function GetLocalityName: ustring;
+    function GetStateOrProvinceName: ustring;
+    function GetCountryName: ustring;
+    procedure GetStreetAddresses(addresses: TStrings);
+    procedure GetOrganizationNames(names: TStrings);
+    procedure GetOrganizationUnitNames(names: TStrings);
+    procedure GetDomainComponents(components: TStrings);
+  public
+    class function UnWrap(data: Pointer): ICefX509certPrincipal;
+  end;
+
+  TCefX509certificateRef = class(TCefBaseRef, ICefX509certificate)
+  protected
+    function GetSubject: ICefX509certPrincipal;
+    function GetIssuer: ICefX509certPrincipal;
+    function GetSerialNumber: ICefBinaryValue;
+    function GetValidStart: TDateTime;
+    function GetValidExpiry: TDateTime;
+    function GetDerencoded: ICefBinaryValue;
+    function GetPemencoded: ICefBinaryValue;
+    function GetIssuerChainSize: Integer;
+    procedure GetDerencodedIssuerChain(chainCount: TSize; out chain: ICefBinaryValueArray);
+    procedure GetPemencodedIssuerChain(chainCount: TSize; out chain: ICefBinaryValueArray);
+  public
+    class function UnWrap(data: Pointer): ICefX509certificate;
+  end;
+
   TCefXmlReaderRef = class(TCefBaseRef, ICefXmlReader)
   protected
     function MoveToNextNode: Boolean;
@@ -1083,7 +1132,7 @@ Type
     function Close: Boolean;
     function GetFileName: ustring;
     function GetFileSize: Int64;
-    function GetFileLastModified: TCefTime;
+    function GetFileLastModified: TDateTime;
     function OpenFile(const password: ustring): Boolean;
     function CloseFile: Boolean;
     function ReadFile(buffer: Pointer; bufferSize: TSize): Integer;
@@ -1382,10 +1431,16 @@ begin
   Result := PCefBrowserHost(fData)^.has_dev_tools(fData) <> 0;
 end;
 
-procedure TCefBrowserHostRef.GetNavigationEntries(visitor: ICefNavigationEntryVisior;
+procedure TCefBrowserHostRef.GetNavigationEntries(const visitor: ICefNavigationEntryVisitor;
   currentOnly: Boolean);
 begin
   PCefBrowserHost(fData)^.get_navigation_entries(fData, CefGetData(visitor), ord(currentOnly));
+end;
+
+procedure TCefBrowserHostRef.GetNavigationEntriesProc(const proc: TCefNavigationEntryVisitorProc;
+  currentOnly: Boolean);
+begin
+  GetNavigationEntries(TCefFastNavigationEntryVisitor.Create(proc), currentOnly);
 end;
 
 procedure TCefBrowserHostRef.SetMouseCursorChangeDisabled(disabled : Boolean);
@@ -1518,6 +1573,11 @@ begin
   PCefBrowserHost(fData)^.drag_source_system_drag_ended(fData);
 end;
 
+function TCefBrowserHostRef.GetVisibleNavigationEntry: ICefNavigationEntry;
+begin
+  Result := TCefNavigationEntryRef.UnWrap(PCefBrowserHost(fData)^.get_visible_navigation_entry(fData));
+end;
+
 procedure TCefBrowserHostRef.RunFileDialog(mode: TCefFileDialogMode;
   const title, defaultFileName: ustring; acceptFilters: TStrings; selectedAcceptFilter: Integer;
   const callback: ICefRunFileDialogCallback);
@@ -1547,10 +1607,10 @@ end;
 
 procedure TCefBrowserHostRef.RunFileDialogProc(mode: TCefFileDialogMode;
   const title, defaultFileName: ustring; acceptFilters: TStrings; selectedAcceptFilter: Integer;
-  const callback : TCefRunFileDialogCallbackProc);
+  const proc: TCefRunFileDialogCallbackProc);
 begin
   RunFileDialog(mode, title, defaultFileName, acceptFilters, selectedAcceptFilter,
-    TCefFastRunFileDialogCallback.Create(callback));
+    TCefFastRunFileDialogCallback.Create(proc));
 end;
 
 class function TCefBrowserHostRef.UnWrap(data : Pointer) : ICefBrowserHost;
@@ -1894,7 +1954,8 @@ end;
 
 { TCefCookieManagerRef }
 
-procedure TCefCookieManagerRef.SetSupportedSchemes(schemes: TStrings; callback: ICefCompletionCallback);
+procedure TCefCookieManagerRef.SetSupportedSchemes(schemes: TStrings;
+  const callback: ICefCompletionCallback);
 Var
   list : TCefStringList;
   i    : Integer;
@@ -1913,6 +1974,12 @@ begin
   finally
     cef_string_list_free(list);
   end;
+end;
+
+procedure TCefCookieManagerRef.SetSupportedSchemesProc(schemes: TStrings;
+  const proc: TCefCompletionCallbackProc);
+begin
+  SetSupportedSchemes(schemes, TCefFastCompletionCallback.Create(proc));
 end;
 
 function TCefCookieManagerRef.VisitAllCookies(const visitor : ICefCookieVisitor) : Boolean;
@@ -1940,9 +2007,9 @@ begin
   Result := VisitUrlCookies(url, includeHttpOnly, TCefFastCookieVisitor.Create(visitor) as ICefCookieVisitor);
 end;
 
-function TCefCookieManagerRef.SetCookie(const url: ustring; const name, value, domain, path: ustring;
-  secure, httponly, hasExpires: Boolean; const creation, lastAccess, expires: TDateTime;
-  callback: ICefSetCookieCallback): Boolean;
+function TCefCookieManagerRef.SetCookie(const url: ustring;
+  const name, value, domain, path: ustring; secure, httponly, hasExpires: Boolean;
+  const creation, lastAccess, expires: TDateTime; const callback: ICefSetCookieCallback): Boolean;
 Var
   u : TCefString;
   c : TCefCookie;
@@ -1964,14 +2031,28 @@ begin
   Result := PCefCookieManager(fData)^.set_cookie(fData, @u, @c, CefGetData(callback)) <> 0;
 end;
 
+function TCefCookieManagerRef.SetCookieProc(const url: ustring;
+  const name, value, domain, path: ustring; secure, httponly, hasExpires: Boolean;
+  const creation, lastAccess, expires: TDateTime; const proc: TCefSetCookieCallbackProc): Boolean;
+begin
+  Result := SetCookie(url, name, value, domain, path, secure, httponly, hasExpires, creation,
+    lastAccess, expires, TCefFastSetCookieCallback.Create(proc));
+end;
+
 function TCefCookieManagerRef.DeleteCookies(const url, cookieName: ustring;
-  callback: ICefDeleteCookiesCallback): Boolean;
+  const callback: ICefDeleteCookiesCallback): Boolean;
 Var
   u, n : TCefString;
 begin
   u := CefString(url);
   n := CefString(cookieName);
   Result := PCefCookieManager(fData)^.delete_cookies(fData, @u, @n, CefGetData(callback)) <> 0;
+end;
+
+function TCefCookieManagerRef.DeleteCookiesProc(const url, cookieName: ustring;
+  const proc: TCefDeleteCookiesCallbackProc): Boolean;
+begin
+  Result := DeleteCookies(url, cookieName, TCefFastDeleteCookiesCallback.Create(proc));
 end;
 
 function TCefCookieManagerRef.SetStoragePath(const path: ustring; PersistSessionCookies: Boolean;
@@ -2265,6 +2346,11 @@ end;
 function TCefDomNodeRef.GetElementInnerText : ustring;
 begin
   Result := CefStringFreeAndGet(PCefDomNode(fData)^.get_element_inner_text(fData));
+end;
+
+function TCefDomNodeRef.GetElementBounds: TCefRect;
+begin
+  Result := PCefDomNode(fData)^.get_element_bounds(fData);
 end;
 
 class function TCefDomNodeRef.UnWrap(data : Pointer) : ICefDomNode;
@@ -2690,9 +2776,9 @@ begin
   Result := TCefBrowserRef.UnWrap(PCefFrame(fData)^.get_browser(fData));
 end;
 
-function TCefFrameRef.GetV8Context : ICefv8Context;
+function TCefFrameRef.GetV8Context : ICefV8Context;
 begin
-  Result := TCefv8ContextRef.UnWrap(PCefFrame(fData)^.get_v8context(fData));
+  Result := TCefV8ContextRef.UnWrap(PCefFrame(fData)^.get_v8context(fData));
 end;
 
 procedure TCefFrameRef.VisitDom(const visitor : ICefDomVisitor);
@@ -3135,6 +3221,64 @@ begin
   Else Result := nil;
 end;
 
+{ TCefNavigationEntryRef }
+
+function TCefNavigationEntryRef.IsValid: Boolean;
+begin
+  Result := PCefNavigationEntry(fData)^.is_valid(fData) <> 0;
+end;
+
+function TCefNavigationEntryRef.GetUrl: ustring;
+begin
+  Result := CefStringFreeAndGet(PCefNavigationEntry(fData)^.get_url(fData));
+end;
+
+function TCefNavigationEntryRef.GetDisplayUrl: ustring;
+begin
+  Result := CefStringFreeAndGet(PCefNavigationEntry(fData)^.get_display_url(fData));
+end;
+
+function TCefNavigationEntryRef.GetOriginalUrl: ustring;
+begin
+  Result := CefStringFreeAndGet(PCefNavigationEntry(fData)^.get_original_url(fData));
+end;
+
+function TCefNavigationEntryRef.GetTitle: ustring;
+begin
+  Result := CefStringFreeAndGet(PCefNavigationEntry(fData)^.get_title(fData));
+end;
+
+function TCefNavigationEntryRef.GetTransitionType: TCefTransitionType;
+begin
+  Result := PCefNavigationEntry(fData)^.get_transition_type(fData);
+end;
+
+function TCefNavigationEntryRef.HasPostData: Boolean;
+begin
+  Result := PCefNavigationEntry(fData)^.has_post_data(fData) <> 0;
+end;
+
+function TCefNavigationEntryRef.GetCompletionTime: TDateTime;
+begin
+  Result := CefTimeToDateTime(PCefNavigationEntry(fData)^.get_completion_time(fData));
+end;
+
+function TCefNavigationEntryRef.GetHttpStatusCode: Integer;
+begin
+  Result := PCefNavigationEntry(fData)^.get_http_status_code(fData);
+end;
+
+function TCefNavigationEntryRef.GetSslStatus: ICefSslStatus;
+begin
+  Result := TCefSslStatusRef.UnWrap(PCefNavigationEntry(fData)^.get_sslstatus(fData));
+end;
+
+class function TCefNavigationEntryRef.UnWrap(data: Pointer): ICefNavigationEntry;
+begin
+  If data <> nil then Result := Create(data) as ICefNavigationEntry
+  Else Result := nil;
+end;
+
 { TCefPrintDialogCallbackRef }
 
 procedure TCefPrintDialogCallbackRef.Cont(settings: ICefPrintSettings);
@@ -3483,19 +3627,17 @@ begin
   Result := PCefPostData(fData)^.get_element_count(fData);
 end;
 
-function TCefPostDataRef.GetElements(Count : TSize) : IInterfaceList;
+procedure TCefPostDataRef.GetElements(Count: TSize; out elements: ICefPostDataElementArray);
 Var
-  items : PCefPostDataElementArray;
-  i     : Integer;
+  items: PCefPostDataElementArray;
+  i: Integer;
 begin
-  Result := TInterfaceList.Create;
   GetMem(items, SizeOf(PCefPostDataElement) * Count);
-  FillChar(items^, SizeOf(PCefPostDataElement) * Count, 0);
-
   try
     PCefPostData(fData)^.get_elements(fData, @Count, items);
-    For i := 0 to Count - 1 do
-      Result.Add(TCefPostDataElementRef.UnWrap(items^[i]));
+
+    SetLength(elements, Count);
+    For i := 0 to Count - 1 do elements[i] := TCefPostDataElementRef.UnWrap(items^[i]);
   finally
     FreeMem(items);
   end;
@@ -3685,12 +3827,19 @@ begin
   PCefRequestContext(fData)^.close_all_connections(fData, CefGetData(callback));
 end;
 
-procedure TCefRequestContextRef.ResolveHost(const origin: ustring; callback: ICefResolveCallback);
+procedure TCefRequestContextRef.ResolveHost(const origin: ustring;
+  const callback: ICefResolveCallback);
 Var
   o: TCefString;
 begin
   o := CefString(origin);
   PCefRequestContext(fData)^.resolve_host(fData, @o, CefGetData(callback));
+end;
+
+procedure TCefRequestContextRef.ResolveHostProc(const origin: ustring;
+  const proc: TCefResolveCallbackProc);
+begin
+  ResolveHost(origin, TCefFastResolveCallback.Create(proc));
 end;
 
 function TCefRequestContextRef.ResolveHostCached(const origin: ustring;
@@ -3785,7 +3934,7 @@ begin
   Else Result := nil;
 end;
 
-{ TCefQuotaCallbackRef }
+{ TCefRequestCallbackRef }
 
 procedure TCefRequestCallbackRef.Cont(allow : Boolean);
 begin
@@ -3800,6 +3949,19 @@ end;
 class function TCefRequestCallbackRef.UnWrap(data : Pointer) : ICefRequestCallback;
 begin
   If data <> nil then Result := Create(data) as ICefRequestCallback
+  Else Result := nil;
+end;
+
+{ TCefSelectClientCertificateCallbackRef }
+
+procedure TCefSelectClientCertificateCallbackRef.Select(cert: ICefX509certificate);
+begin
+  PCefSelectClientCertificateCallback(fData)^.select(fData, CefGetData(cert));
+end;
+
+class function TCefSelectClientCertificateCallbackRef.UnWrap(data: Pointer): ICefSelectClientCertificateCallback;
+begin
+  If data <> nil then Result := Create(data) as ICefSelectClientCertificateCallback
   Else Result := nil;
 end;
 
@@ -3933,119 +4095,6 @@ begin
   Else Result := nil;
 end;
 
-{ TCefSslcertPrincipalRef }
-
-function TCefSslcertPrincipalRef.GetDisplayName: ustring;
-begin
-  Result := CefStringFreeAndGet(PCefSslcertPrincipal(fData)^.get_display_name(fData));
-end;
-
-function TCefSslcertPrincipalRef.GetCommonName: ustring;
-begin
-  Result := CefStringFreeAndGet(PCefSslcertPrincipal(fData)^.get_common_name(fData));
-end;
-
-function TCefSslcertPrincipalRef.GetLocalityName: ustring;
-begin
-  Result := CefStringFreeAndGet(PCefSslcertPrincipal(fData)^.get_locality_name(fData));
-end;
-
-function TCefSslcertPrincipalRef.GetStateOrProvinceName: ustring;
-begin
-  Result := CefStringFreeAndGet(PCefSslcertPrincipal(fData)^.get_state_or_province_name(fData));
-end;
-
-function TCefSslcertPrincipalRef.GetCountryName: ustring;
-begin
-  Result := CefStringFreeAndGet(PCefSslcertPrincipal(fData)^.get_country_name(fData));
-end;
-
-procedure TCefSslcertPrincipalRef.GetStreetAddresses(addresses: TStrings);
-Var
-  list: TCefStringList;
-  i: Integer;
-  str: TCefString;
-begin
-  list := cef_string_list_alloc();
-  try
-    PCefSslcertPrincipal(fData)^.get_street_addresses(fData, list);
-    FillChar(str, SizeOf(str), 0);
-    For i := 0 to cef_string_list_size(list) - 1 do
-    begin
-      cef_string_list_value(list, i, @str);
-      addresses.Add(CefStringClearAndGet(str));
-    end;
-  finally
-    cef_string_list_free(list);
-  end;
-end;
-
-procedure TCefSslcertPrincipalRef.GetOriganizationNames(names: TStrings);
-Var
-  list: TCefStringList;
-  i: Integer;
-  str: TCefString;
-begin
-  list := cef_string_list_alloc();
-  try
-    PCefSslcertPrincipal(fData)^.get_organization_names(fData, list);
-    FillChar(str, SizeOf(str), 0);
-    For i := 0 to cef_string_list_size(list) - 1 do
-    begin
-      cef_string_list_value(list, i, @str);
-      names.Add(CefStringClearAndGet(str));
-    end;
-  finally
-    cef_string_list_free(list);
-  end;
-end;
-
-procedure TCefSslcertPrincipalRef.GetOriganizationUnitNames(names: TStrings);
-Var
-  list: TCefStringList;
-  i: Integer;
-  str: TCefString;
-begin
-  list := cef_string_list_alloc();
-  try
-    PCefSslcertPrincipal(fData)^.get_organization_unit_names(fData, list);
-    FillChar(str, SizeOf(str), 0);
-    For i := 0 to cef_string_list_size(list) - 1 do
-    begin
-      cef_string_list_value(list, i, @str);
-      names.Add(CefStringClearAndGet(str));
-    end;
-  finally
-    cef_string_list_free(list);
-  end;
-end;
-
-procedure TCefSslcertPrincipalRef.GetDomainComponents(components: TStrings);
-Var
-  list: TCefStringList;
-  i: Integer;
-  str: TCefString;
-begin
-  list := cef_string_list_alloc();
-  try
-    PCefSslcertPrincipal(fData)^.get_domain_components(fData, list);
-    FillChar(str, SizeOf(str), 0);
-    For i := 0 to cef_string_list_size(list) - 1 do
-    begin
-      cef_string_list_value(list, i, @str);
-      components.Add(CefStringClearAndGet(str));
-    end;
-  finally
-    cef_string_list_free(list);
-  end;
-end;
-
-class function TCefSslcertPrincipalRef.UnWrap(data: Pointer): ICefSslcertPrincipal;
-begin
-  If data <> nil then Result := Create(data) as ICefSslcertPrincipal
-  Else Result := nil;
-end;
-
 { TCefSslinfoRef }
 
 function TCefSslinfoRef.GetCertStatus: TCefCertStatus;
@@ -4053,89 +4102,47 @@ begin
   Result := PCefSslinfo(fData)^.get_cert_status(fData);
 end;
 
-function TCefSslinfoRef.IsCertStatusError: Boolean;
+function TCefSslinfoRef.GetX509Certificate: ICefx509Certificate;
 begin
-  Result := PCefSslinfo(fData)^.is_cert_status_error(fData) <> 0;
-end;
-
-function TCefSslinfoRef.IsCertStatusMinorError: Boolean;
-begin
-  Result := PCefSslinfo(fData)^.is_cert_status_minor_error(fData) <> 0;
-end;
-
-function TCefSslinfoRef.GetSubject: ICefSslcertPrincipal;
-begin
-  Result := TCefSslcertPrincipalRef.UnWrap(PCefSslinfo(fData)^.get_subject(fData));
-end;
-
-function TCefSslinfoRef.GetIssuer: ICefSslcertPrincipal;
-begin
-  Result := TCefSslcertPrincipalRef.UnWrap(PCefSslinfo(fData)^.get_issuer(fData));
-end;
-
-function TCefSslinfoRef.GetSerialNumber: ICefBinaryValue;
-begin
-  Result := TCefBinaryValueRef.UnWrap(PCefSslinfo(fData)^.get_serial_number(fData));
-end;
-
-function TCefSslinfoRef.GetValidStart: TDateTime;
-begin
-  Result := CefTimeToDateTime(PCefSslinfo(fData)^.get_valid_start(fData));
-end;
-
-function TCefSslinfoRef.GetValidExpiry: TDateTime;
-begin
-  Result := CefTimeToDateTime(PCefSslinfo(fData)^.get_valid_expiry(fData));
-end;
-
-function TCefSslinfoRef.GetDerencoded: ICefBinaryValue;
-begin
-  Result := TCefBinaryValueRef.UnWrap(PCefSslinfo(fData)^.get_derencoded(fData));
-end;
-
-function TCefSslinfoRef.GetPemencoded: ICefBinaryValue;
-begin
-  Result := TCefBinaryValueRef.UnWrap(PCefSslinfo(fData)^.get_pemencoded(fData));
-end;
-
-function TCefSslinfoRef.GetIssuerChainSize: TSize;
-begin
-  Result := PCefSslinfo(fData)^.get_issuer_chain_size(fData);
-end;
-
-procedure TCefSslinfoRef.GetDerencodedIssuerChain(out chain: ICefBinaryValueArray);
-Var
-  count: csize_t;
-  pchain: PCefBinaryValueArray;
-  i: Integer;
-begin
-  PCefSslinfo(fData)^.get_derencoded_issuer_chain(fData, @count, pchain);
-
-  SetLength(chain, count);
-  For i := 0 to count - 1 do
-  begin
-    chain[i] := TCefBinaryValueRef.UnWrap(pchain[i]);
-  end;
-end;
-
-procedure TCefSslinfoRef.GetPemencodedIssuerChain(out chain: ICefBinaryValueArray);
-Var
-  count: csize_t;
-  pchain: PCefBinaryValueArray;
-  i: Integer;
-begin
-  PCefSslinfo(fData)^.get_pemencoded_issuer_chain(fData, @count, pchain);
-
-  SetLength(chain, count);
-  For i := 0 to count - 1 do
-  begin
-    chain[i] := TCefBinaryValueRef.UnWrap(pchain[i]);
-  end;
+  Result := TCefX509certificateRef.UnWrap(PCefSslinfo(fData)^.get_x509certificate(fData));
 end;
 
 class function TCefSslinfoRef.UnWrap(data: Pointer): ICefSslinfo;
 begin
   If data <> nil then Result := Create(data) as ICefSslinfo
+  Else Result := nil;
+end;
+
+{ TCefSslstatusRef }
+
+function TCefSslstatusRef.IsSecureConnection: Boolean;
+begin
+  Result := PCefSslstatus(fData)^.is_secure_connection(fData) <> 0;
+end;
+
+function TCefSslstatusRef.GetCertStatus: TCefCertStatus;
+begin
+  Result := PCefSslstatus(fData)^.get_cert_status(fData);
+end;
+
+function TCefSslstatusRef.GetSslVersion: TCefSslVersion;
+begin
+  Result := PCefSslstatus(fData)^.get_sslversion(fData);
+end;
+
+function TCefSslstatusRef.GetContentStatus: TCefSslContentStatus;
+begin
+  Result := PCefSslstatus(fData)^.get_content_status(fData);
+end;
+
+function TCefSslstatusRef.Getx509Certificate: ICefx509Certificate;
+begin
+  Result := TCefX509certificateRef.UnWrap(PCefSslstatus(fData)^.get_x509certificate(fData));
+end;
+
+class function TCefSslstatusRef.UnWrap(data: Pointer): ICefSslstatus;
+begin
+  If data <> nil then Result := Create(data) as ICefSslstatus
   Else Result := nil;
 end;
 
@@ -4390,107 +4397,109 @@ begin
   Else Result := nil;
 end;
 
-{ TCefv8ContextRef }
+{ TCefV8ContextRef }
 
-function TCefv8ContextRef.GetTaskRunner : ICefTaskRunner;
+function TCefV8ContextRef.GetTaskRunner : ICefTaskRunner;
 begin
   Result := TCefTaskRunnerRef.UnWrap(PCefV8Context(fData)^.get_task_runner(fData));
 end;
 
-function TCefv8ContextRef.IsValid : boolean;
+function TCefV8ContextRef.IsValid : boolean;
 begin
   Result := PCefV8Context(fData)^.is_valid(fData) <> 0;
 end;
 
-function TCefv8ContextRef.GetBrowser : ICefBrowser;
+function TCefV8ContextRef.GetBrowser : ICefBrowser;
 begin
   Result := TCefBrowserRef.UnWrap(PCefV8Context(fData)^.get_browser(fData));
 end;
 
-function TCefv8ContextRef.GetFrame : ICefFrame;
+function TCefV8ContextRef.GetFrame : ICefFrame;
 begin
   Result := TCefFrameRef.UnWrap(PCefV8Context(fData)^.get_frame(fData));
 end;
 
-function TCefv8ContextRef.GetGlobal : ICefv8Value;
+function TCefV8ContextRef.GetGlobal : ICefV8Value;
 begin
-  Result := TCefv8ValueRef.UnWrap(PCefV8Context(fData)^.get_global(fData));
+  Result := TCefV8ValueRef.UnWrap(PCefV8Context(fData)^.get_global(fData));
 end;
 
-function TCefv8ContextRef.Enter : Boolean;
+function TCefV8ContextRef.Enter : Boolean;
 begin
   Result := PCefV8Context(fData)^.enter(fData) <> 0;
 end;
 
-function TCefv8ContextRef.Exit : Boolean;
+function TCefV8ContextRef.Exit : Boolean;
 begin
   Result := PCefV8Context(fData)^.exit(fData) <> 0;
 end;
 
-function TCefv8ContextRef.IsSame(const that : ICefv8Context) : Boolean;
+function TCefV8ContextRef.IsSame(const that : ICefV8Context) : Boolean;
 begin
   Result := PCefV8Context(fData)^.is_same(fData, CefGetData(that)) <> 0;
 end;
 
-function TCefv8ContextRef.Eval(const code : ustring; var retval : ICefv8Value;
-  var exception : ICefV8Exception) : Boolean;
+function TCefV8ContextRef.Eval(const code, scriptUrl: ustring; startLine: Integer;
+  var retval : ICefV8Value; var exception : ICefV8Exception) : Boolean;
 Var
-  c : TCefString;
-  r : PCefV8Value;
-  e : PCefV8Exception;
+  c, u: TCefString;
+  r: PCefV8Value;
+  e: PCefV8Exception;
 begin
   c := CefString(code);
+  u := CefString(scriptUrl);
   r := nil;
   e := nil;
-  Result := PCefV8Context(fData)^.eval(fData, @c, r, e) <> 0;
-  retval := TCefv8ValueRef.UnWrap(r);
+  Result := PCefV8Context(fData)^.eval(fData, @c, @u, startLine, r, e) <> 0;
+  retval := TCefV8ValueRef.UnWrap(r);
   exception := TCefV8ExceptionRef.UnWrap(e);
 end;
 
-class function TCefv8ContextRef.UnWrap(data : Pointer) : ICefv8Context;
+class function TCefV8ContextRef.UnWrap(data : Pointer) : ICefV8Context;
 begin
-  If data <> nil then Result := Create(data) as ICefv8Context
+  If data <> nil then Result := Create(data) as ICefV8Context
   Else Result := nil;
 end;
 
-class function TCefv8ContextRef.Current : ICefv8Context;
+class function TCefV8ContextRef.Current : ICefV8Context;
 begin
   Result := UnWrap(cef_v8context_get_current_context());
 end;
 
-class function TCefv8ContextRef.Entered : ICefv8Context;
+class function TCefV8ContextRef.Entered : ICefV8Context;
 begin
   Result := UnWrap(cef_v8context_get_entered_context());
 end;
 
-{ TCefv8HandlerRef }
+{ TCefV8HandlerRef }
 
-function TCefv8HandlerRef.Execute(const name : ustring;
-  const obj : ICefv8Value; const arguments : ICefv8ValueArray;
-  var retval : ICefv8Value; var exception : ustring) : Boolean;
+function TCefV8HandlerRef.Execute(const name: ustring; const obj: ICefV8Value;
+  const arguments: ICefV8ValueArray; var retval: ICefV8Value; var exception: ustring) : Boolean;
 Var
-  args : array of PCefV8Value;
-  i    : Integer;
-  ret  : PCefV8Value;
-  exc  : TCefString;
-  n    : TCefString;
+  args: PCefV8ValueArray;
+  i: Integer;
+  r: PCefV8Value;
+  e: TCefString;
+  n: TCefString;
 begin
-  SetLength(args, Length(arguments));
+  GetMem(args, SizeOf(PCefV8Value) * Length(arguments));
   For i := 0 to Length(arguments) - 1 do
   begin
-    args[i] := CefGetData(arguments[i]);
+    args^[i] := CefGetData(arguments[i]);
   end;
-  ret := nil;
-  FillChar(exc, SizeOf(exc), 0);
+  r := nil;
+  FillChar(e, SizeOf(e), 0);
   n := CefString(name);
-  Result := PCefV8Handler(fData)^.execute(fData, @n, CefGetData(obj), Length(arguments), @args, ret, exc) <> 0;
-  retval := TCefv8ValueRef.UnWrap(ret);
-  exception := CefStringClearAndGet(exc);
+  Result := PCefV8Handler(fData)^.execute(fData, @n, CefGetData(obj), Length(arguments), args, r,
+    @e) <> 0;
+  FreeMem(args);
+  retval := TCefV8ValueRef.UnWrap(r);
+  exception := CefStringClearAndGet(e);
 end;
 
-class function TCefv8HandlerRef.UnWrap(data : Pointer) : ICefv8Handler;
+class function TCefV8HandlerRef.UnWrap(data : Pointer) : ICefV8Handler;
 begin
-  If data <> nil then Result := Create(data) as ICefv8Handler
+  If data <> nil then Result := Create(data) as ICefV8Handler
   Else Result := nil;
 end;
 
@@ -4542,134 +4551,134 @@ begin
   Else Result := nil;
 end;
 
-{ TCefv8ValueRef }
+{ TCefV8ValueRef }
 
-function TCefv8ValueRef.IsValid : boolean;
+function TCefV8ValueRef.IsValid : boolean;
 begin
   Result := PCefV8Value(fData)^.is_valid(fData) <> 0;
 end;
 
-function TCefv8ValueRef.IsUndefined : Boolean;
+function TCefV8ValueRef.IsUndefined : Boolean;
 begin
   Result := PCefV8Value(fData)^.is_undefined(fData) <> 0;
 end;
 
-function TCefv8ValueRef.IsNull : Boolean;
+function TCefV8ValueRef.IsNull : Boolean;
 begin
   Result := PCefV8Value(fData)^.is_null(fData) <> 0;
 end;
 
-function TCefv8ValueRef.IsBool : Boolean;
+function TCefV8ValueRef.IsBool : Boolean;
 begin
   Result := PCefV8Value(fData)^.is_bool(fData) <> 0;
 end;
 
-function TCefv8ValueRef.IsInt : Boolean;
+function TCefV8ValueRef.IsInt : Boolean;
 begin
   Result := PCefV8Value(fData)^.is_int(fData) <> 0;
 end;
 
-function TCefv8ValueRef.IsUInt : Boolean;
+function TCefV8ValueRef.IsUInt : Boolean;
 begin
   Result := PCefV8Value(fData)^.is_uint(fData) <> 0;
 end;
 
-function TCefv8ValueRef.IsDouble : Boolean;
+function TCefV8ValueRef.IsDouble : Boolean;
 begin
   Result := PCefV8Value(fData)^.is_double(fData) <> 0;
 end;
 
-function TCefv8ValueRef.IsDate : Boolean;
+function TCefV8ValueRef.IsDate : Boolean;
 begin
   Result := PCefV8Value(fData)^.is_date(fData) <> 0;
 end;
 
-function TCefv8ValueRef.IsString : Boolean;
+function TCefV8ValueRef.IsString : Boolean;
 begin
   Result := PCefV8Value(fData)^.is_string(fData) <> 0;
 end;
 
-function TCefv8ValueRef.IsObject : Boolean;
+function TCefV8ValueRef.IsObject : Boolean;
 begin
   Result := PCefV8Value(fData)^.is_object(fData) <> 0;
 end;
 
-function TCefv8ValueRef.IsArray : Boolean;
+function TCefV8ValueRef.IsArray : Boolean;
 begin
   Result := PCefV8Value(fData)^.is_array(fData) <> 0;
 end;
 
-function TCefv8ValueRef.IsFunction : Boolean;
+function TCefV8ValueRef.IsFunction : Boolean;
 begin
   Result := PCefV8Value(fData)^.is_function(fData) <> 0;
 end;
 
-function TCefv8ValueRef.IsSame(const that : ICefv8Value) : Boolean;
+function TCefV8ValueRef.IsSame(const that : ICefV8Value) : Boolean;
 begin
   Result := PCefV8Value(fData)^.is_same(fData, CefGetData(that)) <> 0;
 end;
 
-function TCefv8ValueRef.GetBoolValue : Boolean;
+function TCefV8ValueRef.GetBoolValue : Boolean;
 begin
   Result := PCefV8Value(fData)^.get_bool_value(fData) <> 0;
 end;
 
-function TCefv8ValueRef.GetIntValue : Integer;
+function TCefV8ValueRef.GetIntValue : Integer;
 begin
   Result := PCefV8Value(fData)^.get_int_value(fData);
 end;
 
-function TCefv8ValueRef.GetUIntValue : Cardinal;
+function TCefV8ValueRef.GetUIntValue : Cardinal;
 begin
   Result := PCefV8Value(fData)^.get_uint_value(fData);
 end;
 
-function TCefv8ValueRef.GetDoubleValue : Double;
+function TCefV8ValueRef.GetDoubleValue : Double;
 begin
   Result := PCefV8Value(fData)^.get_double_value(fData);
 end;
 
-function TCefv8ValueRef.GetDateValue : TDateTime;
+function TCefV8ValueRef.GetDateValue : TDateTime;
 begin
   Result := CefTimeToDateTime(PCefV8Value(fData)^.get_date_value(fData));
 end;
 
-function TCefv8ValueRef.GetStringValue : ustring;
+function TCefV8ValueRef.GetStringValue : ustring;
 begin
   Result := CefStringFreeAndGet(PCefV8Value(fData)^.get_string_value(fData));
 end;
 
-function TCefv8ValueRef.IsUserCreated : Boolean;
+function TCefV8ValueRef.IsUserCreated : Boolean;
 begin
   Result := PCefV8Value(fData)^.is_user_created(fData) <> 0;
 end;
 
-function TCefv8ValueRef.HasException : Boolean;
+function TCefV8ValueRef.HasException : Boolean;
 begin
   Result := PCefV8Value(fData)^.has_exception(fData) <> 0;
 end;
 
-function TCefv8ValueRef.GetException : ICefV8Exception;
+function TCefV8ValueRef.GetException : ICefV8Exception;
 begin
   Result := TCefV8ExceptionRef.UnWrap(PCefV8Value(fData)^.get_exception(fData));
 end;
 
-function TCefv8ValueRef.ClearException : Boolean;
+function TCefV8ValueRef.ClearException : Boolean;
 begin
   Result := PCefV8Value(fData)^.clear_exception(fData) <> 0;
 end;
 
-function TCefv8ValueRef.WillRethrowExceptions : Boolean;
+function TCefV8ValueRef.WillRethrowExceptions : Boolean;
 begin
   Result := PCefV8Value(fData)^.will_rethrow_exceptions(fData) <> 0;
 end;
 
-function TCefv8ValueRef.SetRethrowExceptions(rethrow : Boolean) : Boolean;
+function TCefV8ValueRef.SetRethrowExceptions(rethrow : Boolean) : Boolean;
 begin
   Result := PCefV8Value(fData)^.set_rethrow_exceptions(fData, Ord(rethrow)) <> 0;
 end;
 
-function TCefv8ValueRef.HasValueByKey(const key : ustring) : Boolean;
+function TCefV8ValueRef.HasValueByKey(const key : ustring) : Boolean;
 Var
   k : TCefString;
 begin
@@ -4677,12 +4686,12 @@ begin
   Result := PCefV8Value(fData)^.has_value_bykey(fData, @k) <> 0;
 end;
 
-function TCefv8ValueRef.HasValueByIndex(index : Integer) : Boolean;
+function TCefV8ValueRef.HasValueByIndex(index : Integer) : Boolean;
 begin
   Result := PCefV8Value(fData)^.has_value_byindex(fData, index) <> 0;
 end;
 
-function TCefv8ValueRef.DeleteValueByKey(const key : ustring) : Boolean;
+function TCefV8ValueRef.DeleteValueByKey(const key : ustring) : Boolean;
 Var
   k : TCefString;
 begin
@@ -4690,26 +4699,26 @@ begin
   Result := PCefV8Value(fData)^.delete_value_bykey(fData, @k) <> 0;
 end;
 
-function TCefv8ValueRef.DeleteValueByIndex(index : Integer) : Boolean;
+function TCefV8ValueRef.DeleteValueByIndex(index : Integer) : Boolean;
 begin
   Result := PCefV8Value(fData)^.delete_value_byindex(fData, index) <> 0;
 end;
 
-function TCefv8ValueRef.GetValueByKey(const key : ustring) : ICefv8Value;
+function TCefV8ValueRef.GetValueByKey(const key : ustring) : ICefV8Value;
 Var
   k : TCefString;
 begin
   k := CefString(key);
-  Result := TCefv8ValueRef.UnWrap(PCefV8Value(fData)^.get_value_bykey(fData, @k));
+  Result := TCefV8ValueRef.UnWrap(PCefV8Value(fData)^.get_value_bykey(fData, @k));
 end;
 
-function TCefv8ValueRef.GetValueByIndex(index : Integer) : ICefv8Value;
+function TCefV8ValueRef.GetValueByIndex(index : Integer) : ICefV8Value;
 begin
-  Result := TCefv8ValueRef.UnWrap(PCefV8Value(fData)^.get_value_byindex(fData, index));
+  Result := TCefV8ValueRef.UnWrap(PCefV8Value(fData)^.get_value_byindex(fData, index));
 end;
 
-function TCefv8ValueRef.SetValueByKey(const key : ustring;
-  const value : ICefv8Value; attribute : TCefV8PropertyAttributes) : Boolean;
+function TCefV8ValueRef.SetValueByKey(const key : ustring;
+  const value : ICefV8Value; attribute : TCefV8PropertyAttributes) : Boolean;
 Var
   k : TCefString;
 begin
@@ -4717,12 +4726,12 @@ begin
   Result := PCefV8Value(fData)^.set_value_bykey(fData, @k, CefGetData(value), attribute) <> 0;
 end;
 
-function TCefv8ValueRef.SetValueByIndex(index : Integer; const value : ICefv8Value) : Boolean;
+function TCefV8ValueRef.SetValueByIndex(index : Integer; const value : ICefV8Value) : Boolean;
 begin
   Result := PCefV8Value(fData)^.set_value_byindex(fData, index, CefGetData(value)) <> 0;
 end;
 
-function TCefv8ValueRef.SetValueByAccessor(const key : ustring;
+function TCefV8ValueRef.SetValueByAccessor(const key : ustring;
   settings : TCefV8AccessControls; attribute : TCefV8PropertyAttributes) : Boolean;
 Var
   k : TCefString;
@@ -4731,7 +4740,7 @@ begin
   Result := PCefV8Value(fData)^.set_value_byaccessor(fData, @k, settings, attribute) <> 0;
 end;
 
-function TCefv8ValueRef.GetKeys(const keys : TStrings) : Integer;
+function TCefV8ValueRef.GetKeys(const keys : TStrings) : Integer;
 Var
   list : TCefStringList;
   i    : Integer;
@@ -4751,114 +4760,111 @@ begin
   end;
 end;
 
-function TCefv8ValueRef.SetUserData(const data : ICefv8Value) : Boolean;
+function TCefV8ValueRef.SetUserData(const data : ICefV8Value) : Boolean;
 begin
   Result := PCefV8Value(fData)^.set_user_data(fData, CefGetData(data)) <> 0;
 end;
 
-function TCefv8ValueRef.GetUserData : ICefv8Value;
+function TCefV8ValueRef.GetUserData : ICefV8Value;
 begin
-  Result := TCefv8ValueRef.UnWrap(PCefV8Value(fData)^.get_user_data(fData));
+  Result := TCefV8ValueRef.UnWrap(PCefV8Value(fData)^.get_user_data(fData));
 end;
 
-function TCefv8ValueRef.GetExternallyAllocatedMemory : Integer;
+function TCefV8ValueRef.GetExternallyAllocatedMemory : Integer;
 begin
   Result := PCefV8Value(fData)^.get_externally_allocated_memory(fData);
 end;
 
-function TCefv8ValueRef.AdjustExternallyAllocatedMemory(changeInBytes : Integer) : Integer;
+function TCefV8ValueRef.AdjustExternallyAllocatedMemory(changeInBytes : Integer) : Integer;
 begin
   Result := PCefV8Value(fData)^.adjust_externally_allocated_memory(fData, changeInBytes);
 end;
 
-function TCefv8ValueRef.GetArrayLength : Integer;
+function TCefV8ValueRef.GetArrayLength : Integer;
 begin
   Result := PCefV8Value(fData)^.get_array_length(fData);
 end;
 
-function TCefv8ValueRef.GetFunctionName : ustring;
+function TCefV8ValueRef.GetFunctionName : ustring;
 begin
   Result := CefStringFreeAndGet(PCefV8Value(fData)^.get_function_name(fData));
 end;
 
-function TCefv8ValueRef.GetFunctionHandler : ICefv8Handler;
+function TCefV8ValueRef.GetFunctionHandler : ICefV8Handler;
 begin
-  Result := TCefv8HandlerRef.UnWrap(PCefV8Value(fData)^.get_function_handler(fData));
+  Result := TCefV8HandlerRef.UnWrap(PCefV8Value(fData)^.get_function_handler(fData));
 end;
 
-function TCefv8ValueRef.ExecuteFunction(const obj : ICefv8Value;
-  const arguments : ICefv8ValueArray) : ICefv8Value;
+function TCefV8ValueRef.ExecuteFunction(const obj: ICefV8Value; const arguments: ICefV8ValueArray): ICefV8Value;
 Var
-  args : PPCefV8Value;
-  i    : Integer;
+  args: PCefV8ValueArray;
+  i: Integer;
 begin
   GetMem(args, SizeOf(PCefV8Value) * Length(arguments));
   try
-    For i := 0 to Length(arguments) - 1 do
-    begin
-      args^[i] := CefGetData(arguments[i]);
-    end;
-    Result := TCefv8ValueRef.UnWrap(PCefV8Value(fData)^.execute_function(fData, CefGetData(obj), Length(arguments), args));
+    For i := 0 to High(arguments) do args^[i] := CefGetData(arguments[i]);
+
+    Result := TCefV8ValueRef.UnWrap(PCefV8Value(fData)^.execute_function(fData, CefGetData(obj),
+      Length(arguments), args));
   finally
     FreeMem(args);
   end;
 end;
 
-function TCefv8ValueRef.ExecuteFunctionWithContext(const context : ICefv8Context;
-  const obj : ICefv8Value; const arguments : ICefv8ValueArray) : ICefv8Value;
+function TCefV8ValueRef.ExecuteFunctionWithContext(const context: ICefV8Context;
+  const obj: ICefV8Value; const arguments: ICefV8ValueArray): ICefV8Value;
 Var
-  args : PPCefV8Value;
-  i    : Integer;
+  args: PCefV8ValueArray;
+  i: Integer;
 begin
   GetMem(args, SizeOf(PCefV8Value) * Length(arguments));
   try
-    For i := 0 to Length(arguments) - 1 do
-    begin
-      args^[i] := CefGetData(arguments[i]);
-    end;
-    Result := TCefv8ValueRef.UnWrap(PCefV8Value(fData)^.execute_function_with_context(fData, CefGetData(context), CefGetData(obj), Length(arguments), args));
+    For i := 0 to High(arguments) do args^[i] := CefGetData(arguments[i]);
+
+    Result := TCefV8ValueRef.UnWrap(PCefV8Value(fData)^.execute_function_with_context(fData,
+      CefGetData(context), CefGetData(obj), Length(arguments), args));
   finally
     FreeMem(args);
   end;
 end;
 
-class function TCefv8ValueRef.UnWrap(data : Pointer) : ICefv8Value;
+class function TCefV8ValueRef.UnWrap(data : Pointer) : ICefV8Value;
 begin
-  If data <> nil then Result := Create(data) as ICefv8Value
+  If data <> nil then Result := Create(data) as ICefV8Value
   Else Result := nil;
 end;
 
-class function TCefv8ValueRef.NewUndefined : ICefv8Value;
+class function TCefV8ValueRef.NewUndefined : ICefV8Value;
 begin
   Result := UnWrap(cef_v8value_create_undefined());
 end;
 
-class function TCefv8ValueRef.NewNull : ICefv8Value;
+class function TCefV8ValueRef.NewNull : ICefV8Value;
 begin
   Result := UnWrap(cef_v8value_create_null());
 end;
 
-class function TCefv8ValueRef.NewBool(value : Boolean) : ICefv8Value;
+class function TCefV8ValueRef.NewBool(value : Boolean) : ICefV8Value;
 begin
   Result := UnWrap(cef_v8value_create_bool(Ord(value)));
 end;
 
-class function TCefv8ValueRef.NewInt(value : Integer) : ICefv8Value;
+class function TCefV8ValueRef.NewInt(value : Integer) : ICefV8Value;
 begin
   Result := UnWrap(cef_v8value_create_int(value));
 end;
 
-class function TCefv8ValueRef.NewUInt(value : Cardinal) : ICefv8Value;
+class function TCefV8ValueRef.NewUInt(value : Cardinal) : ICefV8Value;
 begin
   Result := UnWrap(cef_v8value_create_uint(value));
 end;
 
-class function TCefv8ValueRef.NewDouble(value : Double) : ICefv8Value;
+class function TCefV8ValueRef.NewDouble(value : Double) : ICefV8Value;
 begin
   Result := UnWrap(cef_v8value_create_double(value));
 end;
 
-class function TCefv8ValueRef.NewDate(value : TDateTime) : ICefv8Value;
+class function TCefV8ValueRef.NewDate(value : TDateTime) : ICefV8Value;
 Var
   dt : TCefTime;
 begin
@@ -4866,7 +4872,7 @@ begin
   Result := UnWrap(cef_v8value_create_date(@dt));
 end;
 
-class function TCefv8ValueRef.NewString(const str : ustring) : ICefv8Value;
+class function TCefV8ValueRef.NewString(const str : ustring) : ICefV8Value;
 Var
   s : TCefString;
 begin
@@ -4874,24 +4880,19 @@ begin
   Result := UnWrap(cef_v8value_create_string(@s));
 end;
 
-class function TCefv8ValueRef.NewObject(const Accessor : ICefV8Accessor) : ICefv8Value;
+class function TCefV8ValueRef.NewObject(const Accessor: ICefV8Accessor;
+  const Interceptor: ICefV8Interceptor): ICefV8Value;
 begin
-  Result := UnWrap(cef_v8value_create_object(CefGetData(Accessor)));
+  Result := UnWrap(cef_v8value_create_object(CefGetData(Accessor), CefGetData(Interceptor)));
 end;
 
-class function TCefv8ValueRef.NewObjectProc(const getter : TCefV8AccessorGetterProc;
-  const setter : TCefV8AccessorSetterProc) : ICefv8Value;
-begin
-  Result := NewObject(TCefFastv8Accessor.Create(getter, setter) as ICefV8Accessor);
-end;
-
-class function TCefv8ValueRef.NewArray(len : Integer) : ICefv8Value;
+class function TCefV8ValueRef.NewArray(len : Integer) : ICefV8Value;
 begin
   Result := UnWrap(cef_v8value_create_array(len));
 end;
 
-class function TCefv8ValueRef.NewFunction(const name : ustring;
-  const handler : ICefv8Handler) : ICefv8Value;
+class function TCefV8ValueRef.NewFunction(const name : ustring;
+  const handler : ICefV8Handler) : ICefV8Value;
 Var
   n : TCefString;
 begin
@@ -5571,6 +5572,201 @@ begin
   Else Result := nil;
 end;
 
+{ TCefX509certPrincipalRef }
+
+function TCefX509certPrincipalRef.GetDisplayName: ustring;
+begin
+  Result := CefStringFreeAndGet(PCefX509certPrincipal(fData)^.get_display_name(fData));
+end;
+
+function TCefX509certPrincipalRef.GetCommonName: ustring;
+begin
+  Result := CefStringFreeAndGet(PCefX509certPrincipal(fData)^.get_common_name(fData));
+end;
+
+function TCefX509certPrincipalRef.GetLocalityName: ustring;
+begin
+  Result := CefStringFreeAndGet(PCefX509certPrincipal(fData)^.get_locality_name(fData));
+end;
+
+function TCefX509certPrincipalRef.GetStateOrProvinceName: ustring;
+begin
+  Result := CefStringFreeAndGet(PCefX509certPrincipal(fData)^.get_state_or_province_name(fData));
+end;
+
+function TCefX509certPrincipalRef.GetCountryName: ustring;
+begin
+  Result := CefStringFreeAndGet(PCefX509certPrincipal(fData)^.get_country_name(fData));
+end;
+
+procedure TCefX509certPrincipalRef.GetStreetAddresses(addresses: TStrings);
+Var
+  list: TCefStringList;
+  i: Integer;
+  str: TCefString;
+begin
+  list := cef_string_list_alloc();
+  try
+    PCefX509certPrincipal(fData)^.get_street_addresses(fData, list);
+    FillChar(str, SizeOf(str), 0);
+    For i := 0 to cef_string_list_size(list) - 1 do
+    begin
+      cef_string_list_value(list, i, @str);
+      addresses.Add(CefStringClearAndGet(str));
+    end;
+  finally
+    cef_string_list_free(list);
+  end;
+end;
+
+procedure TCefX509certPrincipalRef.GetOrganizationNames(names: TStrings);
+Var
+  list: TCefStringList;
+  i: Integer;
+  str: TCefString;
+begin
+  list := cef_string_list_alloc();
+  try
+    PCefX509certPrincipal(fData)^.get_organization_names(fData, list);
+    FillChar(str, SizeOf(str), 0);
+    For i := 0 to cef_string_list_size(list) - 1 do
+    begin
+      cef_string_list_value(list, i, @str);
+      names.Add(CefStringClearAndGet(str));
+    end;
+  finally
+    cef_string_list_free(list);
+  end;
+end;
+
+procedure TCefX509certPrincipalRef.GetOrganizationUnitNames(names: TStrings);
+Var
+  list: TCefStringList;
+  i: Integer;
+  str: TCefString;
+begin
+  list := cef_string_list_alloc();
+  try
+    PCefX509certPrincipal(fData)^.get_organization_unit_names(fData, list);
+    FillChar(str, SizeOf(str), 0);
+    For i := 0 to cef_string_list_size(list) - 1 do
+    begin
+      cef_string_list_value(list, i, @str);
+      names.Add(CefStringClearAndGet(str));
+    end;
+  finally
+    cef_string_list_free(list);
+  end;
+end;
+
+procedure TCefX509certPrincipalRef.GetDomainComponents(components: TStrings);
+Var
+  list: TCefStringList;
+  i: Integer;
+  str: TCefString;
+begin
+  list := cef_string_list_alloc();
+  try
+    PCefX509certPrincipal(fData)^.get_domain_components(fData, list);
+    FillChar(str, SizeOf(str), 0);
+    For i := 0 to cef_string_list_size(list) - 1 do
+    begin
+      cef_string_list_value(list, i, @str);
+      components.Add(CefStringClearAndGet(str));
+    end;
+  finally
+    cef_string_list_free(list);
+  end;
+end;
+
+class function TCefX509certPrincipalRef.UnWrap(data: Pointer): ICefX509certPrincipal;
+begin
+  If data <> nil then Result := Create(data) as ICefX509certPrincipal
+  Else Result := nil;
+end;
+
+{ TCefX509certificateRef }
+
+function TCefX509certificateRef.GetSubject: ICefX509certPrincipal;
+begin
+  Result := TCefX509certPrincipalRef.UnWrap(PCefX509Certificate(fData)^.get_subject(fData));
+end;
+
+function TCefX509certificateRef.GetIssuer: ICefX509certPrincipal;
+begin
+  Result := TCefX509certPrincipalRef.UnWrap(PCefX509Certificate(fData)^.get_issuer(fData));
+end;
+
+function TCefX509certificateRef.GetSerialNumber: ICefBinaryValue;
+begin
+  Result := TCefBinaryValueRef.UnWrap(PCefX509Certificate(fData)^.get_serial_number(fData));
+end;
+
+function TCefX509certificateRef.GetValidStart: TDateTime;
+begin
+  Result := CefTimeToDateTime(PCefX509Certificate(fData)^.get_valid_start(fData));
+end;
+
+function TCefX509certificateRef.GetValidExpiry: TDateTime;
+begin
+  Result := CefTimeToDateTime(PCefX509Certificate(fData)^.get_valid_expiry(fData));
+end;
+
+function TCefX509certificateRef.GetDerencoded: ICefBinaryValue;
+begin
+  Result := TCefBinaryValueRef.UnWrap(PCefX509Certificate(fData)^.get_derencoded(fData));
+end;
+
+function TCefX509certificateRef.GetPemencoded: ICefBinaryValue;
+begin
+  Result := TCefBinaryValueRef.UnWrap(PCefX509Certificate(fData)^.get_pemencoded(fData));
+end;
+
+function TCefX509certificateRef.GetIssuerChainSize: Integer;
+begin
+  Result := PCefX509Certificate(fData)^.get_issuer_chain_size(fData);
+end;
+
+procedure TCefX509certificateRef.GetDerencodedIssuerChain(chainCount: TSize;
+  out chain: ICefBinaryValueArray);
+Var
+  pchain: PCefBinaryValueArray;
+  i: Integer;
+begin
+  GetMem(pchain, SizeOf(PCefBinaryValue) * chainCount);
+  try
+    PCefX509Certificate(fData)^.get_derencoded_issuer_chain(fData, @chainCount, pchain);
+
+    SetLength(chain, chainCount);
+    For i := 0 to chainCount - 1 do chain[i] := TCefBinaryValueRef.UnWrap(pchain^[i]);
+  finally
+    FreeMem(pchain);
+  end;
+end;
+
+procedure TCefX509certificateRef.GetPemencodedIssuerChain(chainCount: TSize;
+  out chain: ICefBinaryValueArray);
+Var
+  pchain: PCefBinaryValueArray;
+  i: Integer;
+begin
+  GetMem(pchain, SizeOf(PCefBinaryValue) * chainCount);
+  try
+    PCefX509Certificate(fData)^.get_pemencoded_issuer_chain(fData, @chainCount, pchain);
+
+    SetLength(chain, chainCount);
+    For i := 0 to chainCount - 1 do chain[i] := TCefBinaryValueRef.UnWrap(pchain^[i]);
+  finally
+    FreeMem(pchain);
+  end;
+end;
+
+class function TCefX509certificateRef.UnWrap(data: Pointer): ICefX509certificate;
+begin
+  If data <> nil then Result := Create(data) as ICefX509certificate
+  Else Result := nil;
+end;
+
 { TCefXmlReaderRef }
 
 function TCefXmlReaderRef.MoveToNextNode : Boolean;
@@ -5782,9 +5978,9 @@ begin
   Result := PCefZipReader(fData)^.get_file_size(fData);
 end;
 
-function TCefZipReaderRef.GetFileLastModified : TCefTime;
+function TCefZipReaderRef.GetFileLastModified: TDateTime;
 begin
-  Result := PCefZipReader(fData)^.get_file_last_modified(fData);
+  Result := CefTimeToDateTime(PCefZipReader(fData)^.get_file_last_modified(fData));
 end;
 
 function TCefZipReaderRef.OpenFile(const password : ustring) : Boolean;

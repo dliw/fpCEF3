@@ -159,6 +159,7 @@ Type
       fOnQuotaRequest: TOnQuotaRequest;
       fOnProtocolExecution: TOnProtocolExecution;
       fOnCertificateError: TOnCertificateError;
+      fOnSelectClientCertificate: TOnSelectClientCertificate;
       fOnPluginCrashed: TOnPluginCrashed;
       fOnRenderViewReady: TOnRenderViewReady;
       fOnRenderProcessTerminated: TOnRenderProcessTerminated;
@@ -302,7 +303,7 @@ Type
       function doOnGetResourceHandler(const Browser: ICefBrowser; const Frame: ICefFrame;
         const request: ICefRequest): ICefResourceHandler; virtual;
       procedure doOnResourceRedirect(const browser: ICefBrowser; const frame: ICefFrame;
-        const request: ICefRequest; var newUrl: ustring); virtual;
+        const request: ICefRequest; const response: ICefResponse; var newUrl: ustring); virtual;
       function doOnResourceResponse(const browser: ICefBrowser; const frame: ICefFrame;
         const request: ICefRequest; const response: ICefResponse): Boolean; virtual;
       function doOnGetResourceResponseFilter(const browser: ICefBrowser;
@@ -320,6 +321,9 @@ Type
         const url: ustring; out allowOsExecution: Boolean); virtual;
       function doOnCertificateError(const browser: ICefBrowser; certError: TCefErrorCode;
         const requestUrl: ustring; const sslInfo: ICefSslinfo; callback: ICefRequestCallback): Boolean;
+      function doOnSelectClientCertificate(const browser: ICefBrowser; isProxy: Boolean;
+        const host: ustring; port: Integer; certificatesCount: TSize;
+        certificates: ICefX509certificateArray; callback: ICefSelectClientCertificateCallback): Boolean;
       procedure doOnPluginCrashed(const Browser: ICefBrowser; const pluginPath: ustring); virtual;
       procedure doOnRenderViewReady(const browser: ICefBrowser); virtual;
       procedure doOnRenderProcessTerminated(const Browser: ICefBrowser; Status: TCefTerminationStatus); virtual;
@@ -375,11 +379,11 @@ Type
       property OnPreKeyEvent: TOnPreKeyEvent read fOnPreKeyEvent write fOnPreKeyEvent;
       property OnKeyEvent: TOnKeyEvent read fOnKeyEvent write fOnKeyEvent;
 
-      { LiveSpanHandler }
+      { LifeSpanHandler }
       property OnBeforePopup: TOnBeforePopup read fOnBeforePopup write fOnBeforePopup;
       property OnAfterCreated: TOnAfterCreated read fOnAfterCreated write fOnAfterCreated;
-      property OnBeforeClose: TOnBeforeClose read fOnBeforeClose write fOnBeforeClose;
       property OnClose: TOnClose read fOnClose write fOnClose;
+      property OnBeforeClose: TOnBeforeClose read fOnBeforeClose write fOnBeforeClose;
 
       { LoadHandler }
       property OnLoadingStateChange: TOnLoadingStateChange read fOnLoadingStateChange write fOnLoadingStateChange;
@@ -393,12 +397,14 @@ Type
       property OnBeforeResourceLoad: TOnBeforeResourceLoad read fOnBeforeResourceLoad write fOnBeforeResourceLoad;
       property OnGetResourceHandler: TOnGetResourceHandler read fOnGetResourceHandler write fOnGetResourceHandler;
       property OnResourceRedirect: TOnResourceRedirect read fOnResourceRedirect write fOnResourceRedirect;
+      property OnResourceResponse: TOnResourceResponse read fOnResourceResponse write fOnResourceResponse;
       property OnGetResourceResponseFilter: TOnGetResourceResponseFilter read fOnGetResourceResponseFilter write fOnGetResourceResponseFilter;
       property OnResourceLoadComplete: TOnResourceLoadComplete read fOnResourceLoadComplete write fOnResourceLoadComplete;
       property OnGetAuthCredentials: TOnGetAuthCredentials read fOnGetAuthCredentials write fOnGetAuthCredentials;
       property OnQuotaRequest: TOnQuotaRequest read fOnQuotaRequest write fOnQuotaRequest;
       property OnProtocolExecution: TOnProtocolExecution read fOnProtocolExecution write fOnProtocolExecution;
       property OnCertificateError: TOnCertificateError read fOnCertificateError write fOnCertificateError;
+      property OnSelectClientCertificate: TOnSelectClientCertificate read fOnSelectClientCertificate write fOnSelectClientCertificate;
       property OnPluginCrashed: TOnPluginCrashed read fOnPluginCrashed write fOnPluginCrashed;
       property OnRenderViewReady: TOnRenderViewReady read fOnRenderViewReady write fOnRenderViewReady;
       property OnRenderProcessTerminated: TOnRenderProcessTerminated read fOnRenderProcessTerminated write fOnRenderProcessTerminated;
@@ -480,8 +486,8 @@ Type
 
       property OnBeforePopup;
       property OnAfterCreated;
-      property OnBeforeClose;
       property OnClose;
+      property OnBeforeClose;
 
       property OnLoadingStateChange;
       property OnLoadStart;
@@ -493,12 +499,14 @@ Type
       property OnBeforeResourceLoad;
       property OnGetResourceHandler;
       property OnResourceRedirect;
+      property OnResourceResponse;
       property OnGetResourceResponseFilter;
       property OnResourceLoadComplete;
       property OnGetAuthCredentials;
       property OnQuotaRequest;
       property OnProtocolExecution;
       property OnCertificateError;
+      property OnSelectClientCertificate;
       property OnPluginCrashed;
       property OnRenderViewReady;
       property OnRenderProcessTerminated;
@@ -566,7 +574,7 @@ begin
   inherited Create(crm);
 
   {$IFNDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
-  If not assigned(Timer) then
+  If (not CefExternalMessagePump) and (CefInstances = 0) then
   begin
     Timer := TTimer.Create(nil);
     Timer.Interval := 15;
@@ -595,7 +603,7 @@ begin
   {$IFNDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
   InterLockedDecrement(CefInstances);
 
-  If CefInstances = 0 then
+  If (CefInstances = 0) and Assigned(Timer) then
   begin
     Timer.Enabled := False;
 
@@ -697,7 +705,7 @@ begin
       info.x := Left;
       info.y := Top;
       info.width := Width;
-	    info.height := Height;
+      info.height := Height;
     {$ENDIF}
     {$IFDEF LCLCOCOA}
       rect := GetClientRect;
@@ -775,10 +783,10 @@ begin
     WM_ERASEBKGND:
       If (csDesigning in ComponentState) or (fBrowser = nil) then inherited WndProc(Message);
     CM_WANTSPECIALKEY:
-      If not (TWMKey(Message).CharCode in [VK_LEFT .. VK_DOWN]) then Message.Result := 1
+      If not (TWMKey(Message).CharCode in [VK_LEFT .. VK_DOWN, VK_TAB, VK_ESCAPE, VK_RETURN]) then Message.Result := 1
       Else inherited WndProc(Message);
     WM_GETDLGCODE:
-      Message.Result := DLGC_WANTARROWS or DLGC_WANTCHARS;
+      Message.Result := DLGC_WANTARROWS or DLGC_WANTCHARS or DLGC_WANTTAB;
   Else
     inherited WndProc(Message);
   end;
@@ -1265,9 +1273,10 @@ begin
 end;
 
 procedure TCustomChromium.doOnResourceRedirect(const browser: ICefBrowser; const frame: ICefFrame;
-  const request: ICefRequest; var newUrl: ustring);
+  const request: ICefRequest; const response: ICefResponse; var newUrl: ustring);
 begin
-  If Assigned(fOnResourceRedirect) then fOnResourceRedirect(Self, browser, frame, request, newUrl);
+  If Assigned(fOnResourceRedirect) then
+    fOnResourceRedirect(Self, browser, frame, request, response, newUrl);
 end;
 
 function TCustomChromium.doOnResourceResponse(const browser: ICefBrowser; const frame: ICefFrame;
@@ -1323,7 +1332,17 @@ function TCustomChromium.doOnCertificateError(const browser: ICefBrowser; certEr
   const requestUrl: ustring; const sslInfo: ICefSslinfo; callback: ICefRequestCallback): Boolean;
 begin
   If Assigned(fOnCertificateError) then
-    fOnCertificateError(Self, certError, requestUrl, callback, Result)
+    fOnCertificateError(Self, browser, certError, requestUrl, sslInfo, callback, Result)
+  Else Result := False;
+end;
+
+function TCustomChromium.doOnSelectClientCertificate(const browser: ICefBrowser; isProxy: Boolean;
+  const host: ustring; port: Integer; certificatesCount: TSize;
+  certificates: ICefX509certificateArray; callback: ICefSelectClientCertificateCallback): Boolean;
+begin
+  If Assigned(fOnSelectClientCertificate) then
+    fOnSelectClientCertificate(Self, browser, isProxy, host, port, certificatesCount, certificates,
+      callback, Result)
   Else Result := False;
 end;
 

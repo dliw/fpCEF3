@@ -8,7 +8,7 @@ object Mainform: TMainform
   ClientWidth = 762
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  LCLVersion = '1.6.2.0'
+  LCLVersion = '1.6.4.0'
   object BGo: TButton
     AnchorSideTop.Control = Owner
     AnchorSideRight.Control = Owner
@@ -87,7 +87,9 @@ object Mainform: TMainform
     Width = 74
     Anchors = [akLeft, akBottom]
     Caption = 'animate'
+    Checked = True
     OnChange = CBAnimateChange
+    State = cbChecked
     TabOrder = 4
   end
   object CBShowUpdate: TCheckBox
@@ -108,7 +110,7 @@ object Mainform: TMainform
     OnGetViewRect = ChromiumGetViewRect
     OnGetScreenPoint = ChromiumGetScreenPoint
     OnPaint = ChromiumPaint
-    DefaultUrl = 'about:blank'
+    DefaultUrl = 'https://github.com/dliw/fpCEF3'
     WindowlessFrameRate = 30
     BackgroundColor = clWhite
     left = 8

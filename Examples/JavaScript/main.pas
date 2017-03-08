@@ -26,6 +26,10 @@ Type
     procedure Button1Click(Sender : TObject);
     procedure Button2Click(Sender : TObject);
     procedure Button3Click(Sender : TObject);
+    procedure ChromiumJsdialog(Sender: TObject; const Browser: ICefBrowser;
+      const originUrl: ustring; dialogType: TCefJsDialogType;
+      const messageText, defaultPromptText: ustring; callback: ICefJsDialogCallback;
+      out suppressMessage: Boolean; out Result: Boolean);
     procedure ChromiumTitleChange(Sender : TObject; const Browser : ICefBrowser;
       const title : ustring);
     procedure EUrlKeyDown(Sender : TObject; var Key : Word; Shift : TShiftState);
@@ -65,6 +69,24 @@ end;
 procedure TMainform.Button3Click(Sender: TObject);
 begin
   Chromium.Browser.MainFrame.ExecuteJavaScript('alert(cef.test.test_param);', 'about:blank', 0);
+end;
+
+procedure TMainform.ChromiumJsdialog(Sender: TObject; const Browser: ICefBrowser;
+  const originUrl: ustring; dialogType: TCefJsDialogType;
+  const messageText, defaultPromptText: ustring; callback: ICefJsDialogCallback;
+  out suppressMessage: Boolean; out Result: Boolean);
+begin
+  If dialogType = JSDIALOGTYPE_ALERT then
+  begin
+    ShowMessage('JavaScript alert:' + LineEnding + messageText);
+    callback.Cont(True, '');
+    Result := True;
+  end
+  Else
+  begin
+    suppressMessage := False;
+    Result := False;
+  end;
 end;
 
 procedure TMainform.ChromiumTitleChange(Sender: TObject; const Browser: ICefBrowser; const title: ustring);

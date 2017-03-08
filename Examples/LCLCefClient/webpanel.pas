@@ -81,9 +81,9 @@ Uses cef3ref, Main
 
 Const
   // client menu IDs
-  CLIENT_ID_VISIT_COOKIES = Ord(MENU_ID_USER_FIRST) + 0;
-  CLIENT_ID_PRINT_TO_PDF  = Ord(MENU_ID_USER_FIRST) + 1;
-  CLIENT_ID_EXIT          = Ord(MENU_ID_USER_FIRST) + 2;
+  CLIENT_ID_VISIT_COOKIES = MENU_ID_USER_FIRST + 0;
+  CLIENT_ID_PRINT_TO_PDF  = MENU_ID_USER_FIRST + 1;
+  CLIENT_ID_EXIT          = MENU_ID_USER_FIRST + 2;
 
 Type
 
@@ -103,7 +103,7 @@ function VisitCookies(const cookie: TCefCookie; count, total: Integer;
 Var
   tmp: TCefString;
 begin
-  Write(count, '/', total, ': ');
+  Write(count + 1, '/', total, ': ');
 
   tmp := cookie.path;
   Write(CefString(@tmp), ' ');
@@ -114,7 +114,11 @@ begin
   tmp := cookie.domain;
   Write(CefString(@tmp), ' ');
 
-  WriteLn(DateTimeToStr(CefTimeToDateTime(cookie.expires)));
+  try
+    WriteLn(DateTimeToStr(CefTimeToDateTime(cookie.expires)));
+  except
+    WriteLn('Invalid datetime.');
+  end;
 
   deleteCookie := False;
   Result := True;
@@ -211,7 +215,7 @@ procedure TWebPanel.ChromiumBeforeContextMenu(Sender: TObject; const Browser: IC
 begin
   Assert(CefCurrentlyOn(TID_UI));
 
-  If (params.GetTypeFlags in [CM_TYPEFLAG_PAGE, CM_TYPEFLAG_FRAME]) then
+  If ([CM_TYPEFLAG_PAGE, CM_TYPEFLAG_FRAME] * params.GetTypeFlags) <> [] then
   begin
     // Add seperator if the menu already contains items
     If model.GetCount > 0 then model.AddSeparator;

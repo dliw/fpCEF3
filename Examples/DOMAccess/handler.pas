@@ -36,7 +36,8 @@ begin
   With message.ArgumentList do
   begin
     SetString(0, document.GetTitle);
-    SetString(1, document.GetSelectionAsText);
+    SetBool(1, document.HasSelection);
+    SetString(2, document.GetSelectionAsText);
   end;
 
   ActiveBrowser.SendProcessMessage(PID_BROWSER, message);
@@ -51,7 +52,7 @@ begin
   Case message.Name of
    'visitdom':
        begin
-         browser.MainFrame.VisitDomProc(@visitDOM);
+         browser.FocusedFrame.VisitDomProc(@visitDOM);
          Result := True;
        end;
   Else

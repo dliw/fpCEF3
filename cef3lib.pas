@@ -37,7 +37,7 @@ Uses
 function CefInitDefault: Boolean; deprecated;
 
 function CefGetObject(ptr: Pointer): TObject; {$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
-function CefGetData(const i: ICefBase) : Pointer; {$IFDEF SUPPORTS_INLINE}inline; {$ENDIF}
+function CefGetData(const i: ICefBase): Pointer; {$IFDEF SUPPORTS_INLINE}inline; {$ENDIF}
 
 function CefTimeToDateTime(const dt: TCefTime): TDateTime;
 function DateTimeToCefTime(dt: TDateTime): TCefTime;
@@ -113,12 +113,17 @@ function CefRegisterSchemeHandlerFactory(const SchemeName, HostName: ustring;
   SyncMainThread: Boolean; const handler: TCefResourceHandlerClass): Boolean;
 function CefClearSchemeHandlerFactories: Boolean;
 
+function CefIsCertStatusError(status: TCefCertStatus): Boolean;
+function CefIsCertStatusMinorError(status: TCefCertStatus): Boolean;
+
 function CefCurrentlyOn(ThreadId: TCefThreadId): Boolean;
 procedure CefPostTask(ThreadId: TCefThreadId; const task: ICefTask);
 procedure CefPostDelayedTask(ThreadId: TCefThreadId; const task: ICefTask; delayMs: Int64);
 
-function CefBeginTracing(const categories: ustring; callback: ICefCompletionCallback): Boolean;
-function CefEndTracing(const tracingFile: ustring; callback: ICefEndTracingCallback): Boolean;
+function CefBeginTracing(const categories: ustring; const callback: ICefCompletionCallback): Boolean;
+function CefBeginTracingProc(const categories: ustring; const proc: TCefCompletionCallbackProc): Boolean;
+function CefEndTracing(const tracingFile: ustring; const callback: ICefEndTracingCallback): Boolean;
+function CefEndTracingProc(const tracingFile: ustring; const proc: TCefEndTracingCallbackProc): Boolean;
 function CefNowFromSystemTraceTime: Int64;
 
 function CefRegisterExtension(const name, code: ustring; const Handler: ICefv8Handler): Boolean;
@@ -131,6 +136,8 @@ procedure CefUnregisterInternalWebPlugin(const path: ustring);
 procedure CefRegisterWebPluginCrash(const path: ustring);
 procedure CefIsWebPluginUnstable(const path: ustring; const callback: ICefWebPluginUnstableCallback);
 procedure CefIsWebPluginUnstableProc(const path: ustring; const callback: TCefWebPluginIsUnstableProc);
+procedure CefRegisterWidevineCdm(const path: ustring; const callback: ICefRegisterCdmCallback);
+procedure CefRegisterWidevineCdmProc(const path: ustring; const proc: TCefRegisterCdmCallbackProc);
 
 function CefGetMinLogLevel: Integer;
 function CefGetVlogLevel(const fileStart: String; n: TSize): Integer;
@@ -139,7 +146,7 @@ procedure CefLog(const file_: String; line, severity: Integer; const message: St
 function CefGetCurrentPlatformThreadId: TCefPlatformThreadId;
 function CefGetCurrentPlatformThreadHandle: TCefPlatformThreadHandle;
 
-function CefTimeNow(out cefTime: TCefTime): Boolean;
+function CefTimeNow(out cefTime: TDateTime): Boolean;
 
 procedure CefTraceEventInstant(const category, name, arg1_name: String; arg1_val: UInt64; const arg2_name: String; arg2_val: UInt64; copy: Integer);
 procedure CefTraceEventBegin(const category, name, arg1_name: String; arg1_val: UInt64; const arg2_name: String; arg2_val: UInt64; copy: Integer);
@@ -187,6 +194,8 @@ Var
   CefRemoteDebuggingPort: Integer = 0;
   CefUncaughtExceptionStackSize: Integer = 10;
   CefContextSafetyImplementation: Integer = 0;
+  CefIgnoreCertificateError: Boolean = False;
+  CefEnableNetSecurityExpiration: Boolean = False;
   CefBackgroundColor: TFPColor = (red: 255; green: 255; blue: 255; alpha: 0);
   CefAcceptLanguageList: ustring = '';
 
@@ -346,7 +355,7 @@ function CefString(const str: ustring): TCefString;
 begin
   Result.length := Length(str);
 
-  If Result.length > 0 then Result.str := PCefChar(PWideChar(str))
+  If Result.length > 0 then Result.str := PCefChar(str)
   Else Result.str := nil;
 
   Result.dtor := nil;
@@ -377,7 +386,7 @@ end;
 function CefStringAlloc(const str: ustring): TCefString;
 begin
   FillChar(Result, SizeOf(Result), 0);
-  If str <> '' then cef_string_from_wide(PWideChar(str), Length(str), @Result);
+  CefStringSet(@Result, str);
 end;
 
 procedure CefStringFree(const str: PCefString);
@@ -400,7 +409,7 @@ begin
   Move(PCefChar(str)^, Result^.str^, Result^.length * SizeOf(TCefChar));
 end;
 
-procedure CefStringSet(const str: PCefString; const value: ustring);
+procedure CefStringSet(const str: PCefString; const value: ustring); inline;
 begin
   If str <> nil then cef_string_set(PCefChar(value), Length(value), str, 1);
 end;
@@ -440,6 +449,7 @@ begin
   Settings.windowless_rendering_enabled := Ord(CefWindowlessRenderingEnabled);
   Settings.cache_path := CefString(CefCachePath);
   Settings.command_line_args_disabled := Ord(CefCommandLineArgsDisabled);
+  Settings.cache_path := CefString(CefCachePath);
   Settings.user_data_path := CefString(CefUserDataPath);
   Settings.persist_session_cookies := Ord(CefPersistSessionCookies);
   Settings.persist_user_preferences := Ord(CefPersistUserPreferences);
@@ -455,6 +465,8 @@ begin
   Settings.remote_debugging_port := CefRemoteDebuggingPort;
   Settings.uncaught_exception_stack_size := CefUncaughtExceptionStackSize;
   Settings.context_safety_implementation := CefContextSafetyImplementation;
+  Settings.ignore_certificate_error := Ord(CefIgnoreCertificateError);
+  Settings.enable_net_security_expiration := Ord(CefEnableNetSecurityExpiration);
   Settings.background_color := FPColorToCefColor(CefBackgroundColor);
   Settings.accept_language_list := CefString(CefAcceptLanguageList);
 
@@ -766,6 +778,16 @@ begin
   Result := cef_clear_scheme_handler_factories() <> 0;
 end;
 
+function CefIsCertStatusError(status: TCefCertStatus): Boolean;
+begin
+  Result := cef_is_cert_status_error(status) <> 0;
+end;
+
+function CefIsCertStatusMinorError(status: TCefCertStatus): Boolean;
+begin
+  Result := cef_is_cert_status_minor_error(status) <> 0;
+end;
+
 function CefCurrentlyOn(ThreadId: TCefThreadId): Boolean;
 begin
   Result := cef_currently_on(ThreadId) <> 0;
@@ -781,7 +803,8 @@ begin
   cef_post_delayed_task(ThreadId, CefGetData(task), delayMs);
 end;
 
-function CefBeginTracing(const categories: ustring; callback: ICefCompletionCallback): Boolean;
+function CefBeginTracing(const categories: ustring;
+  const callback: ICefCompletionCallback): Boolean;
 Var
   c: TCefString;
 begin
@@ -789,12 +812,24 @@ begin
   Result := cef_begin_tracing(@c, CefGetData(callback)) <> 0;
 end;
 
-function CefEndTracing(const tracingFile: ustring; callback: ICefEndTracingCallback): Boolean;
+function CefBeginTracingProc(const categories: ustring;
+  const proc: TCefCompletionCallbackProc): Boolean;
+begin
+  Result := CefBeginTracing(categories, TCefFastCompletionCallback.Create(proc));
+end;
+
+function CefEndTracing(const tracingFile: ustring; const callback: ICefEndTracingCallback): Boolean;
 Var
   t: TCefString;
 begin
   t := CefString(tracingFile);
   Result := cef_end_tracing(@t, CefGetData(callback)) <> 0;
+end;
+
+function CefEndTracingProc(const tracingFile: ustring;
+  const proc: TCefEndTracingCallbackProc): Boolean;
+begin
+  Result := CefEndTracing(tracingFile, TCefFastEndTracingCallback.Create(proc));
 end;
 
 function CefNowFromSystemTraceTime: Int64;
@@ -860,6 +895,19 @@ begin
   CefIsWebPluginUnstable(path, TCefFastWebPluginUnstableCallback.Create(callback));
 end;
 
+procedure CefRegisterWidevineCdm(const path: ustring; const callback: ICefRegisterCdmCallback);
+Var
+  p: TCefString;
+begin
+  p := CefString(path);
+  cef_register_widevine_cdm(@p, CefGetData(callback));
+end;
+
+procedure CefRegisterWidevineCdmProc(const path: ustring; const proc: TCefRegisterCdmCallbackProc);
+begin
+  CefRegisterWidevineCdm(path, TCefFastRegisterCdmCallback.Create(proc));
+end;
+
 function CefGetMinLogLevel: Integer;
 begin
   Result := cef_get_min_log_level();
@@ -885,9 +933,12 @@ begin
   Result := cef_get_current_platform_thread_handle();
 end;
 
-function CefTimeNow(out cefTime: TCefTime): Boolean;
+function CefTimeNow(out cefTime: TDateTime): Boolean;
+Var
+  ct: TCefTime;
 begin
-  Result := cef_time_now(@cefTime) <> 0;
+  Result := cef_time_now(@ct) <> 0;
+  cefTime := CefTimeToDateTime(ct);
 end;
 
 procedure CefTraceEventInstant(const category, name, arg1_name: String; arg1_val: UInt64;

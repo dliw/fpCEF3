@@ -51,8 +51,8 @@ begin
   Chromium.Load(EUrl.Text);
 end;
 
-procedure TMainform.ChromiumKeyEvent(Sender : TObject; const Browser : ICefBrowser;
-  const event : PCefKeyEvent; osEvent : TCefEventHandle; out Result : Boolean);
+procedure TMainform.ChromiumKeyEvent(Sender: TObject; const Browser: ICefBrowser;
+  const event: PCefKeyEvent; osEvent: TCefEventHandle; out Result: Boolean);
 begin
   If event^.kind = KEYEVENT_KEYUP then
   begin
@@ -68,10 +68,6 @@ procedure TMainform.ChromiumLoadEnd(Sender : TObject; const Browser : ICefBrowse
   httpStatusCode : Integer);
 begin
   EUrl.Text := UTF8Encode(Browser.MainFrame.Url);
-
-  If Browser.SendProcessMessage(PID_RENDERER, TCefProcessMessageRef.New('addListener')) then
-    Log.Append('Listener registered.')
-  Else Log.Append('Failed to register listener.');
 end;
 
 procedure TMainform.ChromiumProcessMessageReceived(Sender : TObject;
@@ -84,7 +80,8 @@ begin
            With message.ArgumentList do
            begin
              Log.Append('Title: ' + GetString(0));
-             Log.Append('Selection: ' + GetString(1));
+             Log.Append('HasSelection: ' + BoolToStr(GetBool(1), True));
+             Log.Append('Selection: ' + GetString(2));
            end;
            Result := True;
          end;
@@ -109,6 +106,8 @@ begin
   // No subprocess here
   // If you want to use a subprocess, this CefRenderProcessHandler has to be registered in subprocess
   CefRenderProcessHandler := TCustomRenderProcessHandler.Create;
+
+  Log.Append('Press any key to get DOM data...');
 end;
 
 end.

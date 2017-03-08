@@ -8,7 +8,7 @@ object Mainform: TMainform
   ClientHeight = 587
   ClientWidth = 921
   OnCreate = FormCreate
-  LCLVersion = '1.4.2.0'
+  LCLVersion = '1.6.4.0'
   object BGo: TButton
     AnchorSideTop.Control = Owner
     AnchorSideRight.Control = Owner
@@ -66,6 +66,7 @@ object Mainform: TMainform
     Width = 921
     Anchors = [akTop, akLeft, akRight, akBottom]
     OnTitleChange = ChromiumTitleChange
+    OnJsdialog = ChromiumJsdialog
     DefaultUrl = 'example.com'
   end
   object Log: TMemo

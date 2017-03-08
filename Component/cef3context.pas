@@ -23,7 +23,7 @@ Interface
 
 Uses
   Classes, SysUtils,
-  cef3types, cef3lib, cef3intf, cef3ref, cef3own, cef3gui;
+  cef3types, cef3lib, cef3intf, cef3ref, cef3gui;
 
 Type
 
@@ -141,8 +141,6 @@ begin
 end;
 
 function TCustomChromiumContext.GetRequestContext: ICefRequestContext;
-Var
-  settings: TCefRequestContextSettings;
 begin
   If not Assigned(fRequestContext) then fRequestContext := NewRequestContext;
 
