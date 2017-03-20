@@ -73,7 +73,7 @@ Type
   TOnFindResult = procedure(Sender: TObject; browser: ICefBrowser; identifier, count: Integer; const selectionRect: TCefRect; activeMatchOridinal: Integer; finalUpdate: Boolean) of object;
 
   { FocusHandler }
-  TOnTakeFocus = procedure(Sender: TObject; const Browser: ICefBrowser; next: Boolean) of object;
+  TOnTakeFocus = procedure(Sender: TObject; const Browser: ICefBrowser; next_: Boolean) of object;
   TOnSetFocus = procedure(Sender: TObject; const Browser: ICefBrowser; Source: TCefFocusSource; out Result: Boolean) of object;
   TOnGotFocus = procedure(Sender: TObject; const Browser: ICefBrowser) of object;
 
@@ -302,7 +302,7 @@ Type
       const selectionRect: TCefRect; activeMatchOridinal: Integer; finalUpdate: Boolean);
 
     { CefFocusHandler }
-    procedure doOnTakeFocus(const Browser: ICefBrowser; next: Boolean);
+    procedure doOnTakeFocus(const Browser: ICefBrowser; next_: Boolean);
     function doOnSetFocus(const Browser: ICefBrowser; Source: TCefFocusSource): Boolean;
     procedure doOnGotFocus(const Browser: ICefBrowser);
 

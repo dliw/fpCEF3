@@ -20,6 +20,7 @@ Type
     procedure BGoClick(Sender: TObject);
     procedure ChromiumLoadEnd(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame;
       httpStatusCode: Integer);
+    procedure ChromiumTakeFocus(Sender: TObject; const Browser: ICefBrowser; next_: Boolean);
     procedure ChromiumTitleChange(Sender: TObject; const Browser: ICefBrowser; const title: ustring);
     procedure EUrlKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormCreate(Sender: TObject);
@@ -47,6 +48,11 @@ procedure TMainform.ChromiumLoadEnd(Sender: TObject; const Browser: ICefBrowser;
   httpStatusCode: Integer);
 begin
   EUrl.Text := UTF8Encode(Browser.MainFrame.Url);
+end;
+
+procedure TMainform.ChromiumTakeFocus(Sender: TObject; const Browser: ICefBrowser; next_: Boolean);
+begin
+  SelectNext(ActiveControl, next_, True);
 end;
 
 procedure TMainform.ChromiumTitleChange(Sender: TObject; const Browser: ICefBrowser; const title: ustring);

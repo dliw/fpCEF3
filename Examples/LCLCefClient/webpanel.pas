@@ -18,6 +18,7 @@ Type
     fUrl: String;
     fIconGetter: TFaviconGetter;
 
+    procedure ChromiumTakeFocus(Sender: TObject; const Browser: ICefBrowser; next_: Boolean);
     procedure ChromiumTitleChange(Sender: TObject; const Browser: ICefBrowser; const title: ustring);
     procedure ChromiumAddressChange(Sender: TObject; const Browser: ICefBrowser;
       const Frame: ICefFrame; const url: ustring);
@@ -151,6 +152,25 @@ begin
 
   If UTF8Length(NewTitle) < 15 then Caption := NewTitle
   Else Caption := UTF8Copy(NewTitle, 1, 12) + '...';
+end;
+
+procedure TWebPanel.ChromiumTakeFocus(Sender: TObject; const Browser: ICefBrowser; next_: Boolean);
+Var
+  NextPageIndex: Integer;
+begin
+  If next_ then NextPageIndex := PageIndex + 1
+  Else NextPageIndex := PageIndex - 1;
+
+  If (NextPageIndex >= 0) and (NextPageIndex < PageControl.PageCount) then
+  begin
+    // Select next tab if available
+    PageControl.ActivePageIndex := NextPageIndex;
+  end
+  Else
+  begin
+    // otherwise select next component on form
+    FMain.SelectNext(FMain.ActiveControl, next_, True);
+  end;
 end;
 
 procedure TWebPanel.ChromiumAddressChange(Sender: TObject; const Browser: ICefBrowser;
@@ -482,10 +502,12 @@ begin
   If not Assigned(fChromium) then
   begin
     fChromium := TChromium.Create(Self);
+    fChromium.TabStop := True;
     fChromium.Parent := Self;
     fChromium.AnchorAsAlign(alClient, 0);
 
     // Register callbacks
+    fChromium.OnTakeFocus := @ChromiumTakeFocus;
     fChromium.OnTitleChange := @ChromiumTitleChange;
     fChromium.OnAddressChange := @ChromiumAddressChange;
     fChromium.OnFaviconUrlchange := @ChromiumFaviconUrlchange;

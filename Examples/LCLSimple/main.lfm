@@ -62,8 +62,11 @@ object Mainform: TMainform
     Height = 428
     Top = 48
     Width = 810
+    TabStop = True
     Anchors = [akTop, akLeft, akRight, akBottom]
+    TabOrder = 3
     OnTitleChange = ChromiumTitleChange
+    OnTakeFocus = ChromiumTakeFocus
     OnLoadEnd = ChromiumLoadEnd
     DefaultUrl = 'about:blank'
   end

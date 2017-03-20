@@ -7,7 +7,7 @@ object FMain: TFMain
   ClientHeight = 533
   ClientWidth = 1201
   OnCreate = FormCreate
-  LCLVersion = '1.6.2.0'
+  LCLVersion = '1.6.4.0'
   object LUrl: TStaticText
     AnchorSideTop.Control = Owner
     Left = 8
@@ -65,7 +65,7 @@ object FMain: TFMain
     Anchors = [akTop, akLeft, akRight, akBottom]
     BorderSpacing.Top = 10
     Images = TabIcons
-    TabOrder = 3
+    TabOrder = 5
     OnChange = TabsChange
   end
   object BNewTab: TButton
@@ -80,7 +80,7 @@ object FMain: TFMain
     BorderSpacing.Right = 5
     Caption = '+'
     OnClick = BNewTabClick
-    TabOrder = 4
+    TabOrder = 3
   end
   object BCloseTab: TButton
     AnchorSideTop.Control = Owner
@@ -96,7 +96,7 @@ object FMain: TFMain
     Caption = '-'
     Enabled = False
     OnClick = BCloseTabClick
-    TabOrder = 5
+    TabOrder = 4
   end
   object TabIcons: TImageList
     left = 1152

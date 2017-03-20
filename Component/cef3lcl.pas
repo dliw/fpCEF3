@@ -233,7 +233,7 @@ Type
       procedure doOnFindResult(const browser: ICefBrowser; identifier, count: Integer; const selectionRect: TCefRect; activeMatchOridinal: Integer; finalUpdate: Boolean); virtual;
 
       { FocusHandler }
-      procedure doOnTakeFocus(const Browser: ICefBrowser; next: Boolean); virtual;
+      procedure doOnTakeFocus(const Browser: ICefBrowser; next_: Boolean); virtual;
       function doOnSetFocus(const Browser: ICefBrowser; Source: TCefFocusSource): Boolean; virtual;
       procedure doOnGotFocus(const Browser: ICefBrowser); virtual;
 
@@ -438,10 +438,10 @@ Type
     published
       property Color;
       property Constraints;
-      //property TabStop;
+      property TabStop;
       property Align;
       property Anchors;
-      //property TabOrder;
+      property TabOrder;
       property Visible;
 
       property OnProcessMessageReceived;
@@ -1044,9 +1044,9 @@ begin
     activeMatchOridinal, finalUpdate);
 end;
 
-procedure TCustomChromium.doOnTakeFocus(const Browser: ICefBrowser; next: Boolean);
+procedure TCustomChromium.doOnTakeFocus(const Browser: ICefBrowser; next_: Boolean);
 begin
-  If Assigned(fOnTakeFocus) then fOnTakeFocus(Self, Browser, next);
+  If Assigned(fOnTakeFocus) then fOnTakeFocus(Self, Browser, next_);
 end;
 
 function TCustomChromium.doOnSetFocus(const Browser: ICefBrowser; Source: TCefFocusSource): Boolean;
