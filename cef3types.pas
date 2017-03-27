@@ -185,9 +185,6 @@ Type
     TCefCursorHandle = NSCursor;
     TCefEventHandle = NSEvent;
     TCefWindowHandle = NSView;
-    TCefTextInputContext = NSTextInputContext;
-  {$ELSE}
-    TCefTextInputContext = Pointer;
   {$ENDIF}
 
   // Structure representing CefExecuteProcess arguments.
@@ -306,7 +303,8 @@ Type
   // Time information. Values should always be in UTC.
   PCefTime = ^TCefTime;
   TCefTime = record
-    year: Integer;          // Four digit year "2007"
+    year: Integer;          // Four or five digit year "2007" (1601 to 30827 on
+                            //   Windows, 1970 to 2038 on 32-bit POSIX)
     month: Integer;         // 1-based month (values 1 = January, etc.)
     day_of_week: Integer;   // 0-based day of week (0 = Sunday, etc.)
     day_of_month: Integer;  // 1-based day of month (1-31)
@@ -386,10 +384,19 @@ Type
     no_sandbox: Integer;
 
     // The path to a separate executable that will be launched for sub-processes.
-    // By default the browser process executable is used. See the comments on
-    // CefExecuteProcess() for details. Also configurable using the
-    // "browser-subprocess-path" command-line switch.
+    // If this value is empty on Windows or Linux then the main process executable
+    // will be used. If this value is empty on macOS then a helper executable must
+    // exist at "Contents/Frameworks/<app> Helper.app/Contents/MacOS/<app> Helper"
+    // in the top-level app bundle. See the comments on CefExecuteProcess() for
+    // details. Also configurable using the "browser-subprocess-path" command-line
+    // switch.
     browser_subprocess_path: TCefString;
+
+    // The path to the CEF framework directory on macOS. If this value is empty
+    // then the framework must exist at "Contents/Frameworks/Chromium Embedded
+    // Framework.framework" in the top-level app bundle. Also configurable using
+    // the "framework-dir-path" command-line switch.
+    framework_dir_path: TCefString;
 
     // Set to true (1) to have the browser process message loop run in a separate
     // thread. If false (0) than the CefDoMessageLoopWork() function must be
@@ -696,10 +703,6 @@ Type
     // be enabled. Also configurable using the "disable-javascript-dom-paste"
     // command-line switch.
     javascript_dom_paste: TCefState;
-
-    // Controls whether the caret position will be drawn. Also configurable using
-    // the "enable-caret-browsing" command-line switch.
-    caret_browsing: TCefState;
 
     // Controls whether any plugins will be loaded. Also configurable using the
     // "disable-plugins" command-line switch.
@@ -1271,7 +1274,6 @@ Type
   TCefRangeArray = array[0..(High(Integer) div SizeOf(TCefRange)) - 1] of TCefRange;
   PCefRangeArray = ^TCefRangeArray;
 
-
   // Structure representing insets.
   PCefInsets = ^TCefInsets;
   TCefInsets = record
@@ -1332,6 +1334,47 @@ Type
 
     // The main thread in the renderer. Used for all WebKit and V8 interaction.
     TID_RENDERER
+  );
+
+  // Thread priority values listed in increasing order of importance.
+  TCefThreadPriority = (
+    // Suitable for threads that shouldn't disrupt high priority work.
+    TP_BACKGROUND,
+
+    // Default priority level.
+    TP_NORMAL,
+
+    // Suitable for threads which generate data for the display (at ~60Hz).
+    TP_DISPLAY,
+
+    // Suitable for low-latency, glitch-resistant audio.
+    TP_REALTIME_AUDIO
+  );
+
+  // Message loop types. Indicates the set of asynchronous events that a message
+  // loop can process.
+  TCefMessageLoopType = (
+    // Supports tasks and timers.
+    ML_TYPE_DEFAULT,
+
+    // Supports tasks, timers and native UI events (e.g. Windows messages).
+    ML_TYPE_UI,
+
+    // Supports tasks, timers and asynchronous IO events.
+    ML_TYPE_IO
+  );
+
+  // Windows COM initialization mode. Specifies how COM will be initialized for a
+  // new thread.
+  TCefComInitMode = (
+    // No COM initialization.
+    COM_INIT_MODE_NONE,
+
+    // Initialize COM using single-threaded apartments.
+    COM_INIT_MODE_STA,
+
+    // Initialize COM using multi-threaded apartments.
+    COM_INIT_MODE_MTA
   );
 
   // Supported value types.
@@ -2337,6 +2380,26 @@ Type
     // CDM registration is not supported at this time.
     CEF_CDM_REGISTRATION_ERROR_NOT_SUPPORTED
   );
+
+  // Structure representing IME composition underline information. This is a thin
+  // wrapper around Blink's WebCompositionUnderline class and should be kept in
+  // sync with that.
+  PCefCompositionUnderline = ^TCefCompositionUnderline;
+  TCefCompositionUnderline = record
+    // Underline character range.
+    range: TCefRange;
+
+    // Text color.
+    color: TCefColor;
+
+    // Background color.
+    backgroundColor: TCefColor;
+
+    // Set to true (1) for thick underline.
+    thick: Integer;
+  end;
+  TCefCompositionUnderlineArray = array[0..(High(Integer) div SizeOf(TCefCompositionUnderline)) - 1] of TCefCompositionUnderline;
+  PCefCompositionUnderlineArray = ^TCefCompositionUnderlineArray;
 
 Implementation
 

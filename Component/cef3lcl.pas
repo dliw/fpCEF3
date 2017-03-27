@@ -291,6 +291,8 @@ Type
         allowedOps: TCefDragOperationsMask; x, y: Integer): Boolean; virtual;
       procedure doOnUpdateDragCursor(const browser: ICefBrowser; operation: TCefDragOperationsMask); virtual;
       procedure doOnScrollOffsetChanged(const browser: ICefBrowser; x,y: Double); virtual;
+      procedure doOnImeCompositionRangeChanged(const browser: ICefBrowser; const selectedRange: TCefRange;
+        characterBoundsCount: TSize; characterBounds: TCefRectArray); virtual;
 
       { RequestHandler }
       function doOnBeforeBrowse(const browser: ICefBrowser; const frame: ICefFrame;
@@ -649,7 +651,6 @@ begin
   settings.javascript_close_windows := fOptions.JavascriptCloseWindows;
   settings.javascript_access_clipboard := fOptions.JavascriptAccessClipboard;
   settings.javascript_dom_paste := fOptions.JavascriptDomPaste;
-  settings.caret_browsing := fOptions.CaretBrowsing;
   settings.plugins := fOptions.Plugins;
   settings.universal_access_from_file_urls := fOptions.UniversalAccessFromFileUrls;
   settings.file_access_from_file_urls := fOptions.FileAccessFromFileUrls;
@@ -1235,6 +1236,12 @@ begin
 end;
 
 procedure TCustomChromium.doOnScrollOffsetChanged(const browser: ICefBrowser; x, y: Double);
+begin
+  { empty }
+end;
+
+procedure TCustomChromium.doOnImeCompositionRangeChanged(const browser: ICefBrowser;
+  const selectedRange: TCefRange; characterBoundsCount: TSize; characterBounds: TCefRectArray);
 begin
   { empty }
 end;

@@ -46,8 +46,9 @@ Type
       function NewRequestContext: ICefRequestContext;
 
       function doOnGetCookieManager: ICefCookieManager;
-      function doOnBeforePluginLoad(const mimeType, pluginUrl, topOriginUrl: ustring;
-        pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy): Boolean;
+      function doOnBeforePluginLoad(const mimeType, pluginUrl: ustring; isMainFrame: Boolean;
+        const topOriginUrl: ustring; pluginInfo: ICefWebPluginInfo;
+        pluginPolicy: TCefPluginPolicy): Boolean;
 
       property SharedContext: TCustomChromiumContext read fSharedContext write fSharedContext default nil;
 
@@ -122,11 +123,13 @@ begin
   Else Result := nil;
 end;
 
-function TCustomChromiumContext.doOnBeforePluginLoad(const mimeType, pluginUrl, topOriginUrl: ustring;
-  pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy): Boolean;
+function TCustomChromiumContext.doOnBeforePluginLoad(const mimeType, pluginUrl: ustring;
+  isMainFrame: Boolean; const topOriginUrl: ustring; pluginInfo: ICefWebPluginInfo;
+  pluginPolicy: TCefPluginPolicy): Boolean;
 begin
   If Assigned(fOnBeforePluginLoad) then
-    fOnBeforePluginLoad(Self, mimeType, pluginUrl, topOriginUrl, pluginInfo, pluginPolicy, Result)
+    fOnBeforePluginLoad(Self, mimeType, pluginUrl, isMainFrame, topOriginUrl, pluginInfo,
+      pluginPolicy, Result)
   Else Result := False;
 end;
 

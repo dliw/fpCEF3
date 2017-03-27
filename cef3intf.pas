@@ -162,6 +162,8 @@ Type
   ICefTask = interface;
   ICefTaskRunner = interface;
 
+  ICefThread = interface;
+
   ICefEndTracingCallback = interface;
 
   ICefUrlRequest = interface;
@@ -184,6 +186,8 @@ Type
   ICefBinaryValueArray = array of ICefBinaryValue;
   ICefDictionaryValue = interface;
   ICefListValue = interface;
+
+  ICefWaitableEvent = interface;
 
   ICefWebPluginInfo = interface;
   ICefWebPluginInfoVisitor = interface;
@@ -334,6 +338,12 @@ Type
     procedure NotifyMoveOrResizeStarted;
     function GetWindowlessFrameRate: Integer;
     procedure SetWindowlessFrameRate(frameRate: Integer);
+    procedure ImeSetComposition(const text: ustring; underlinesCount: TSize;
+      underlines: TCefCompositionUnderlineArray; const replacementRange, selectionRange: TCefRange);
+    procedure ImeCommitText(const text: ustring; const replacementRange: TCefRange;
+      relativeCursorPos: Integer);
+    procedure ImeFinishComposingText(keepSelection: Boolean);
+    procedure ImeCancelComposition;
     procedure DragTargetDragEnter(dragData: ICefDragData; const event: TCefMouseEvent; allowedOps: TCefDragOperationsMask);
     procedure DragTargetDragOver(const event: TCefMouseEvent; allowedOps: TCefDragOperationsMask);
     procedure DragTargetDragLeave;
@@ -435,6 +445,7 @@ Type
     function GetUnfilteredLinkUrl: ustring;
     function GetSourceUrl: ustring;
     function HasImageContents: Boolean;
+    function GetTitleText: ustring;
     function GetPageUrl: ustring;
     function GetFrameUrl: ustring;
     function GetFrameCharset: ustring;
@@ -941,6 +952,8 @@ Type
       allowedOps: TCefDragOperationsMask; x, y: Integer): Boolean;
     procedure UpdateDragCursor(const browser: ICefBrowser; operation: TCefDragOperationsMask);
     procedure OnScrollOffsetChanged(const browser: ICefBrowser; x,y: Double);
+    procedure OnImeCompositionRangeChanged(const browser: ICefBrowser;
+      const selectedRange: TCefRange; characterBoundsCount: TSize; characterBounds: TCefRectArray);
   end;
 
   ICefRenderProcessHandler = interface(IcefBase) ['{FADEE3BC-BF66-430A-BA5D-1EE3782ECC58}']
@@ -1041,8 +1054,8 @@ Type
 
   ICefRequestContextHandler = interface(ICefBase) ['{0FC0165C-E871-4C12-8857-A459B5FD8C3F}']
     function GetCookieManager: ICefCookieManager;
-    function OnBeforePluginLoad(const mimeType, pluginUrl, topOriginUrl: ustring;
-      pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy): Boolean;
+    function OnBeforePluginLoad(const mimeType, pluginUrl: ustring; isMainFrame: Boolean;
+      const topOriginUrl: ustring; pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy): Boolean;
   end;
 
   ICefRequestCallback = interface(ICefBase) ['{F163D612-CC9C-49CC-ADEA-FB6A32A25485}']
@@ -1208,6 +1221,13 @@ Type
     function BelongsToThread(ThreadID: TCefThreadID): Boolean;
     function PostTask(task: ICefTask): Integer;
     function PostDelayedTask(task: ICefTask; delayMs: Int64): Integer;
+  end;
+
+  ICefThread = interface(ICefBase) ['{734CB8FC-8E05-4469-A3D9-EDED7CE77244}']
+    function GetTaskRunner: ICefTaskRunner;
+    function GetPlatformThreadId: TCefPlatformThreadId;
+    procedure Stop;
+    function IsRunning: Boolean;
   end;
 
   ICefEndTracingCallback = interface(ICefBase) ['{B6995953-A56A-46AC-B3D1-D644AEC480A5}']
@@ -1446,25 +1466,33 @@ Type
     function SetSize(size: TSize): Boolean;
     function GetSize: TSize;
     function Clear: Boolean;
-    function Remove(index: Integer): Boolean;
-    function GetType(index: Integer): TCefValueType;
-    function GetValue(index: Integer): ICefValue;
-    function GetBool(index: Integer): Boolean;
-    function GetInt(index: Integer): Integer;
-    function GetDouble(index: Integer): Double;
-    function GetString(index: Integer): ustring;
-    function GetBinary(index: Integer): ICefBinaryValue;
-    function GetDictionary(index: Integer): ICefDictionaryValue;
-    function GetList(index: Integer): ICefListValue;
-    function SetValue(index: Integer; value: ICefValue): Boolean;
-    function SetNull(index: Integer): Boolean;
-    function SetBool(index: Integer; value: Boolean): Boolean;
-    function SetInt(index, value: Integer): Boolean;
-    function SetDouble(index: Integer; value: Double): Boolean;
-    function SetString(index: Integer; const value: ustring): Boolean;
-    function SetBinary(index: Integer; const value: ICefBinaryValue): Boolean;
-    function SetDictionary(index: Integer; const value: ICefDictionaryValue): Boolean;
-    function SetList(index: Integer; const value: ICefListValue): Boolean;
+    function Remove(index: TSize): Boolean;
+    function GetType(index: TSize): TCefValueType;
+    function GetValue(index: TSize): ICefValue;
+    function GetBool(index: TSize): Boolean;
+    function GetInt(index: TSize): Integer;
+    function GetDouble(index: TSize): Double;
+    function GetString(index: TSize): ustring;
+    function GetBinary(index: TSize): ICefBinaryValue;
+    function GetDictionary(index: TSize): ICefDictionaryValue;
+    function GetList(index: TSize): ICefListValue;
+    function SetValue(index: TSize; value: ICefValue): Boolean;
+    function SetNull(index: TSize): Boolean;
+    function SetBool(index: TSize; value: Boolean): Boolean;
+    function SetInt(index: TSize; value: Integer): Boolean;
+    function SetDouble(index: TSize; value: Double): Boolean;
+    function SetString(index: TSize; const value: ustring): Boolean;
+    function SetBinary(index: TSize; const value: ICefBinaryValue): Boolean;
+    function SetDictionary(index: TSize; const value: ICefDictionaryValue): Boolean;
+    function SetList(index: TSize; const value: ICefListValue): Boolean;
+  end;
+
+  ICefWaitableEvent = interface(ICefBase) ['{0F7D2FF5-D921-45A6-9108-3DBFDCFC27FC}']
+    procedure Reset;
+    procedure Signal;
+    function IsSignaled: Boolean;
+    procedure Wait;
+    function TimedWait(maxMs: Int64): Boolean;
   end;
 
   ICefWebPluginInfo = interface(ICefBase) ['{AA879E58-F649-44B1-AF9C-655FF5B79A02}']
@@ -1565,34 +1593,34 @@ Type
 
   ICefStringMap = interface ['{A33EBC01-B23A-4918-86A4-E24A243B342F}']
     function GetHandle: TCefStringMap;
-    function GetSize: Integer;
+    function GetSize: TSize;
     function Find(const Key: ustring): ustring;
-    function GetKey(Index: Integer): ustring;
-    function GetValue(Index: Integer): ustring;
+    function GetKey(Index: TSize): ustring;
+    function GetValue(Index: TSize): ustring;
     procedure Append(const Key, Value: ustring);
     procedure Clear;
 
     property Handle: TCefStringMap read GetHandle;
-    property Size: Integer read GetSize;
-    property Key[index: Integer]: ustring read GetKey;
-    property Value[index: Integer]: ustring read GetValue;
+    property Size: TSize read GetSize;
+    property Key[index: TSize]: ustring read GetKey;
+    property Value[index: TSize]: ustring read GetValue;
   end;
 
   ICefStringMultimap = interface ['{583ED0C2-A9D6-4034-A7C9-20EC7E47F0C7}']
     function GetHandle: TCefStringMultimap;
-    function GetSize: Integer;
-    function FindCount(const Key: ustring): Integer;
-    function GetEnumerate(const Key: ustring; ValueIndex: Integer): ustring;
-    function GetKey(Index: Integer): ustring;
-    function GetValue(Index: Integer): ustring;
+    function GetSize: TSize;
+    function FindCount(const Key: ustring): TSize;
+    function GetEnumerate(const Key: ustring; ValueIndex: TSize): ustring;
+    function GetKey(Index: TSize): ustring;
+    function GetValue(Index: TSize): ustring;
     procedure Append(const Key, Value: ustring);
     procedure Clear;
 
     property Handle: TCefStringMap read GetHandle;
-    property Size: Integer read GetSize;
-    property Key[index: Integer]: ustring read GetKey;
-    property Value[index: Integer]: ustring read GetValue;
-    property Enumerate[const aKey: ustring; ValueIndex: Integer]: ustring read GetEnumerate;
+    property Size: TSize read GetSize;
+    property Key[index: TSize]: ustring read GetKey;
+    property Value[index: TSize]: ustring read GetValue;
+    property Enumerate[const aKey: ustring; ValueIndex: TSize]: ustring read GetEnumerate;
   end;
 
 Implementation

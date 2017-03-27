@@ -112,6 +112,7 @@ Type
     fOnStartDragging: TOnStartDragging;
     fOnUpdateDragCursor: TOnUpdateDragCursor;
     fOnScrollOffsetChanged: TOnScrollOffsetChanged;
+    fOnImeCompositionRangeChanged: TOnImeCompositionRangeChanged;
 
     { RequestHandler }
     fOnBeforeBrowse: TOnBeforeBrowse;
@@ -253,6 +254,8 @@ Type
       allowedOps: TCefDragOperationsMask; x, y: Integer): Boolean; virtual;
     procedure doOnUpdateDragCursor(const browser: ICefBrowser; operation: TCefDragOperationsMask); virtual;
     procedure doOnScrollOffsetChanged(const browser: ICefBrowser; x,y: Double); virtual;
+    procedure doOnImeCompositionRangeChanged(const browser: ICefBrowser; const selectedRange: TCefRange;
+      characterBoundsCount: TSize; characterBounds: TCefRectArray); virtual;
 
     { RequestHandler }
     function doOnBeforeBrowse(const Browser: ICefBrowser; const frame: ICefFrame;
@@ -365,6 +368,7 @@ Type
     property OnStartDragging: TOnStartDragging read fOnStartDragging write fOnStartDragging;
     property OnUpdateDragCursor: TOnUpdateDragCursor read fOnUpdateDragCursor write fOnUpdateDragCursor;
     property OnScrollOffsetChanged: TOnScrollOffsetChanged read fOnScrollOffsetChanged write fOnScrollOffsetChanged;
+    property OnImeCompositionRangeChanged: TOnImeCompositionRangeChanged read fOnImeCompositionRangeChanged write fOnImeCompositionRangeChanged;
 
     { RequestHandler }
     property OnBeforeBrowse: TOnBeforeBrowse read fOnBeforeBrowse write fOnBeforeBrowse;
@@ -474,6 +478,7 @@ Type
     property OnStartDragging;
     property OnUpdateDragCursor;
     property OnScrollOffsetChanged;
+    property OnImeCompositionRangeChanged;
 
     property OnBeforeBrowse;
     property OnOpenUrlFromTab;
@@ -630,7 +635,6 @@ begin
   settings.javascript_close_windows := fOptions.JavascriptCloseWindows;
   settings.javascript_access_clipboard := fOptions.JavascriptAccessClipboard;
   settings.javascript_dom_paste := fOptions.JavascriptDomPaste;
-  settings.caret_browsing := fOptions.CaretBrowsing;
   settings.plugins := fOptions.Plugins;
   settings.universal_access_from_file_urls := fOptions.UniversalAccessFromFileUrls;
   settings.file_access_from_file_urls := fOptions.FileAccessFromFileUrls;
@@ -1029,6 +1033,13 @@ end;
 procedure TCustomChromiumOSR.doOnScrollOffsetChanged(const browser: ICefBrowser; x, y: Double);
 begin
   If Assigned(fOnScrollOffsetChanged) then fOnScrollOffsetChanged(Self, browser, x, y);
+end;
+
+procedure TCustomChromiumOSR.doOnImeCompositionRangeChanged(const browser: ICefBrowser;
+  const selectedRange: TCefRange; characterBoundsCount: TSize; characterBounds: TCefRectArray);
+begin
+  If Assigned(fOnImeCompositionRangeChanged) then
+    fOnImeCompositionRangeChanged(Self, browser, selectedRange, characterBoundsCount, characterBounds);
 end;
 
 function TCustomChromiumOSR.doOnBeforeBrowse(const Browser : ICefBrowser;

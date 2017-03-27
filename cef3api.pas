@@ -165,6 +165,8 @@ Type
   PCefTask = ^TCefTask;
   PCefTaskRunner = ^TCefTaskRunner;
 
+  PCefThread = ^TCefThread;
+
   PCefEndTracingCallback = ^TCefEndTracingCallback;
 
   PCefUrlRequest = ^TCefUrlRequest;
@@ -188,6 +190,8 @@ Type
   PCefBinaryValueArray = ^TCefBinaryValueArray;
   PCefDictionaryValue = ^TCefDictionaryValue;
   PCefListValue = ^TCefListValue;
+
+  PCefWaitableEvent = ^TCefWaitableEvent;
 
   PCefWebPluginInfo = ^TCefWebPluginInfo;
   PCefWebPluginInfoVisitor = ^TCefWebPluginInfoVisitor;
@@ -640,16 +644,51 @@ Type
     // set at browser creation via cef_browser_tSettings.windowless_frame_rate.
     set_windowless_frame_rate: procedure(self: PCefBrowserHost; frame_rate: Integer); cconv;
 
-    // Get the NSTextInputContext implementation for enabling IME on Mac when
-    // window rendering is disabled.
-    get_nstext_input_context: function(self : PCefBrowserHost) : TCefTextInputContext; cconv;
+    // Begins a new composition or updates the existing composition. Blink has a
+    // special node (a composition node) that allows the input function to change
+    // text without affecting other DOM nodes. |text| is the optional text that
+    // will be inserted into the composition node. |underlines| is an optional set
+    // of ranges that will be underlined in the resulting text.
+    // |replacement_range| is an optional range of the existing text that will be
+    // replaced. |selection_range| is an optional range of the resulting text that
+    // will be selected after insertion or replacement. The |replacement_range|
+    // value is only used on OS X.
+    //
+    // This function may be called multiple times as the composition changes. When
+    // the client is done making changes the composition should either be canceled
+    // or completed. To cancel the composition call ImeCancelComposition. To
+    // complete the composition call either ImeCommitText or
+    // ImeFinishComposingText. Completion is usually signaled when:
+    //   A. The client receives a WM_IME_COMPOSITION message with a GCS_RESULTSTR
+    //      flag (on Windows), or;
+    //   B. The client receives a "commit" signal of GtkIMContext (on Linux), or;
+    //   C. insertText of NSTextInput is called (on Mac).
+    //
+    // This function is only used when window rendering is disabled.
+    ime_set_composition: procedure(self: PCefBrowserHost; const text: PCefString;
+      underlinesCount: csize_t; underlines: PCefCompositionUnderlineArray;
+      const replacement_range, selection_range: PCefRange); cconv;
 
-    // Handles a keyDown event prior to passing it through the NSTextInputClient
-    // machinery.
-    handle_key_event_before_text_input_client: procedure(self : PCefBrowserHost; keyEvent : TCefEventHandle); cconv;
+    // Completes the existing composition by optionally inserting the specified
+    // |text| into the composition node. |replacement_range| is an optional range
+    // of the existing text that will be replaced. |relative_cursor_pos| is where
+    // the cursor will be positioned relative to the current cursor position. See
+    // comments on ImeSetComposition for usage. The |replacement_range| and
+    // |relative_cursor_pos| values are only used on OS X. This function is only
+    // used when window rendering is disabled.
+    ime_commit_text: procedure(self: PCefBrowserHost; const text: PCefString;
+      const replacement_range: PCefRange; relative_cursor_pos: Integer); cconv;
 
-    // Performs any additional actions after NSTextInputClient handles the event.
-    handle_key_event_after_text_input_client: procedure(self : PCefBrowserHost; keyEvent : TCefEventHandle); cconv;
+    // Completes the existing composition by applying the current composition node
+    // contents. If |keep_selection| is false (0) the current selection, if any,
+    // will be discarded. See comments on ImeSetComposition for usage. This
+    // function is only used when window rendering is disabled.
+    ime_finish_composing_text: procedure(self: PCefBrowserHost; keep_selection: Integer); cconv;
+
+    // Cancels the existing composition and discards the composition node contents
+    // without applying them. See comments on ImeSetComposition for usage. This
+    // function is only used when window rendering is disabled.
+    ime_cancel_composition: procedure(self: PCefBrowserHost); cconv;
 
     // Call this function when the user drags the mouse into the web view (before
     // calling DragTargetDragOver/DragTargetLeave/DragTargetDrop). |drag_data|
@@ -1020,6 +1059,12 @@ Type
     // NULL contents.
     has_image_contents: function(self: PCefContextMenuParams): Integer; cconv;
 
+    // Returns the title text or the alt text if the context menu was invoked on
+    // an image.
+    //
+    // The resulting string must be freed by calling cef_string_userfree_free().
+    get_title_text: function(self: PCefContextMenuParams): PCefStringUserFree; cconv;
+
     // Returns the URL of the top level page that the context menu was invoked on.
     //
     // The resulting string must be freed by calling cef_string_userfree_free().
@@ -1187,7 +1232,7 @@ Type
   end;
 
 
-{ *** cef_dialog_handler_capi.h  *** }
+{ ***  cef_dialog_handler_capi.h  *** }
   // Callback structure for asynchronous continuation of file dialog requests.
   TCefFileDialogCallback = record
     // Base structure.
@@ -2792,6 +2837,13 @@ Type
     // Called when the scroll offset has changed.
     on_scroll_offset_changed: procedure(self: PCefRenderHandler; browser: PCefBrowser;
       x, y: Double); cconv;
+
+    // Called when the IME composition range has changed. |selected_range| is the
+    // range of characters that have been selected. |character_bounds| is the
+    // bounds of each character in view coordinates.
+    on_ime_composition_range_changed: procedure(self: PCefRenderHandler; browser: PCefBrowser;
+      const selected_range: PCefRange; character_boundsCount: csize_t;
+      character_bounds: PCefRectArray); cconv;
   end;
 
 
@@ -3193,20 +3245,23 @@ Type
     // Called on multiple browser process threads before a plugin instance is
     // loaded. |mime_type| is the mime type of the plugin that will be loaded.
     // |plugin_url| is the content URL that the plugin will load and may be NULL.
-    // |top_origin_url| is the URL for the top-level frame that contains the
-    // plugin when loading a specific plugin instance or NULL when building the
-    // initial list of enabled plugins for 'navigator.plugins' JavaScript state.
-    // |plugin_info| includes additional information about the plugin that will be
-    // loaded. |plugin_policy| is the recommended policy. Modify |plugin_policy|
-    // and return true (1) to change the policy. Return false (0) to use the
-    // recommended policy. The default plugin policy can be set at runtime using
-    // the `--plugin-policy=[allow|detect|block]` command-line flag. Decisions to
-    // mark a plugin as disabled by setting |plugin_policy| to
-    // PLUGIN_POLICY_DISABLED may be cached when |top_origin_url| is NULL. To
-    // purge the plugin list cache and potentially trigger new calls to this
-    // function call cef_request_tContext::PurgePluginListCache.
-    on_before_plugin_load: function(self: PCefRequestContextHandler; const mime_type, plugin_url,
-      top_origin_url: PCefString; plugin_info: PCefWebPluginInfo; plugin_policy: PCefPluginPolicy): Integer; cconv;
+    // |is_main_frame| will be true (1) if the plugin is being loaded in the main
+    // (top-level) frame, |top_origin_url| is the URL for the top-level frame that
+    // contains the plugin when loading a specific plugin instance or NULL when
+    // building the initial list of enabled plugins for 'navigator.plugins'
+    // JavaScript state. |plugin_info| includes additional information about the
+    // plugin that will be loaded. |plugin_policy| is the recommended policy.
+    // Modify |plugin_policy| and return true (1) to change the policy. Return
+    // false (0) to use the recommended policy. The default plugin policy can be
+    // set at runtime using the `--plugin-policy=[allow|detect|block]` command-
+    // line flag. Decisions to mark a plugin as disabled by setting
+    // |plugin_policy| to PLUGIN_POLICY_DISABLED may be cached when
+    // |top_origin_url| is NULL. To purge the plugin list cache and potentially
+    // trigger new calls to this function call
+    // cef_request_tContext::PurgePluginListCache.
+    on_before_plugin_load: function(self: PCefRequestContextHandler; const mime_type, plugin_url: PCefString;
+      is_main_frame: Integer; const top_origin_url: PCefString; plugin_info: PCefWebPluginInfo;
+      plugin_policy: PCefPluginPolicy): Integer; cconv;
   end;
 
 
@@ -3572,22 +3627,35 @@ Type
     // filter will not be installed if this function returns false (0).
     init_filter: function(self: PCefResponseFilter): Integer; cconv;
 
-    // Called to filter a chunk of data. |data_in| is the input buffer containing
-    // |data_in_size| bytes of pre-filter data (|data_in| will be NULL if
-    // |data_in_size| is zero). |data_out| is the output buffer that can accept up
-    // to |data_out_size| bytes of filtered output data. Set |data_in_read| to the
-    // number of bytes that were read from |data_in|. Set |data_out_written| to
-    // the number of bytes that were written into |data_out|. If some or all of
-    // the pre-filter data was read successfully but more data is needed in order
-    // to continue filtering (filtered output is pending) return
-    // RESPONSE_FILTER_NEED_MORE_DATA. If some or all of the pre-filter data was
-    // read successfully and all available filtered output has been written return
-    // RESPONSE_FILTER_DONE. If an error occurs during filtering return
-    // RESPONSE_FILTER_ERROR. This function will be called repeatedly until there
-    // is no more data to filter (resource response is complete), |data_in_read|
-    // matches |data_in_size| (all available pre-filter bytes have been read), and
-    // the function returns RESPONSE_FILTER_DONE or RESPONSE_FILTER_ERROR. Do not
-    // keep a reference to the buffers passed to this function.
+    // Called to filter a chunk of data. Expected usage is as follows:
+    //
+    //  A. Read input data from |data_in| and set |data_in_read| to the number of
+    //     bytes that were read up to a maximum of |data_in_size|. |data_in| will
+    //     be NULL if |data_in_size| is zero.
+    //  B. Write filtered output data to |data_out| and set |data_out_written| to
+    //     the number of bytes that were written up to a maximum of
+    //     |data_out_size|. If no output data was written then all data must be
+    //     read from |data_in| (user must set |data_in_read| = |data_in_size|).
+    //  C. Return RESPONSE_FILTER_DONE if all output data was written or
+    //     RESPONSE_FILTER_NEED_MORE_DATA if output data is still pending.
+    //
+    // This function will be called repeatedly until the input buffer has been
+    // fully read (user sets |data_in_read| = |data_in_size|) and there is no more
+    // input data to filter (the resource response is complete). This function may
+    // then be called an additional time with an NULL input buffer if the user
+    // filled the output buffer (set |data_out_written| = |data_out_size|) and
+    // returned RESPONSE_FILTER_NEED_MORE_DATA to indicate that output data is
+    // still pending.
+    //
+    // Calls to this function will stop when one of the following conditions is
+    // met:
+    //
+    //  A. There is no more input data to filter (the resource response is
+    //     complete) and the user sets |data_out_written| = 0 or returns
+    //     RESPONSE_FILTER_DONE to indicate that all data has been written, or;
+    //  B. The user returns RESPONSE_FILTER_ERROR to indicate an error.
+    //
+    // Do not keep a reference to the buffers passed to this function.
     filter: function(self: PCefResponseFilter;
       data_in: Pointer; data_in_size: csize_t; data_in_read: pcsize_t;
       data_out: Pointer; data_out_size: csize_t; data_out_written: pcsize_t): TCefResponseFilterStatus; cconv;
@@ -3868,6 +3936,39 @@ Type
     // supported on V8 WebWorker threads and will be executed without the
     // specified delay.
     post_delayed_task: function(self: PCefTaskRunner; task: PCefTask; delay_ms: Int64): Integer; cconv;
+  end;
+
+
+{ ***  cef_thread_capi.h  *** }
+  // A simple thread abstraction that establishes a message loop on a new thread.
+  // The consumer uses cef_task_tRunner to execute code on the thread's message
+  // loop. The thread is terminated when the cef_thread_t object is destroyed or
+  // stop() is called. All pending tasks queued on the thread's message loop will
+  // run to completion before the thread is terminated. cef_thread_create() can be
+  // called on any valid CEF thread in either the browser or render process. This
+  // structure should only be used for tasks that require a dedicated thread. In
+  // most cases you can post tasks to an existing CEF thread instead of creating a
+  // new one; see cef_task.h for details.
+  TCefThread = record
+    // Base structure.
+    base: TCefBase;
+
+    // Returns the cef_task_tRunner that will execute code on this thread's
+    // message loop. This function is safe to call from any thread.
+    get_task_runner: function(self: PCefThread): PCefTaskRunner; cconv;
+
+    // Returns the platform thread ID. It will return the same value after stop()
+    // is called. This function is safe to call from any thread.
+    get_platform_thread_id: function(self: PCefThread): TCefPlatformThreadId; cconv;
+
+    // Stop and join the thread. This function must be called from the same thread
+    // that called cef_thread_create(). Do not call this function if
+    // cef_thread_create() was called with a |stoppable| value of false (0).
+    stop: procedure(self: PCefThread); cconv;
+
+    // Returns true (1) if the thread is currently running. This function must be
+    // called from the same thread that called cef_thread_create().
+    is_running: function(self: PCefThread): Integer; cconv;
   end;
 
 
@@ -4767,45 +4868,45 @@ Type
     clear: function(self: PCefListValue): Integer; cconv;
 
     // Removes the value at the specified index.
-    remove: function(self: PCefListValue; index: Integer): Integer; cconv;
+    remove: function(self: PCefListValue; index: csize_t): Integer; cconv;
 
     // Returns the value type at the specified index.
-    get_type: function(self: PCefListValue; index: Integer): TCefValueType; cconv;
+    get_type: function(self: PCefListValue; index: csize_t): TCefValueType; cconv;
 
     // Returns the value at the specified index. For simple types the returned
     // value will copy existing data and modifications to the value will not
     // modify this object. For complex types (binary, dictionary and list) the
     // returned value will reference existing data and modifications to the value
     // will modify this object.
-    get_value: function(self: PCefListValue; index: Integer): PCefValue; cconv;
+    get_value: function(self: PCefListValue; index: csize_t): PCefValue; cconv;
 
     // Returns the value at the specified index as type bool.
-    get_bool: function(self: PCefListValue; index: Integer): Integer; cconv;
+    get_bool: function(self: PCefListValue; index: csize_t): Integer; cconv;
 
     // Returns the value at the specified index as type int.
-    get_int: function(self: PCefListValue; index: Integer): Integer; cconv;
+    get_int: function(self: PCefListValue; index: csize_t): Integer; cconv;
 
     // Returns the value at the specified index as type double.
-    get_double: function(self: PCefListValue; index: Integer): Double; cconv;
+    get_double: function(self: PCefListValue; index: csize_t): Double; cconv;
 
     // Returns the value at the specified index as type string.
     //
     // The resulting string must be freed by calling cef_string_userfree_free().
-    get_string: function(self: PCefListValue; index: Integer): PCefStringUserFree; cconv;
+    get_string: function(self: PCefListValue; index: csize_t): PCefStringUserFree; cconv;
 
     // Returns the value at the specified index as type binary. The returned value
     // will reference existing data.
-    get_binary: function(self: PCefListValue; index: Integer): PCefBinaryValue; cconv;
+    get_binary: function(self: PCefListValue; index: csize_t): PCefBinaryValue; cconv;
 
     // Returns the value at the specified index as type dictionary. The returned
     // value will reference existing data and modifications to the value will
     // modify this object.
-    get_dictionary: function(self: PCefListValue; index: Integer): PCefDictionaryValue; cconv;
+    get_dictionary: function(self: PCefListValue; index: csize_t): PCefDictionaryValue; cconv;
 
     // Returns the value at the specified index as type list. The returned value
     // will reference existing data and modifications to the value will modify
     // this object.
-    get_list: function(self: PCefListValue; index: Integer): PCefListValue; cconv;
+    get_list: function(self: PCefListValue; index: csize_t): PCefListValue; cconv;
 
     // Sets the value at the specified index. Returns true (1) if the value was
     // set successfully. If |value| represents simple data then the underlying
@@ -4813,48 +4914,88 @@ Type
     // object. If |value| represents complex data (binary, dictionary or list)
     // then the underlying data will be referenced and modifications to |value|
     // will modify this object.
-    set_value: function(self: PCefListValue; index: Integer; value: PCefValue): Integer; cconv;
+    set_value: function(self: PCefListValue; index: csize_t; value: PCefValue): Integer; cconv;
 
     // Sets the value at the specified index as type null. Returns true (1) if the
     // value was set successfully.
-    set_null: function(self: PCefListValue; index: Integer): Integer; cconv;
+    set_null: function(self: PCefListValue; index: csize_t): Integer; cconv;
 
     // Sets the value at the specified index as type bool. Returns true (1) if the
     // value was set successfully.
-    set_bool: function(self: PCefListValue; index, value: Integer): Integer; cconv;
+    set_bool: function(self: PCefListValue; index, csize_t: Integer): Integer; cconv;
 
     // Sets the value at the specified index as type int. Returns true (1) if the
     // value was set successfully.
-    set_int: function(self: PCefListValue; index, value: Integer): Integer; cconv;
+    set_int: function(self: PCefListValue; index, csize_t: Integer): Integer; cconv;
 
     // Sets the value at the specified index as type double. Returns true (1) if
     // the value was set successfully.
-    set_double: function(self: PCefListValue; index: Integer; value: Double): Integer; cconv;
+    set_double: function(self: PCefListValue; index: csize_t; value: Double): Integer; cconv;
 
     // Sets the value at the specified index as type string. Returns true (1) if
     // the value was set successfully.
-    set_string: function(self: PCefListValue; index: Integer; value: PCefString): Integer; cconv;
+    set_string: function(self: PCefListValue; index: csize_t; value: PCefString): Integer; cconv;
 
     // Sets the value at the specified index as type binary. Returns true (1) if
     // the value was set successfully. If |value| is currently owned by another
     // object then the value will be copied and the |value| reference will not
     // change. Otherwise, ownership will be transferred to this object and the
     // |value| reference will be invalidated.
-    set_binary: function(self: PCefListValue; index: Integer; value: PCefBinaryValue): Integer; cconv;
+    set_binary: function(self: PCefListValue; index: csize_t; value: PCefBinaryValue): Integer; cconv;
 
     // Sets the value at the specified index as type dict. Returns true (1) if the
     // value was set successfully. If |value| is currently owned by another object
     // then the value will be copied and the |value| reference will not change.
     // Otherwise, ownership will be transferred to this object and the |value|
     // reference will be invalidated.
-    set_dictionary: function(self: PCefListValue; index: Integer; value: PCefDictionaryValue): Integer; cconv;
+    set_dictionary: function(self: PCefListValue; index: csize_t; value: PCefDictionaryValue): Integer; cconv;
 
     // Sets the value at the specified index as type list. Returns true (1) if the
     // value was set successfully. If |value| is currently owned by another object
     // then the value will be copied and the |value| reference will not change.
     // Otherwise, ownership will be transferred to this object and the |value|
     // reference will be invalidated.
-    set_list: function(self: PCefListValue; index: Integer; value: PCefListValue): Integer; cconv;
+    set_list: function(self: PCefListValue; index: csize_t; value: PCefListValue): Integer; cconv;
+  end;
+
+
+{ ***  cef_waitable_event_capi.h  *** }
+  // WaitableEvent is a thread synchronization tool that allows one thread to wait
+  // for another thread to finish some work. This is equivalent to using a
+  // Lock+ConditionVariable to protect a simple boolean value. However, using
+  // WaitableEvent in conjunction with a Lock to wait for a more complex state
+  // change (e.g., for an item to be added to a queue) is not recommended. In that
+  // case consider using a ConditionVariable instead of a WaitableEvent. It is
+  // safe to create and/or signal a WaitableEvent from any thread. Blocking on a
+  // WaitableEvent by calling the *wait() functions is not allowed on the browser
+  // process UI or IO threads.
+  TCefWaitableEvent = record
+    // Base structure.
+    base: TCefBase;
+
+    // Put the event in the un-signaled state.
+    reset: procedure(self: PCefWaitableEvent); cconv;
+
+    // Put the event in the signaled state. This causes any thread blocked on Wait
+    // to be woken up.
+    signal: procedure(self: PCefWaitableEvent); cconv;
+
+    // Returns true (1) if the event is in the signaled state, else false (0). If
+    // the event was created with |automatic_reset| set to true (1) then calling
+    // this function will also cause a reset.
+    is_signaled: function(self: PCefWaitableEvent): Integer; cconv;
+
+    // Wait indefinitely for the event to be signaled. This function will not
+    // return until after the call to signal() has completed. This function cannot
+    // be called on the browser process UI or IO threads.
+    wait: procedure(self: PCefWaitableEvent); cconv;
+
+    // Wait up to |max_ms| milliseconds for the event to be signaled. Returns true
+    // (1) if the event was signaled. A return value of false (0) does not
+    // necessarily mean that |max_ms| was exceeded. This function will not return
+    // until after the call to signal() has completed. This function cannot be
+    // called on the browser process UI or IO threads.
+    timed_wait: function(self: PCefWaitableEvent; max_ms: cint64): Integer; cconv;
   end;
 
 
@@ -5356,20 +5497,169 @@ Var
     callback: PCefCompletionCallback): PCefCookieManager; cdecl;
 
 
-{ *** cef_geolocation_capi.h  *** }
+{ ***  cef_crash_util_capi.h  *** }
+  // Crash reporting is configured using an INI-style config file named
+  // "crash_reporter.cfg". On Windows and Linux this file must be placed next to
+  // the main application executable. On macOS this file must be placed in the
+  // top-level app bundle Resources directory (e.g.
+  // "<appname>.app/Contents/Resources"). File contents are as follows:
+  //
+  //  # Comments start with a hash character and must be on their own line.
+  //
+  //  [Config]
+  //  ProductName=<Value of the "prod" crash key; defaults to "cef">
+  //  ProductVersion=<Value of the "ver" crash key; defaults to the CEF version>
+  //  AppName=<Windows only; App-specific folder name component for storing crash
+  //           information; default to "CEF">
+  //  ExternalHandler=<Windows only; Name of the external handler exe to use
+  //                   instead of re-launching the main exe; default to empty>
+  //  BrowserCrashForwardingEnabled=<macOS only; True if browser process crashes
+  //                                 should be forwarded to the system crash
+  //                                 reporter; default to false>
+  //  ServerURL=<crash server URL; default to empty>
+  //  RateLimitEnabled=<True if uploads should be rate limited; default to true>
+  //  MaxUploadsPerDay=<Max uploads per 24 hours, used if rate limit is enabled;
+  //                    default to 5>
+  //  MaxDatabaseSizeInMb=<Total crash report disk usage greater than this value
+  //                       will cause older reports to be deleted; default to 20>
+  //  MaxDatabaseAgeInDays=<Crash reports older than this value will be deleted;
+  //                        default to 5>
+  //
+  //  [CrashKeys]
+  //  my_key1=<small|medium|large>
+  //  my_key2=<small|medium|large>
+  //
+  // Config section:
+  //
+  // If "ProductName" and/or "ProductVersion" are set then the specified values
+  // will be included in the crash dump metadata. On macOS if these values are set
+  // to NULL then they will be retrieved from the Info.plist file using the
+  // "CFBundleName" and "CFBundleShortVersionString" keys respectively.
+  //
+  // If "AppName" is set on Windows then crash report information (metrics,
+  // database and dumps) will be stored locally on disk under the
+  // "C:\Users\[CurrentUser]\AppData\Local\[AppName]\User Data" folder. On other
+  // platforms the CefSettings.user_data_path value will be used.
+  //
+  // If "ExternalHandler" is set on Windows then the specified exe will be
+  // launched as the crashpad-handler instead of re-launching the main process
+  // exe. The value can be an absolute path or a path relative to the main exe
+  // directory. On Linux the CefSettings.browser_subprocess_path value will be
+  // used. On macOS the existing subprocess app bundle will be used.
+  //
+  // If "BrowserCrashForwardingEnabled" is set to true (1) on macOS then browser
+  // process crashes will be forwarded to the system crash reporter. This results
+  // in the crash UI dialog being displayed to the user and crash reports being
+  // logged under "~/Library/Logs/DiagnosticReports". Forwarding of crash reports
+  // from non-browser processes and Debug builds is always disabled.
+  //
+  // If "ServerURL" is set then crashes will be uploaded as a multi-part POST
+  // request to the specified URL. Otherwise, reports will only be stored locally
+  // on disk.
+  //
+  // If "RateLimitEnabled" is set to true (1) then crash report uploads will be
+  // rate limited as follows:
+  //  1. If "MaxUploadsPerDay" is set to a positive value then at most the
+  //     specified number of crashes will be uploaded in each 24 hour period.
+  //  2. If crash upload fails due to a network or server error then an
+  //     incremental backoff delay up to a maximum of 24 hours will be applied for
+  //     retries.
+  //  3. If a backoff delay is applied and "MaxUploadsPerDay" is > 1 then the
+  //     "MaxUploadsPerDay" value will be reduced to 1 until the client is
+  //     restarted. This helps to avoid an upload flood when the network or
+  //     server error is resolved.
+  // Rate limiting is not supported on Linux.
+  //
+  // If "MaxDatabaseSizeInMb" is set to a positive value then crash report storage
+  // on disk will be limited to that size in megabytes. For example, on Windows
+  // each dump is about 600KB so a "MaxDatabaseSizeInMb" value of 20 equates to
+  // about 34 crash reports stored on disk. Not supported on Linux.
+  //
+  // If "MaxDatabaseAgeInDays" is set to a positive value then crash reports older
+  // than the specified age in days will be deleted. Not supported on Linux.
+  //
+  // CrashKeys section:
+  //
+  // Any number of crash keys can be specified for use by the application. Crash
+  // key values will be truncated based on the specified size (small = 63 bytes,
+  // medium = 252 bytes, large = 1008 bytes). The value of crash keys can be set
+  // from any thread or process using the CefSetCrashKeyValue function. These
+  // key/value pairs will be sent to the crash server along with the crash dump
+  // file. Medium and large values will be chunked for submission. For example, if
+  // your key is named "mykey" then the value will be broken into ordered chunks
+  // and submitted using keys named "mykey-1", "mykey-2", etc.
+  cef_crash_reporting_enabled: function: Integer; cdecl;
+
+  // Sets or clears a specific key-value pair from the crash metadata.
+  cef_set_crash_key_value: procedure(const key, value: PCefString); cdecl;
+
+
+{ ***  cef_file_util_capi.h  *** }
+  // Creates a directory and all parent directories if they don't already exist.
+  // Returns true (1) on successful creation or if the directory already exists.
+  // The directory is only readable by the current user. Calling this function on
+  // the browser process UI or IO threads is not allowed.
+  cef_create_directory: function(const full_path: PCefString): Integer; cdecl;
+
+  // Get the temporary directory provided by the system.
+  //
+  // WARNING: In general, you should use the temp directory variants below instead
+  // of this function. Those variants will ensure that the proper permissions are
+  // set so that other users on the system can't edit them while they're open
+  // (which could lead to security issues).
+  cef_get_temp_directory: function(temp_dir: PCefString): Integer; cdecl;
+
+  // Creates a new directory. On Windows if |prefix| is provided the new directory
+  // name is in the format of "prefixyyyy". Returns true (1) on success and sets
+  // |new_temp_path| to the full path of the directory that was created. The
+  // directory is only readable by the current user. Calling this function on the
+  // browser process UI or IO threads is not allowed.
+  cef_create_new_temp_directory: function(const prefix: PCefString;
+    new_temp_path: PCefString): Integer; cdecl;
+
+  // Creates a directory within another directory. Extra characters will be
+  // appended to |prefix| to ensure that the new directory does not have the same
+  // name as an existing directory. Returns true (1) on success and sets |new_dir|
+  // to the full path of the directory that was created. The directory is only
+  // readable by the current user. Calling this function on the browser process UI
+  // or IO threads is not allowed.
+  cef_create_temp_directory_in_directory: function(const base_dir, prefix: PCefString;
+    new_dir: PCefString): Integer; cdecl;
+
+  // Returns true (1) if the given path exists and is a directory. Calling this
+  // function on the browser process UI or IO threads is not allowed.
+  cef_directory_exists: function(const path: PCefString): Integer; cdecl;
+
+  // Deletes the given path whether it's a file or a directory. If |path| is a
+  // directory all contents will be deleted.  If |recursive| is true (1) any sub-
+  // directories and their contents will also be deleted (equivalent to executing
+  // "rm -rf", so use with caution). On POSIX environments if |path| is a symbolic
+  // link then only the symlink will be deleted. Returns true (1) on successful
+  // deletion or if |path| does not exist. Calling this function on the browser
+  // process UI or IO threads is not allowed.
+  cef_delete_file: function(const path: PCefString; recursive: Integer): Integer; cdecl;
+
+  // Writes the contents of |src_dir| into a zip archive at |dest_file|. If
+  // |include_hidden_files| is true (1) files starting with "." will be included.
+  // Returns true (1) on success.  Calling this function on the browser process UI
+  // or IO threads is not allowed.
+  cef_zip_directory: function(const src_dir, dest_file: PCefString; include_hidden_files: Integer): Integer; cdecl;
+
+
+{ ***  cef_geolocation_capi.h  *** }
   // Request a one-time geolocation update. This function bypasses any user
   // permission checks so should only be used by code that is allowed to access
   // location information.
   cef_get_geolocation: function(callback: PCefGetGeolocationCallback): Integer; cdecl;
 
 
-{ *** cef_image_capi.h  *** }
+{ ***  cef_image_capi.h  *** }
   // Create a new cef_image_t. It will initially be NULL. Use the Add*() functions
   // to add representations at different scale factors.
   cef_image_create: function: PCefImage; cdecl;
 
 
-{ *** cef_menu_model_capi.h  *** }
+{ ***  cef_menu_model_capi.h  *** }
   // Create a new MenuModel with the specified |delegate|.
   cef_menu_model_create: function(delegate: PCefMenuModelDelegate): PCefMenuModel; cdecl;
 
@@ -5643,6 +5933,20 @@ Var
   cef_task_runner_get_for_thread: function(threadId: TCefThreadId): PCefTaskRunner; cdecl;
 
 
+{ ***  cef_thread_capi.h  *** }
+  // Create and start a new thread. This function does not block waiting for the
+  // thread to run initialization. |display_name| is the name that will be used to
+  // identify the thread. |priority| is the thread execution priority.
+  // |message_loop_type| indicates the set of asynchronous events that the thread
+  // can process. If |stoppable| is true (1) the thread will stopped and joined on
+  // destruction or when stop() is called; otherwise, the the thread cannot be
+  // stopped and will be leaked on shutdown. On Windows the |com_init_mode| value
+  // specifies how COM will be initialized for the thread. If |com_init_mode| is
+  // set to COM_INIT_MODE_STA then |message_loop_type| must be set to ML_TYPE_UI.
+  cef_thread_create: function(const display_name: PCefString; priority: TCefThreadPriority;
+    message_loop_type: TCefMessageLoopType; stoppable: Integer; com_init_mode: TCefComInitMode): PCefThread; cdecl;
+
+
 { ***  cef_trace_capi.h  *** }
   // Start tracing events on all processes. Tracing is initialized asynchronously
   // and |callback| will be executed on the UI thread after initialization is
@@ -5835,6 +6139,15 @@ Var
   cef_list_value_create: function: PCefListValue; cdecl;
 
 
+{ ***  cef_waitable_event_capi.h  *** }
+  // Create a new waitable event. If |automatic_reset| is true (1) then the event
+  // state is automatically reset to un-signaled after a single waiting thread has
+  // been released; otherwise, the state remains signaled until reset() is called
+  // manually. If |initially_signaled| is true (1) then the event will start in
+  // the signaled state.
+  cef_waitable_event_create: function(automatic_reset, initially_signaled: Integer): PCefWaitableEvent; cdecl;
+
+
 { ***  cef_web_plugin_capi.h  *** }
   // Visit web plugin information. Can be called on any thread in the browser
   // process.
@@ -6014,11 +6327,11 @@ Var
   cef_string_list_alloc: function: TCefStringList; cdecl;
 
   // Return the number of elements in the string list.
-  cef_string_list_size: function(list: TCefStringList): Integer; cdecl;
+  cef_string_list_size: function(list: TCefStringList): csize_t; cdecl;
 
   // Retrieve the value at the specified zero-based string list index. Returns
   // true (1) if the value was successfully retrieved.
-  cef_string_list_value: function(list: TCefStringList; index: Integer; value: PCefString): Integer; cdecl;
+  cef_string_list_value: function(list: TCefStringList; index: csize_t; value: PCefString): Integer; cdecl;
 
   // Append a new value at the end of the string list.
   cef_string_list_append: procedure(list: TCefStringList; const value: PCefString); cdecl;
@@ -6039,16 +6352,16 @@ Var
   cef_string_map_alloc: function: TCefStringMap; cdecl;
 
   // Return the number of elements in the string map.
-  cef_string_map_size: function(map: TCefStringMap): Integer; cdecl;
+  cef_string_map_size: function(map: TCefStringMap): csize_t; cdecl;
 
   // Return the value assigned to the specified key.
   cef_string_map_find: function(map: TCefStringMap; const key: PCefString; value: PCefString): Integer; cdecl;
 
   // Return the key at the specified zero-based string map index.
-  cef_string_map_key: function(map: TCefStringMap; index: Integer; var key: TCefString): Integer; cdecl;
+  cef_string_map_key: function(map: TCefStringMap; index: csize_t; var key: TCefString): Integer; cdecl;
 
   // Return the value at the specified zero-based string map index.
-  cef_string_map_value: function(map: TCefStringMap; index: Integer; var value: TCefString): Integer; cdecl;
+  cef_string_map_value: function(map: TCefStringMap; index: csize_t; var value: TCefString): Integer; cdecl;
 
   // Append a new key/value pair at the end of the string map.
   cef_string_map_append: function(map: TCefStringMap; const key, value: PCefString): Integer; cdecl;
@@ -6066,20 +6379,20 @@ Var
   cef_string_multimap_alloc: function: TCefStringMultimap; cdecl;
 
   // Return the number of elements in the string multimap.
-  cef_string_multimap_size: function(map: TCefStringMultimap): Integer; cdecl;
+  cef_string_multimap_size: function(map: TCefStringMultimap): csize_t; cdecl;
 
   // Return the number of values with the specified key.
-  cef_string_multimap_find_count: function(map: TCefStringMultimap; const key: PCefString): Integer; cdecl;
+  cef_string_multimap_find_count: function(map: TCefStringMultimap; const key: PCefString): csize_t; cdecl;
 
   // Return the value_index-th value with the specified key.
   cef_string_multimap_enumerate: function(map: TCefStringMultimap;
-    const key: PCefString; value_index: Integer; var value: TCefString): Integer; cdecl;
+    const key: PCefString; value_index: csize_t; var value: TCefString): Integer; cdecl;
 
   // Return the key at the specified zero-based string multimap index.
-  cef_string_multimap_key: function(map: TCefStringMultimap; index: Integer; var key: TCefString): Integer; cdecl;
+  cef_string_multimap_key: function(map: TCefStringMultimap; index: csize_t; var key: TCefString): Integer; cdecl;
 
   // Return the value at the specified zero-based string multimap index.
-  cef_string_multimap_value: function(map: TCefStringMultimap; index: Integer; var value: TCefString): Integer; cdecl;
+  cef_string_multimap_value: function(map: TCefStringMultimap; index: csize_t; var value: TCefString): Integer; cdecl;
 
   // Append a new key/value pair at the end of the string multimap.
   cef_string_multimap_append: function(map: TCefStringMultimap; const key, value: PCefString): Integer; cdecl;
@@ -6405,6 +6718,17 @@ begin
     Pointer(cef_cookie_manager_get_global_manager)   := GetProcAddress(LibHandle, 'cef_cookie_manager_get_global_manager');
     Pointer(cef_cookie_manager_create_manager)       := GetProcAddress(LibHandle, 'cef_cookie_manager_create_manager');
 
+    Pointer(cef_crash_reporting_enabled)             := GetProcAddress(LibHandle, 'cef_crash_reporting_enabled');
+    Pointer(cef_set_crash_key_value)                 := GetProcAddress(LibHandle, 'cef_set_crash_key_value');
+
+    Pointer(cef_create_directory)                    := GetProcAddress(LibHandle, 'cef_create_directory');
+    Pointer(cef_get_temp_directory)                  := GetProcAddress(LibHandle, 'cef_get_temp_directory');
+    Pointer(cef_create_new_temp_directory)           := GetProcAddress(LibHandle, 'cef_create_new_temp_directory');
+    Pointer(cef_create_temp_directory_in_directory)  := GetProcAddress(LibHandle, 'cef_create_temp_directory_in_directory');
+    Pointer(cef_directory_exists)                    := GetProcAddress(LibHandle, 'cef_directory_exists');
+    Pointer(cef_delete_file)                         := GetProcAddress(LibHandle, 'cef_delete_file');
+    Pointer(cef_zip_directory)                       := GetProcAddress(LibHandle, 'cef_zip_directory');
+
     Pointer(cef_get_geolocation)                     := GetProcAddress(LibHandle, 'cef_get_geolocation');
 
     Pointer(cef_image_create)                        := GetProcAddress(LibHandle, 'cef_image_create');
@@ -6466,6 +6790,8 @@ begin
     Pointer(cef_task_runner_get_for_current_thread)  := GetProcAddress(LibHandle, 'cef_task_runner_get_for_current_thread');
     Pointer(cef_task_runner_get_for_thread)          := GetProcAddress(LibHandle, 'cef_task_runner_get_for_thread');
 
+    Pointer(cef_thread_create)                       := GetProcAddress(LibHandle, 'cef_thread_create');
+
     Pointer(cef_begin_tracing)                       := GetProcAddress(LibHandle, 'cef_begin_tracing');
     Pointer(cef_end_tracing)                         := GetProcAddress(LibHandle, 'cef_end_tracing');
     Pointer(cef_now_from_system_trace_time)          := GetProcAddress(LibHandle, 'cef_now_from_system_trace_time');
@@ -6493,6 +6819,8 @@ begin
     Pointer(cef_binary_value_create)                 := GetProcAddress(LibHandle, 'cef_binary_value_create');
     Pointer(cef_dictionary_value_create)             := GetProcAddress(LibHandle, 'cef_dictionary_value_create');
     Pointer(cef_list_value_create)                   := GetProcAddress(LibHandle, 'cef_list_value_create');
+
+    Pointer(cef_waitable_event_create)               := GetProcAddress(LibHandle, 'cef_waitable_event_create');
 
     Pointer(cef_visit_web_plugin_info)               := GetProcAddress(LibHandle, 'cef_visit_web_plugin_info');
     Pointer(cef_refresh_web_plugins)                 := GetProcAddress(LibHandle, 'cef_refresh_web_plugins');
@@ -6601,6 +6929,17 @@ begin
       Assigned(cef_cookie_manager_get_global_manager) and
       Assigned(cef_cookie_manager_create_manager) and
 
+      Assigned(cef_crash_reporting_enabled) and
+      Assigned(cef_set_crash_key_value) and
+
+      Assigned(cef_create_directory) and
+      Assigned(cef_get_temp_directory) and
+      Assigned(cef_create_new_temp_directory) and
+      Assigned(cef_create_temp_directory_in_directory) and
+      Assigned(cef_directory_exists) and
+      Assigned(cef_delete_file) and
+      Assigned(cef_zip_directory) and
+
       Assigned(cef_get_geolocation) and
 
       Assigned(cef_image_create) and
@@ -6662,6 +7001,8 @@ begin
       Assigned(cef_task_runner_get_for_current_thread) and
       Assigned(cef_task_runner_get_for_thread) and
 
+      Assigned(cef_thread_create) and
+
       Assigned(cef_begin_tracing) and
       Assigned(cef_end_tracing) and
       Assigned(cef_now_from_system_trace_time) and
@@ -6689,6 +7030,8 @@ begin
       Assigned(cef_binary_value_create) and
       Assigned(cef_dictionary_value_create) and
       Assigned(cef_list_value_create) and
+
+      Assigned(cef_waitable_event_create) and
 
       Assigned(cef_visit_web_plugin_info) and
       Assigned(cef_refresh_web_plugins) and

@@ -426,6 +426,8 @@ Type
       allowedOps: TCefDragOperationsMask; x, y: Integer): Boolean; virtual;
     procedure UpdateDragCursor(const browser: ICefBrowser; operation: TCefDragOperationsMask); virtual;
     procedure OnScrollOffsetChanged(const browser: ICefBrowser; x,y: Double); virtual;
+    procedure OnImeCompositionRangeChanged(const browser: ICefBrowser;
+      const selectedRange: TCefRange; characterBoundsCount: TSize; characterBounds: TCefRectArray); virtual;
   public
     constructor Create; virtual;
   end;
@@ -495,8 +497,8 @@ Type
   TCefRequestContextHandlerOwn = class(TCefBaseOwn, ICefRequestContextHandler)
   protected
     function GetCookieManager: ICefCookieManager; virtual;
-    function OnBeforePluginLoad(const mimeType, pluginUrl, topOriginUrl: ustring;
-      pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy): Boolean; virtual;
+    function OnBeforePluginLoad(const mimeType, pluginUrl: ustring; isMainFrame: Boolean;
+      const topOriginUrl: ustring; pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy): Boolean; virtual;
   public
     constructor Create; virtual;
   end;
@@ -772,10 +774,10 @@ Type
     fStringMap: TCefStringMap;
   protected
     function GetHandle: TCefStringMap; virtual;
-    function GetSize: Integer; virtual;
+    function GetSize: TSize; virtual;
     function Find(const key: ustring): ustring; virtual;
-    function GetKey(index: Integer): ustring; virtual;
-    function GetValue(index: Integer): ustring; virtual;
+    function GetKey(index: TSize): ustring; virtual;
+    function GetValue(index: TSize): ustring; virtual;
     procedure Append(const key, value: ustring); virtual;
     procedure Clear; virtual;
   public
@@ -788,11 +790,11 @@ Type
     fStringMap: TCefStringMultimap;
   protected
     function GetHandle: TCefStringMultimap; virtual;
-    function GetSize: Integer; virtual;
-    function FindCount(const Key: ustring): Integer; virtual;
-    function GetEnumerate(const Key: ustring; ValueIndex: Integer): ustring; virtual;
-    function GetKey(Index: Integer): ustring; virtual;
-    function GetValue(Index: Integer): ustring; virtual;
+    function GetSize: TSize; virtual;
+    function FindCount(const Key: ustring): TSize; virtual;
+    function GetEnumerate(const Key: ustring; ValueIndex: TSize): ustring; virtual;
+    function GetKey(Index: TSize): ustring; virtual;
+    function GetValue(Index: TSize): ustring; virtual;
     procedure Append(const Key, Value: ustring); virtual;
     procedure Clear; virtual;
   public
@@ -2538,6 +2540,14 @@ begin
     OnScrollOffsetChanged(TCefBrowserRef.UnWrap(browser), x, y);
 end;
 
+procedure cef_render_handler_on_ime_composition_range_changed(self: PCefRenderHandler;
+  browser: PCefBrowser; const selected_range: PCefRange; character_boundsCount: TSize;
+  character_bounds: PCefRectArray); cconv;
+begin
+  TCefRenderHandlerOwn(CefGetObject(self)).OnImeCompositionRangeChanged(
+    TCefBrowserRef.UnWrap(browser), selected_range^, character_boundsCount, character_bounds^);
+end;
+
 function TCefRenderHandlerOwn.GetRootScreenRect(const browser: ICefBrowser; rect: PCefRect): Boolean;
 begin
   Result := False;
@@ -2600,6 +2610,12 @@ begin
   { empty }
 end;
 
+procedure TCefRenderHandlerOwn.OnImeCompositionRangeChanged(const browser: ICefBrowser;
+  const selectedRange: TCefRange; characterBoundsCount: TSize; characterBounds: TCefRectArray);
+begin
+  { empty }
+end;
+
 constructor TCefRenderHandlerOwn.Create;
 begin
   inherited CreateData(SizeOf(TCefRenderHandler));
@@ -2616,6 +2632,7 @@ begin
     start_dragging := @cef_render_handler_start_dragging;
     update_drag_cursor := @cef_render_handler_update_drag_cursor;
     on_scroll_offset_changed := @cef_render_handler_on_scroll_offset_changed;
+    on_ime_composition_range_changed := @cef_render_handler_on_ime_composition_range_changed;
   end;
 end;
 
@@ -2987,8 +3004,8 @@ begin
 end;
 
 function cef_request_context_handler_on_before_plugin_load(self: PCefRequestContextHandler;
-  const mime_type, plugin_url, top_origin_url: PCefString; plugin_info: PCefWebPluginInfo;
-  plugin_policy: PCefPluginPolicy): Integer; cconv;
+  const mime_type, plugin_url: PCefString; is_main_frame: Integer; const top_origin_url: PCefString;
+  plugin_info: PCefWebPluginInfo; plugin_policy: PCefPluginPolicy): Integer; cconv;
 Var
   m, p, t: ustring;
 begin
@@ -2996,7 +3013,8 @@ begin
   p := CefString(plugin_url);
   t := CefString(top_origin_url);
   Result := Ord(TCefRequestContextHandlerOwn(CefGetObject(self)).
-    OnBeforePluginLoad(m, p, t, TCefWebPluginInfoRef.UnWrap(plugin_info), plugin_policy^));
+    OnBeforePluginLoad(m, p, is_main_frame <> 0, t, TCefWebPluginInfoRef.UnWrap(plugin_info),
+    plugin_policy^));
 end;
 
 function TCefRequestContextHandlerOwn.GetCookieManager: ICefCookieManager;
@@ -3004,8 +3022,9 @@ begin
   Result := nil;
 end;
 
-function TCefRequestContextHandlerOwn.OnBeforePluginLoad(const mimeType, pluginUrl, topOriginUrl: ustring;
-  pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy): Boolean;
+function TCefRequestContextHandlerOwn.OnBeforePluginLoad(const mimeType, pluginUrl: ustring;
+  isMainFrame: Boolean; const topOriginUrl: ustring; pluginInfo: ICefWebPluginInfo;
+  pluginPolicy: TCefPluginPolicy): Boolean;
 begin
   Result := False;
 end;
@@ -4116,7 +4135,7 @@ begin
   Result := fStringMap;
 end;
 
-function TCefStringMapOwn.GetSize: Integer;
+function TCefStringMapOwn.GetSize: TSize;
 begin
   Result := cef_string_map_size(fStringMap);
 end;
@@ -4131,7 +4150,7 @@ begin
   Result := CefString(@s);
 end;
 
-function TCefStringMapOwn.GetKey(index: Integer): ustring;
+function TCefStringMapOwn.GetKey(index: TSize): ustring;
 Var
   s : TCefString;
 begin
@@ -4140,7 +4159,7 @@ begin
   Result := CefString(@s);
 end;
 
-function TCefStringMapOwn.GetValue(index: Integer): ustring;
+function TCefStringMapOwn.GetValue(index: TSize): ustring;
 Var
   s : TCefString;
 begin
@@ -4180,12 +4199,12 @@ begin
   Result := fStringMap;
 end;
 
-function TCefStringMultimapOwn.GetSize: Integer;
+function TCefStringMultimapOwn.GetSize: TSize;
 begin
   Result := cef_string_multimap_size(fStringMap);
 end;
 
-function TCefStringMultimapOwn.FindCount(const Key: ustring): Integer;
+function TCefStringMultimapOwn.FindCount(const Key: ustring): TSize;
 Var
   k : TCefString;
 begin
@@ -4193,7 +4212,7 @@ begin
   Result := cef_string_multimap_find_count(fStringMap, @k);
 end;
 
-function TCefStringMultimapOwn.GetEnumerate(const Key: ustring; ValueIndex: Integer): ustring;
+function TCefStringMultimapOwn.GetEnumerate(const Key: ustring; ValueIndex: TSize): ustring;
 Var
   k, v : TCefString;
 begin
@@ -4203,7 +4222,7 @@ begin
   Result := CefString(@v);
 end;
 
-function TCefStringMultimapOwn.GetKey(Index: Integer): ustring;
+function TCefStringMultimapOwn.GetKey(Index: TSize): ustring;
 Var
   s : TCefString;
 begin
@@ -4212,7 +4231,7 @@ begin
   Result := CefString(@s);
 end;
 
-function TCefStringMultimapOwn.GetValue(Index: Integer): ustring;
+function TCefStringMultimapOwn.GetValue(Index: TSize): ustring;
 Var
   s : TCefString;
 begin

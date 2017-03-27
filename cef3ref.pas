@@ -117,6 +117,12 @@ Type
     procedure NotifyMoveOrResizeStarted;
     function GetWindowlessFrameRate: Integer;
     procedure SetWindowlessFrameRate(frameRate: Integer);
+    procedure ImeSetComposition(const text: ustring; underlinesCount: TSize;
+      underlines: TCefCompositionUnderlineArray; const replacementRange, selectionRange: TCefRange);
+    procedure ImeCommitText(const text: ustring; const replacementRange: TCefRange;
+      relativeCursorPos: Integer);
+    procedure ImeFinishComposingText(keepSelection: Boolean);
+    procedure ImeCancelComposition;
     procedure DragTargetDragEnter(dragData: ICefDragData; const event: TCefMouseEvent; allowedOps: TCefDragOperationsMask);
     procedure DragTargetDragOver(const event: TCefMouseEvent; allowedOps: TCefDragOperationsMask);
     procedure DragTargetDragLeave;
@@ -181,6 +187,7 @@ Type
     function GetUnfilteredLinkUrl: ustring;
     function GetSourceUrl: ustring;
     function HasImageContents: Boolean;
+    function GetTitleText: ustring;
     function GetPageUrl: ustring;
     function GetFrameUrl: ustring;
     function GetFrameCharset: ustring;
@@ -641,8 +648,8 @@ Type
   TCefRequestContextHandlerRef = class(TCefBaseRef, ICefRequestContextHandler)
   protected
     function GetCookieManager: ICefCookieManager;
-    function OnBeforePluginLoad(const mimeType, pluginUrl, topOriginUrl: ustring;
-      pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy): Boolean;
+    function OnBeforePluginLoad(const mimeType, pluginUrl: ustring; isMainFrame: Boolean;
+      const topOriginUrl: ustring; pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy): Boolean;
   public
     class function UnWrap(data: Pointer): ICefRequestContextHandler;
   end;
@@ -774,6 +781,18 @@ Type
     class function UnWrap(data: Pointer): ICefTaskRunner;
     class function GetForCurrentThread: ICefTaskRunner;
     class function GetForThread(const ThreadID: TCefThreadID): ICefTaskRunner;
+  end;
+
+  TCefThreadRef = class(TCefBaseRef, ICefThread)
+  protected
+    function GetTaskRunner: ICefTaskRunner;
+    function GetPlatformThreadId: TCefPlatformThreadId;
+    procedure Stop;
+    function IsRunning: Boolean;
+  public
+    class function UnWrap(data: Pointer): ICefThread;
+    class function New(const displayName: ustring; priority: TCefThreadPriority;
+      messageLoopType: TCefMessageLoopType; stoppable: Boolean; comInitMode: TCefComInitMode): ICefThread;
   end;
 
   TCefUrlRequestRef = class(TCefBaseRef, ICefUrlRequest)
@@ -1022,28 +1041,40 @@ Type
     function SetSize(size: TSize): Boolean;
     function GetSize: TSize;
     function Clear: Boolean;
-    function Remove(index: Integer): Boolean;
-    function GetType(index: Integer): TCefValueType;
-    function GetValue(index: Integer): ICefValue;
-    function GetBool(index: Integer): Boolean;
-    function GetInt(index: Integer): Integer;
-    function GetDouble(index: Integer): Double;
-    function GetString(index: Integer): ustring;
-    function GetBinary(index: Integer): ICefBinaryValue;
-    function GetDictionary(index: Integer): ICefDictionaryValue;
-    function GetList(index: Integer): ICefListValue;
-    function SetValue(index: Integer; value: ICefValue): Boolean;
-    function SetNull(index: Integer): Boolean;
-    function SetBool(index: Integer; value: Boolean): Boolean;
-    function SetInt(index, value: Integer): Boolean;
-    function SetDouble(index: Integer; value: Double): Boolean;
-    function SetString(index: Integer; const value: ustring): Boolean;
-    function SetBinary(index: Integer; const value: ICefBinaryValue): Boolean;
-    function SetDictionary(index: Integer; const value: ICefDictionaryValue): Boolean;
-    function SetList(index: Integer; const value: ICefListValue): Boolean;
+    function Remove(index: TSize): Boolean;
+    function GetType(index: TSize): TCefValueType;
+    function GetValue(index: TSize): ICefValue;
+    function GetBool(index: TSize): Boolean;
+    function GetInt(index: TSize): Integer;
+    function GetDouble(index: TSize): Double;
+    function GetString(index: TSize): ustring;
+    function GetBinary(index: TSize): ICefBinaryValue;
+    function GetDictionary(index: TSize): ICefDictionaryValue;
+    function GetList(index: TSize): ICefListValue;
+    function SetValue(index: TSize; value: ICefValue): Boolean;
+    function SetNull(index: TSize): Boolean;
+    function SetBool(index: TSize; value: Boolean): Boolean;
+    function SetInt(index: TSize; value: Integer): Boolean;
+    function SetDouble(index: TSize; value: Double): Boolean;
+    function SetString(index: TSize; const value: ustring): Boolean;
+    function SetBinary(index: TSize; const value: ICefBinaryValue): Boolean;
+    function SetDictionary(index: TSize; const value: ICefDictionaryValue): Boolean;
+    function SetList(index: TSize; const value: ICefListValue): Boolean;
   public
     class function UnWrap(data: Pointer): ICefListValue;
     class function New: ICefListValue;
+  end;
+
+  TCefWaitableEventRef = class(TCefBaseRef, ICefWaitableEvent)
+  protected
+    procedure Reset;
+    procedure Signal;
+    function IsSignaled: Boolean;
+    procedure Wait;
+    function TimedWait(maxMs: Int64): Boolean;
+  public
+    class function UnWrap(data: Pointer): ICefWaitableEvent;
+    class function New(automaticReset, initiallySignaled: Boolean): ICefWaitableEvent;
   end;
 
   TCefWebPluginInfoRef = class(TCefBaseRef, ICefWebPluginInfo)
@@ -1541,6 +1572,35 @@ begin
   PCefBrowserHost(fData)^.set_windowless_frame_rate(fData, frameRate);
 end;
 
+procedure TCefBrowserHostRef.ImeSetComposition(const text: ustring; underlinesCount: TSize;
+  underlines: TCefCompositionUnderlineArray; const replacementRange, selectionRange: TCefRange);
+Var
+  t: TCefString;
+begin
+  t := CefString(text);
+  PCefBrowserHost(fData)^.ime_set_composition(fData, @t, underlinesCount, @underlines,
+    @replacementRange, @selectionRange);
+end;
+
+procedure TCefBrowserHostRef.ImeCommitText(const text: ustring; const replacementRange: TCefRange;
+  relativeCursorPos: Integer);
+Var
+  t: TCefString;
+begin
+  t := CefString(text);
+  PCefBrowserHost(fData)^.ime_commit_text(fData, @t, @replacementRange, relativeCursorPos);
+end;
+
+procedure TCefBrowserHostRef.ImeFinishComposingText(keepSelection: Boolean);
+begin
+  PCefBrowserHost(fData)^.ime_finish_composing_text(fData, Ord(keepSelection));
+end;
+
+procedure TCefBrowserHostRef.ImeCancelComposition;
+begin
+  PCefBrowserHost(fData)^.ime_cancel_composition(fData);
+end;
+
 procedure TCefBrowserHostRef.DragTargetDragEnter(dragData: ICefDragData;
   const event: TCefMouseEvent; allowedOps: TCefDragOperationsMask);
 begin
@@ -1863,6 +1923,11 @@ end;
 function TCefContextMenuParamsRef.HasImageContents : Boolean;
 begin
   Result := PCefContextMenuParams(fData)^.has_image_contents(fData) <> 0;
+end;
+
+function TCefContextMenuParamsRef.GetTitleText: ustring;
+begin
+  Result := CefStringFreeAndGet(PCefContextMenuParams(fData)^.get_title_text(fData));
 end;
 
 function TCefContextMenuParamsRef.GetPageUrl : ustring;
@@ -3895,15 +3960,17 @@ begin
   Result := TCefCookieManagerRef.UnWrap(PCefRequestContextHandler(fData)^.get_cookie_manager(fData));
 end;
 
-function TCefRequestContextHandlerRef.OnBeforePluginLoad(const mimeType, pluginUrl, topOriginUrl: ustring;
-  pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy): Boolean;
+function TCefRequestContextHandlerRef.OnBeforePluginLoad(const mimeType, pluginUrl: ustring;
+  isMainFrame: Boolean; const topOriginUrl: ustring; pluginInfo: ICefWebPluginInfo;
+  pluginPolicy: TCefPluginPolicy): Boolean;
 Var
   m, p, t: TCefString;
 begin
   m := CefString(mimeType);
   p := CefString(pluginUrl);
   t := CefString(topOriginUrl);
-  Result := PCefRequestContextHandler(fData)^.on_before_plugin_load(fData, @m, @p, @t, CefGetData(pluginInfo), @pluginPolicy) <> 0;
+  Result := PCefRequestContextHandler(fData)^.on_before_plugin_load(fData, @m, @p, Ord(isMainFrame),
+    @t, CefGetData(pluginInfo), @pluginPolicy) <> 0;
 end;
 
 class function TCefRequestContextHandlerRef.UnWrap(data : Pointer) : ICefRequestContextHandler;
@@ -4308,6 +4375,44 @@ end;
 class function TCefTaskRunnerRef.GetForThread(const ThreadID: TCefThreadID): ICefTaskRunner;
 begin
   Result := UnWrap(cef_task_runner_get_for_thread(ThreadID));
+end;
+
+{ TCefThreadRef }
+
+function TCefThreadRef.GetTaskRunner: ICefTaskRunner;
+begin
+  Result := TCefTaskRunnerRef.UnWrap(PCefThread(fData)^.get_task_runner(fData));
+end;
+
+function TCefThreadRef.GetPlatformThreadId: TCefPlatformThreadId;
+begin
+  Result := PCefThread(fData)^.get_platform_thread_id(fData);
+end;
+
+procedure TCefThreadRef.Stop;
+begin
+  PCefThread(fData)^.stop(fData);
+end;
+
+function TCefThreadRef.IsRunning: Boolean;
+begin
+  Result := PCefThread(fData)^.is_running(fData) <> 0;
+end;
+
+class function TCefThreadRef.UnWrap(data: Pointer): ICefThread;
+begin
+  If data <> nil then Result := Create(data) as ICefThread
+  Else Result := nil;
+end;
+
+class function TCefThreadRef.New(const displayName: ustring; priority: TCefThreadPriority;
+  messageLoopType: TCefMessageLoopType; stoppable: Boolean;
+  comInitMode: TCefComInitMode): ICefThread;
+Var
+  d: TCefString;
+begin
+  d := CefString(displayName);
+  Result := UnWrap(cef_thread_create(@d, priority, messageLoopType, Ord(stoppable), comInitMode));
 end;
 
 { TCefUrlRequestRef }
@@ -5435,82 +5540,82 @@ begin
   Result := PCefListValue(fData)^.clear(fData) <> 0;
 end;
 
-function TCefListValueRef.Remove(index: Integer): Boolean;
+function TCefListValueRef.Remove(index: TSize): Boolean;
 begin
   Result := PCefListValue(fData)^.remove(fData, index) <> 0;
 end;
 
-function TCefListValueRef.GetType(index: Integer): TCefValueType;
+function TCefListValueRef.GetType(index: TSize): TCefValueType;
 begin
   Result := PCefListValue(fData)^.get_type(fData, index);
 end;
 
-function TCefListValueRef.GetValue(index: Integer): ICefValue;
+function TCefListValueRef.GetValue(index: TSize): ICefValue;
 begin
   Result := TCefValueRef.UnWrap(PCefListValue(fData)^.get_value(fData, index));
 end;
 
-function TCefListValueRef.GetBool(index: Integer): Boolean;
+function TCefListValueRef.GetBool(index: TSize): Boolean;
 begin
   Result := PCefListValue(fData)^.get_bool(fData, index) <> 0;
 end;
 
-function TCefListValueRef.GetInt(index: Integer): Integer;
+function TCefListValueRef.GetInt(index: TSize): Integer;
 begin
   Result := PCefListValue(fData)^.get_int(fData, index);
 end;
 
-function TCefListValueRef.GetDouble(index: Integer): Double;
+function TCefListValueRef.GetDouble(index: TSize): Double;
 begin
   Result := PCefListValue(fData)^.get_double(fData, index);
 end;
 
-function TCefListValueRef.GetString(index: Integer): ustring;
+function TCefListValueRef.GetString(index: TSize): ustring;
 begin
   Result := CefStringFreeAndGet(PCefListValue(fData)^.get_string(fData, index));
 end;
 
-function TCefListValueRef.GetBinary(index: Integer): ICefBinaryValue;
+function TCefListValueRef.GetBinary(index: TSize): ICefBinaryValue;
 begin
   Result := TCefBinaryValueRef.UnWrap(PCefListValue(fData)^.get_binary(fData, index));
 end;
 
-function TCefListValueRef.GetDictionary(index: Integer): ICefDictionaryValue;
+function TCefListValueRef.GetDictionary(index: TSize): ICefDictionaryValue;
 begin
   Result := TCefDictionaryValueRef.UnWrap(PCefListValue(fData)^.get_dictionary(fData, index));
 end;
 
-function TCefListValueRef.GetList(index: Integer): ICefListValue;
+function TCefListValueRef.GetList(index: TSize): ICefListValue;
 begin
   Result := UnWrap(PCefListValue(fData)^.get_list(fData, index));
 end;
 
-function TCefListValueRef.SetValue(index: Integer; value: ICefValue): Boolean;
+function TCefListValueRef.SetValue(index: TSize; value: ICefValue): Boolean;
 begin
   Result := PCefListValue(fData)^.set_value(fData, index, CefGetData(value)) <> 0;
 end;
 
-function TCefListValueRef.SetNull(index: Integer): Boolean;
+function TCefListValueRef.SetNull(index: TSize): Boolean;
 begin
   Result := PCefListValue(fData)^.set_null(fData, index) <> 0;
 end;
 
-function TCefListValueRef.SetBool(index: Integer; value: Boolean) : Boolean;
+function TCefListValueRef.SetBool(index: TSize; value: Boolean): Boolean;
 begin
   Result := PCefListValue(fData)^.set_bool(fData, index, Ord(value)) <> 0;
 end;
 
-function TCefListValueRef.SetInt(index, value: Integer): Boolean;
+function TCefListValueRef.SetInt(index: TSize; value: Integer): Boolean;
 begin
   Result := PCefListValue(fData)^.set_int(fData, index, value) <> 0;
 end;
 
-function TCefListValueRef.SetDouble(index: Integer; value: Double): Boolean;
+function TCefListValueRef.SetDouble(index: TSize; value: Double): Boolean;
 begin
   Result := PCefListValue(fData)^.set_double(fData, index, value) <> 0;
 end;
 
-function TCefListValueRef.SetString(index: Integer; const value: ustring): Boolean;
+function TCefListValueRef.SetString(index: TSize; const value: ustring): Boolean;
 Var
   v : TCefString;
 begin
@@ -5518,30 +5623,68 @@ begin
   Result := PCefListValue(fData)^.set_string(fData, index, @v) <> 0;
 end;
 
-function TCefListValueRef.SetBinary(index: Integer; const value: ICefBinaryValue): Boolean;
+function TCefListValueRef.SetBinary(index: TSize; const value: ICefBinaryValue): Boolean;
 begin
   Result := PCefListValue(fData)^.set_binary(fData, index, CefGetData(value)) <> 0;
 end;
 
-function TCefListValueRef.SetDictionary(index: Integer; const value: ICefDictionaryValue): Boolean;
+function TCefListValueRef.SetDictionary(index: TSize; const value: ICefDictionaryValue): Boolean;
 begin
   Result := PCefListValue(fData)^.set_dictionary(fData, index, CefGetData(value)) <> 0;
 end;
 
-function TCefListValueRef.SetList(index: Integer; const value: ICefListValue): Boolean;
+function TCefListValueRef.SetList(index: TSize; const value: ICefListValue): Boolean;
 begin
   Result := PCefListValue(fData)^.set_list(fData, index, CefGetData(value)) <> 0;
 end;
 
 class function TCefListValueRef.UnWrap(data: Pointer): ICefListValue;
 begin
-  If Data <> nil then Result := Create(data) as ICefListValue
+  If data <> nil then Result := Create(data) as ICefListValue
   Else Result := nil;
 end;
 
 class function TCefListValueRef.New : ICefListValue;
 begin
   Result := UnWrap(cef_list_value_create());
+end;
+
+{ TCefWaitableEventRef }
+
+procedure TCefWaitableEventRef.Reset;
+begin
+  PCefWaitableEvent(fData)^.reset(fData);
+end;
+
+procedure TCefWaitableEventRef.Signal;
+begin
+  PCefWaitableEvent(fData)^.signal(fData);
+end;
+
+function TCefWaitableEventRef.IsSignaled: Boolean;
+begin
+  Result := PCefWaitableEvent(fData)^.is_signaled(fData) <> 0;
+end;
+
+procedure TCefWaitableEventRef.Wait;
+begin
+  PCefWaitableEvent(fData)^.wait(fData);
+end;
+
+function TCefWaitableEventRef.TimedWait(maxMs: Int64): Boolean;
+begin
+  Result := PCefWaitableEvent(fData)^.timed_wait(fData, maxMs) <> 0;
+end;
+
+class function TCefWaitableEventRef.UnWrap(data: Pointer): ICefWaitableEvent;
+begin
+  If data <> nil then Result := Create(data) as ICefWaitableEvent
+  Else Result := nil;
+end;
+
+class function TCefWaitableEventRef.New(automaticReset, initiallySignaled: Boolean): ICefWaitableEvent;
+begin
+  Result := UnWrap(cef_waitable_event_create(Ord(automaticReset), Ord(initiallySignaled)));
 end;
 
 { TCefWebPluginInfoRef }

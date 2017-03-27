@@ -83,6 +83,17 @@ function CefBrowserHostCreateBrowser(windowInfo: PCefWindowInfo; const client: I
 function CefBrowserHostCreateBrowserSync(windowInfo: PCefWindowInfo; const client: ICefClient;
   const url: ustring; const settings: PCefBrowserSettings; const requestContext: ICefRequestContext): ICefBrowser;
 
+function CefCrashReportingEnabled: Boolean;
+procedure CefSetCrashKeyValue(const key, value: ustring);
+
+function CefCreateDirectory(const fullPath: ustring): Boolean;
+function CefGetTempDirectory(out tempDir: ustring): Boolean;
+function CefCreateNewTempDirectory(const prefix: ustring; out newTempPath: ustring): Boolean;
+function CefCreateTempDirectoryInDirectory(const baseDir, prefix: ustring; out newDir: ustring): Boolean;
+function CefDirectoryExists(const path: ustring): Boolean;
+function CefDeleteFile(const path: ustring; recursive: Boolean): Boolean;
+function CefZipDirectory(const srcDir, destFile: ustring; includeHiddenFiles: Boolean): Boolean;
+
 function CefGetGeolocation(const callback: ICefGetGeolocationCallback): Boolean;
 function CefGetGeolocationProc(const callback: TCefGetGeolocationCallbackProc): Boolean;
 
@@ -175,6 +186,7 @@ Var
   CefSingleProcess: Boolean = False;
   CefNoSandbox: Boolean = True;
   CefBrowserSubprocessPath: ustring = '';
+  CefFrameworkDirPath: ustring = '';
   CefExternalMessagePump: Boolean = False;
   CefWindowlessRenderingEnabled: Boolean = False;
   CefCachePath: ustring = '';
@@ -440,6 +452,7 @@ begin
   Settings.single_process := Ord(CefSingleProcess);
   Settings.no_sandbox := Ord(CefNoSandbox);
   Settings.browser_subprocess_path := CefString(CefBrowserSubprocessPath);
+  Settings.framework_dir_path := CefString(CefFrameworkDirPath);
 {$IFDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
   Settings.multi_threaded_message_loop := Ord(True);
 {$ELSE}
@@ -562,6 +575,87 @@ begin
   CefInitialize;
   u := CefString(url);
   Result := TCefBrowserRef.UnWrap(cef_browser_host_create_browser_sync(windowInfo, CefGetData(client), @u, settings, CefGetData(requestContext)));
+end;
+
+function CefCrashReportingEnabled: Boolean;
+begin
+  Result := cef_crash_reporting_enabled() <> 0;
+end;
+
+procedure CefSetCrashKeyValue(const key, value: ustring);
+Var
+  k, v: TCefString;
+begin
+  k := CefString(key);
+  v := CefString(value);
+  cef_set_crash_key_value(@k, @v);
+end;
+
+function CefCreateDirectory(const fullPath: ustring): Boolean;
+Var
+  f: TCefString;
+begin
+  f := CefString(fullPath);
+  Result := cef_create_directory(@f) <> 0;
+end;
+
+function CefGetTempDirectory(out tempDir: ustring): Boolean;
+Var
+  t: TCefString;
+begin
+  FillChar(t, SizeOf(t), 0);
+
+  Result := cef_get_temp_directory(@t) <> 0;
+  tempDir := CefString(@t);
+end;
+
+function CefCreateNewTempDirectory(const prefix: ustring; out newTempPath: ustring): Boolean;
+Var
+  p, n: TCefString;
+begin
+  p := CefString(prefix);
+  FillChar(n, SizeOf(n), 0);
+
+  Result := cef_create_new_temp_directory(@p, @n) <> 0;
+  newTempPath := CefString(@n);
+end;
+
+function CefCreateTempDirectoryInDirectory(const baseDir, prefix: ustring;
+  out newDir: ustring): Boolean;
+Var
+  b, p, n: TCefString;
+begin
+  b := CefString(baseDir);
+  p := CefString(prefix);
+  FillChar(n, SizeOf(n), 0);
+
+  Result := cef_create_temp_directory_in_directory(@b, @p, @n) <> 0;
+  newDir := CefString(@n);
+end;
+
+function CefDirectoryExists(const path: ustring): Boolean;
+Var
+  p: TCefString;
+begin
+  p := CefString(path);
+  Result := cef_directory_exists(@p) <> 0;
+end;
+
+function CefDeleteFile(const path: ustring; recursive: Boolean): Boolean;
+Var
+  p: TCefString;
+begin
+  p := CefString(path);
+  Result := cef_delete_file(@p, Ord(recursive)) <> 0;
+end;
+
+function CefZipDirectory(const srcDir, destFile: ustring; includeHiddenFiles: Boolean): Boolean;
+Var
+  s, d: TCefString;
+begin
+  s := CefString(srcDir);
+  d := CefString(destFile);
+  Result := cef_zip_directory(@s, @d, Ord(includeHiddenFiles)) <> 0;
 end;
 
 function CefGetGeolocation(const callback: ICefGetGeolocationCallback): Boolean;

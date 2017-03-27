@@ -10,10 +10,10 @@ Install `cef3.lpk` into Lazarus. A good starting point is the `LCLSimple` projec
 
 
 ### Windows
-Download CEF3 from [here][1a] or [here][1b] and copy all files from either `Debug` or `Release` to the folder your .exe is / will be in.
+Download CEF3 from [here][1] and copy all files from either `Debug` or `Release` to the folder your .exe is / will be in.
 
 ### Linux
-You need a build of CEF3 with `tcmalloc` disabled. The [official CEF binaries][1a] are suitable.
+You need a build of CEF3 with `tcmalloc` disabled. The [official CEF binaries][1] are suitable.
 
 Copy / link _libcef.so_,  
   a) to a default library location, eg. `/usr/lib(64)`, `/usr/local/lib(64)` __or__  
@@ -27,7 +27,7 @@ However in any case `icudtl.dat` __must__ be in the same folder as the CEF libra
 
 
 ### macOS
-Download the CEF3 framework from [here][1a] or [here][1b] and follow the description on the [wiki][wiki]. Please note that most of the hints and notes in this readme don't apply for macOS.
+Download the CEF3 framework from [here][1] and follow the description on the [wiki][wiki]. Please note that most of the hints and notes in this readme don't apply for macOS.
 
 
 ## Hints
@@ -94,8 +94,7 @@ To a certain amount - yes.
  *  [fpCEF3](http://github.com/dliw/fpCEF3)
 
 [wiki]:https://github.com/dliw/fpCEF3/wiki/macOS
-[1a]:http://www.magpcss.net/cef_downloads
-[1b]:http://www.cefbuilds.com
+[1]:http://www.magpcss.net/cef_downloads
 [2]:http://magpcss.org/ceforum/apidocs3/
 [3]:https://bitbucket.org/chromiumembedded/cef/src/936e595fe5e9aa5e7641abf72e1f872f9d0ceb73/tests/cefclient/?at=master
 [4]:https://code.google.com/p/chromiumembedded/issues/detail?id=976

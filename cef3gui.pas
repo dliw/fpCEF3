@@ -176,11 +176,14 @@ Type
   TOnPluginCrashed = procedure(Sender: TObject; const browser: ICefBrowser; const plugin_path: ustring) of object;
   TOnRenderViewReady = procedure(Sender: TObject; const browser: ICefBrowser) of object;
   TOnRenderProcessTerminated = procedure(Sender: TObject; const browser: ICefBrowser; status: TCefTerminationStatus) of object;
+  TOnImeCompositionRangeChanged = procedure(Sender: TObject; const browser: ICefBrowser;
+      const selectedRange: TCefRange; characterBoundsCount: TSize; characterBounds: TCefRectArray) of object;
 
   { RequestContextHandler }
   TOnGetCookieManager = procedure(Sender: TObject; out Result: ICefCookieManager) of object;
-  TOnBeforePluginLoad = procedure(Sender: TObject; const mimeType, pluginUrl, topOriginUrl: ustring;
-    pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy; out Result: Boolean) of object;
+  TOnBeforePluginLoad = procedure(Sender: TObject; const mimeType, pluginUrl: ustring;
+    isMainFrame: Boolean; const topOriginUrl: ustring; pluginInfo: ICefWebPluginInfo;
+    pluginPolicy: TCefPluginPolicy; out Result: Boolean) of object;
 
   TChromiumOptions = class(TPersistent)
   private
@@ -210,7 +213,6 @@ Type
     property JavascriptCloseWindows: TCefState read fJavascriptCloseWindows write fJavascriptCloseWindows default STATE_DEFAULT;
     property JavascriptAccessClipboard: TCefState read fJavascriptAccessClipboard write fJavascriptAccessClipboard default STATE_DEFAULT;
     property JavascriptDomPaste: TCefState read fJavascriptDomPaste write fJavascriptDomPaste default STATE_DEFAULT;
-    property CaretBrowsing: TCefState read fCaretBrowsing write fCaretBrowsing default STATE_DEFAULT;
     property Plugins: TCefState read fPlugins write fPlugins default STATE_DEFAULT;
     property UniversalAccessFromFileUrls: TCefState read fUniversalAccessFromFileUrls write fUniversalAccessFromFileUrls default STATE_DEFAULT;
     property FileAccessFromFileUrls: TCefState read fFileAccessFromFileUrls write fFileAccessFromFileUrls default STATE_DEFAULT;
@@ -360,6 +362,8 @@ Type
       allowedOps: TCefDragOperationsMask; x, y: Integer): Boolean;
     procedure doOnUpdateDragCursor(const browser: ICefBrowser; operation: TCefDragOperationsMask);
     procedure doOnScrollOffsetChanged(const browser: ICefBrowser; x,y: Double);
+    procedure doOnImeCompositionRangeChanged(const browser: ICefBrowser;
+      const selectedRange: TCefRange; characterBoundsCount: TSize; characterBounds: TCefRectArray);
 
     { CefRequestHandler }
     function doOnBeforeBrowse(const browser: ICefBrowser; const frame: ICefFrame;
@@ -399,8 +403,8 @@ Type
 
   IChromiumContextEvents = interface ['{1CEDEEB4-AEEF-473B-99FA-F8D0D2576A36}']
     function doOnGetCookieManager: ICefCookieManager;
-    function doOnBeforePluginLoad(const mimeType, pluginUrl, topOriginUrl: ustring;
-        pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy): Boolean;
+    function doOnBeforePluginLoad(const mimeType, pluginUrl: ustring; isMainFrame: Boolean;
+      const topOriginUrl: ustring; pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy): Boolean;
   end;
 
   ICefClientHandler = interface ['{E76F6888-D9C3-4FCE-9C23-E89659820A36}']
@@ -621,6 +625,8 @@ Type
       allowedOps: TCefDragOperationsMask; x, y: Integer): Boolean; override;
     procedure UpdateDragCursor(const browser: ICefBrowser; operation: TCefDragOperationsMask); override;
     procedure OnScrollOffsetChanged(const browser: ICefBrowser; x,y: Double); override;
+    procedure OnImeCompositionRangeChanged(const browser: ICefBrowser;
+      const selectedRange: TCefRange; characterBoundsCount: TSize; characterBounds: TCefRectArray); override;
   public
     constructor Create(const events: IChromiumEvents); reintroduce; virtual;
   end;
@@ -670,8 +676,9 @@ Type
     fEvent: IChromiumContextEvents;
   protected
     function GetCookieManager: ICefCookieManager; override;
-    function OnBeforePluginLoad(const mimeType, pluginUrl, topOriginUrl: ustring;
-      pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy): Boolean; override;
+    function OnBeforePluginLoad(const mimeType, pluginUrl: ustring; isMainFrame: Boolean;
+      const topOriginUrl: ustring; pluginInfo: ICefWebPluginInfo;
+      pluginPolicy: TCefPluginPolicy): Boolean; override;
   public
     constructor Create(const events: IChromiumContextEvents); reintroduce; virtual;
   end;
@@ -1227,6 +1234,12 @@ begin
   fEvent.doOnScrollOffsetChanged(browser, x, y);
 end;
 
+procedure TCustomRenderHandler.OnImeCompositionRangeChanged(const browser: ICefBrowser;
+  const selectedRange: TCefRange; characterBoundsCount: TSize; characterBounds: TCefRectArray);
+begin
+  fEvent.doOnImeCompositionRangeChanged(browser, selectedRange, characterBoundsCount, characterBounds);
+end;
+
 { TCustomRequestHandler }
 
 constructor TCustomRequestHandler.Create(const events: IChromiumEvents);
@@ -1353,10 +1366,12 @@ begin
   Result := fEvent.doOnGetCookieManager;
 end;
 
-function TCustomRequestContextHandler.OnBeforePluginLoad(const mimeType, pluginUrl, topOriginUrl: ustring;
-  pluginInfo: ICefWebPluginInfo; pluginPolicy: TCefPluginPolicy): Boolean;
+function TCustomRequestContextHandler.OnBeforePluginLoad(const mimeType, pluginUrl: ustring;
+  isMainFrame: Boolean; const topOriginUrl: ustring; pluginInfo: ICefWebPluginInfo;
+  pluginPolicy: TCefPluginPolicy): Boolean;
 begin
-  Result := fEvent.doOnBeforePluginLoad(mimeType, pluginUrl, topOriginUrl, pluginInfo, pluginPolicy);
+  Result := fEvent.doOnBeforePluginLoad(mimeType, pluginUrl, isMainFrame, topOriginUrl, pluginInfo,
+    pluginPolicy);
 end;
 
 end.
