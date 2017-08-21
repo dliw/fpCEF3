@@ -22,7 +22,7 @@ object Mainform: TMainform
     BorderSpacing.Right = 5
     Caption = 'Go'
     OnClick = BGoClick
-    TabOrder = 0
+    TabOrder = 2
   end
   object LUrl: TStaticText
     AnchorSideTop.Control = Owner
@@ -34,7 +34,7 @@ object Mainform: TMainform
     Caption = 'Url:'
     Font.Style = [fsBold]
     ParentFont = False
-    TabOrder = 1
+    TabOrder = 0
   end
   object EUrl: TEdit
     AnchorSideLeft.Control = LUrl
@@ -51,7 +51,7 @@ object Mainform: TMainform
     BorderSpacing.Top = 10
     BorderSpacing.Right = 5
     OnKeyDown = EUrlKeyDown
-    TabOrder = 3
+    TabOrder = 1
     Text = 'http://'
   end
   object Chromium: TChromium
@@ -65,6 +65,7 @@ object Mainform: TMainform
     Top = 80
     Width = 921
     Anchors = [akTop, akLeft, akRight, akBottom]
+    TabOrder = 6
     OnTitleChange = ChromiumTitleChange
     OnJsdialog = ChromiumJsdialog
     DefaultUrl = 'example.com'
@@ -80,34 +81,42 @@ object Mainform: TMainform
     Top = 448
     Width = 921
     Anchors = [akLeft, akRight, akBottom]
+    ReadOnly = True
     ScrollBars = ssAutoVertical
-    TabOrder = 4
+    TabOrder = 7
+    TabStop = False
   end
   object Button1: TButton
     Left = 38
     Height = 25
     Top = 48
-    Width = 75
-    Caption = 'Button1'
+    Width = 180
+    Caption = 'Load about:blank'
     OnClick = Button1Click
-    TabOrder = 5
+    TabOrder = 3
   end
   object Button2: TButton
-    Left = 128
+    AnchorSideLeft.Control = Button1
+    AnchorSideLeft.Side = asrBottom
+    Left = 223
     Height = 25
     Top = 48
-    Width = 75
-    Caption = 'Button2'
+    Width = 180
+    BorderSpacing.Left = 5
+    Caption = 'alert(window.myval)'
     OnClick = Button2Click
-    TabOrder = 6
+    TabOrder = 4
   end
   object Button3: TButton
-    Left = 216
+    AnchorSideLeft.Control = Button2
+    AnchorSideLeft.Side = asrBottom
+    Left = 408
     Height = 25
     Top = 48
-    Width = 75
-    Caption = 'Button3'
+    Width = 180
+    BorderSpacing.Left = 5
+    Caption = 'alert(cef.test.test_param)'
     OnClick = Button3Click
-    TabOrder = 7
+    TabOrder = 5
   end
 end

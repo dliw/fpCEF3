@@ -55,7 +55,7 @@ Type
   public
     destructor Destroy; override;
 
-    procedure InitializeChromium;
+    procedure InitializeChromium(DefaultUrl: String = '');
     procedure RequestClose;
 
     procedure OpenUrl(AUrl: String);
@@ -77,7 +77,7 @@ Type
 
 Implementation
 
-Uses cef3ref, Main
+Uses Main, cef3ref, cef3scp, SchemeHandler
   {$IFDEF LINUX}, PrintHandler{$ENDIF};
 
 Const
@@ -264,8 +264,8 @@ begin
 end;
 
 procedure TWebPanel.ChromiumFileDialog(Sender: TObject; const Browser: ICefBrowser;
-  Mode: TCefFileDialogMode; const Title, DefaultFileName: ustring; AcceptFilters: TStrings;
-  SelectedAcceptFilter: Integer; const Callback: ICefFileDialogCallback; out Result: Boolean);
+  mode: TCefFileDialogMode; const title, defaultFileName: ustring; acceptFilters: TStrings;
+  selectedAcceptFilter: Integer; const callback: ICefFileDialogCallback; out Result: Boolean);
 Var
   ModeType: TCefFileDialogMode;
   Success: Boolean = False;
@@ -497,7 +497,7 @@ begin
   inherited Destroy;
 end;
 
-procedure TWebPanel.InitializeChromium;
+procedure TWebPanel.InitializeChromium(DefaultUrl: String);
 begin
   If not Assigned(fChromium) then
   begin
@@ -505,6 +505,8 @@ begin
     fChromium.TabStop := True;
     fChromium.Parent := Self;
     fChromium.AnchorAsAlign(alClient, 0);
+
+    If DefaultUrl <> '' then fChromium.DefaultUrl := DefaultUrl;
 
     // Register callbacks
     fChromium.OnTakeFocus := @ChromiumTakeFocus;
@@ -580,6 +582,12 @@ begin
 end;
 
 
+procedure RegisterSchemes(const registrar: TCefSchemeRegistrarRef);
+begin
+  registrar.AddCustomScheme('fpcef', False, True, False, False, False);
+end;
+
+
 Initialization
   Path := GetCurrentDirUTF8 + DirectorySeparator;
 
@@ -590,6 +598,10 @@ Initialization
 
   // register handler
   CefBrowserProcessHandler := TCustomBrowserProcessHandler.Create;
+
+  // scheme handler
+  CefOnRegisterCustomSchemes := @RegisterSchemes;
+  CefRegisterSchemeHandlerFactory('fpcef', '', TCustomScheme);
 
   CefInitialize;
 

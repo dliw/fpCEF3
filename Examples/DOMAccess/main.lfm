@@ -22,7 +22,7 @@ object Mainform: TMainform
     BorderSpacing.Right = 5
     Caption = 'Go'
     OnClick = BGoClick
-    TabOrder = 0
+    TabOrder = 2
   end
   object LUrl: TStaticText
     AnchorSideTop.Control = Owner
@@ -34,7 +34,7 @@ object Mainform: TMainform
     Caption = 'Url:'
     Font.Style = [fsBold]
     ParentFont = False
-    TabOrder = 1
+    TabOrder = 0
   end
   object EUrl: TEdit
     AnchorSideLeft.Control = LUrl
@@ -51,7 +51,7 @@ object Mainform: TMainform
     BorderSpacing.Top = 10
     BorderSpacing.Right = 5
     OnKeyDown = EUrlKeyDown
-    TabOrder = 2
+    TabOrder = 1
     Text = 'http://'
   end
   object Log: TMemo
@@ -66,7 +66,9 @@ object Mainform: TMainform
     Width = 921
     Anchors = [akLeft, akRight, akBottom]
     ScrollBars = ssAutoVertical
+    ReadOnly = True
     TabOrder = 4
+    TabStop = False
   end
   object Chromium: TChromium
     AnchorSideLeft.Control = Owner
@@ -78,7 +80,9 @@ object Mainform: TMainform
     Height = 400
     Top = 48
     Width = 921
+    TabStop = True
     Anchors = [akTop, akLeft, akRight, akBottom]
+    TabOrder = 3
     OnProcessMessageReceived = ChromiumProcessMessageReceived
     OnTitleChange = ChromiumTitleChange
     OnKeyEvent = ChromiumKeyEvent

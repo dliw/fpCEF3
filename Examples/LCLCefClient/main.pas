@@ -27,7 +27,7 @@ Type
     procedure FormCreate(Sender: TObject);
     procedure TabsChange(Sender: TObject);
   private
-    procedure AddTab;
+    procedure AddTab(First: Boolean = False);
   public
     procedure NewTab(const Url: String);
   end;
@@ -43,7 +43,7 @@ Implementation
 
 procedure TFMain.FormCreate(Sender: TObject);
 begin
-  AddTab;
+  AddTab(True);
 end;
 
 procedure TFMain.TabsChange(Sender: TObject);
@@ -87,7 +87,7 @@ begin
   If Key = VK_RETURN then BGoClick(Sender);
 end;
 
-procedure TFMain.AddTab;
+procedure TFMain.AddTab(First: Boolean);
 Var
   TabSheet: TWebPanel;
 begin
@@ -95,7 +95,8 @@ begin
   TabSheet.Parent := Tabs;
   TabSheet.Caption := 'New Tab';
 
-  TabSheet.InitializeChromium;
+  If First then TabSheet.InitializeChromium('fpcef://')
+  Else TabSheet.InitializeChromium;
 
   // Create a dummy tab icon (could be a loading indicator) until we get the real one
   TabIcons.AddIcon(Application.Icon);

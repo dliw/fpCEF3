@@ -42,7 +42,8 @@ function TMyHandler.Execute(const name : ustring; const obj : ICefv8Value;
   var exception : ustring) : Boolean;
 begin
   // return a value
-  retval := TCefv8ValueRef.NewString('TMyHandler');
+  retval := TCefv8ValueRef.NewString(
+    'Handler called for function ' + name + '(#args = ' + IntToStr(Length(arguments)) + ')');
 
   Result := True;
 end;

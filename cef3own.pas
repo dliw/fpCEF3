@@ -29,10 +29,10 @@ Interface
 Uses
   Classes, SysUtils, Math,
   {$IFDEF DEBUG}LCLProc,{$ENDIF}
-  cef3api, cef3types, cef3intf;
+  cef3api, cef3types, cef3intf, cef3scp;
 
 Type
-  TCefBaseOwn = class(TInterfacedObject, ICefBase)
+  TCefBaseOwn = class(TInterfacedObject, ICefBaseRefCounted)
   private
     fData: Pointer;
   public
@@ -45,7 +45,7 @@ Type
   protected
     procedure OnBeforeCommandLineProcessing(const processType: ustring;
       const commandLine: ICefCommandLine); virtual; abstract;
-    procedure OnRegisterCustomSchemes(const registrar: ICefSchemeRegistrar); virtual; abstract;
+    procedure OnRegisterCustomSchemes(const registrar: TCefSchemeRegistrarRef); virtual; abstract;
     function GetResourceBundleHandler: ICefResourceBundleHandler; virtual; abstract;
     function GetBrowserProcessHandler: ICefBrowserProcessHandler; virtual; abstract;
     function GetRenderProcessHandler: ICefRenderProcessHandler; virtual; abstract;
@@ -57,7 +57,7 @@ Type
   protected
     procedure OnBeforeCommandLineProcessing(const processType: ustring;
       const commandLine: ICefCommandLine); override;
-    procedure OnRegisterCustomSchemes(const registrar: ICefSchemeRegistrar); override;
+    procedure OnRegisterCustomSchemes(const registrar: TCefSchemeRegistrarRef); override;
     function GetResourceBundleHandler: ICefResourceBundleHandler; override;
     function GetBrowserProcessHandler: ICefBrowserProcessHandler; override;
     function GetRenderProcessHandler: ICefRenderProcessHandler; override;
@@ -388,6 +388,9 @@ Type
   TCefMenuModelDelegateOwn = class(TCefBaseOwn, ICefMenuModelDelegate)
   protected
     procedure ExecuteCommand(menuModel: ICefMenuModel; commandId: Integer; eventFlags: TCefEventFlags); virtual;
+    procedure MouseOutsideMenu(menuModel: ICefMenuModel; const screenPoint: TCefPoint); virtual;
+    procedure UnhandledOpenSubmenu(menuModel: ICefMenuModel; isRTL: Boolean); virtual;
+    procedure UnhandledCloseSubmenu(menuModel: ICefMenuModel; isRTL: Boolean); virtual;
     procedure MenuWillShow(menuModel: ICefMenuModel); virtual;
     procedure MenuClosed(menuModel: ICefMenuModel); virtual;
     function FormatLabel(menuModel: ICefMenuModel; var label_: ustring): Boolean; virtual;
@@ -602,7 +605,7 @@ Type
     function New(const browser: ICefBrowser; const frame: ICefFrame;
       const schemeName: ustring; const request: ICefRequest): ICefResourceHandler; virtual;
   public
-    constructor Create(const AClass: TCefResourceHandlerClass; SyncMainThread: Boolean); virtual;
+    constructor Create(const AClass: TCefResourceHandlerClass); virtual;
   end;
 
   TCefReadHandlerOwn = class(TCefBaseOwn, ICefReadHandler)
@@ -834,34 +837,40 @@ Uses cef3lib, cef3ref;
 
 { TCefBaseOwn }
 
-procedure cef_base_add_ref(self: PCefBase); cconv;
+procedure cef_base_add_ref(self: PCefBaseRefCounted); cconv;
 begin
   TCefBaseOwn(CefGetObject(self))._AddRef;
 end;
 
-function cef_base_release(self: PCefBase): Integer; cconv;
+function cef_base_release(self: PCefBaseRefCounted): Integer; cconv;
 begin
   Result := Ord(TCefBaseOwn(CefGetObject(self))._Release = 0);
 end;
 
-function cef_base_has_one_ref(self: PCefBase): Integer; cconv;
+function cef_base_has_one_ref(self: PCefBaseRefCounted): Integer; cconv;
 begin
   Result := Ord(TCefBaseOwn(CefGetObject(self)).RefCount = 1);
 end;
 
-procedure cef_base_add_ref_owned(self: PCefBase); cconv;
+procedure cef_base_add_ref_owned(self: PCefBaseRefCounted); cconv;
 begin
   { empty }
 end;
 
-function cef_base_release_owned(self: PCefBase): Integer; cconv;
+function cef_base_release_owned(self: PCefBaseRefCounted): Integer; cconv;
 begin
   Result := 1;
 end;
 
-function cef_base_has_one_ref_owned(self: PCefBase): Integer; cconv;
+function cef_base_has_one_ref_owned(self: PCefBaseRefCounted): Integer; cconv;
 begin
   Result := 1;
+end;
+
+function TCefBaseOwn.Wrap : Pointer;
+begin
+  Result := FData;
+  If Assigned(PCefBaseRefCounted(FData)^.add_ref) then PCefBaseRefCounted(FData)^.add_ref(FData);
 end;
 
 constructor TCefBaseOwn.CreateData(size: TSize; owned: Boolean);
@@ -874,19 +883,19 @@ begin
   PPointer(fData)^ := Self;
   Inc(fData, SizeOf(Pointer));
   FillChar(fData^, size, 0);
-  PCefBase(fData)^.size := size;
+  PCefBaseRefCounted(fData)^.size := size;
 
   If owned then
   begin
-    PCefBase(fData)^.add_ref := @cef_base_add_ref_owned;
-    PCefBase(fData)^.release := @cef_base_release_owned;
-    PCefBase(fData)^.has_one_ref := @cef_base_has_one_ref_owned;
+    PCefBaseRefCounted(fData)^.add_ref := @cef_base_add_ref_owned;
+    PCefBaseRefCounted(fData)^.release := @cef_base_release_owned;
+    PCefBaseRefCounted(fData)^.has_one_ref := @cef_base_has_one_ref_owned;
   end
   Else
   begin
-    PCefBase(fData)^.add_ref := @cef_base_add_ref;
-    PCefBase(fData)^.release := @cef_base_release;
-    PCefBase(fData)^.has_one_ref := @cef_base_has_one_ref;
+    PCefBaseRefCounted(fData)^.add_ref := @cef_base_add_ref;
+    PCefBaseRefCounted(fData)^.release := @cef_base_release;
+    PCefBaseRefCounted(fData)^.has_one_ref := @cef_base_has_one_ref;
   end;
 end;
 
@@ -912,8 +921,15 @@ begin
 end;
 
 procedure cef_app_on_register_custom_schemes(self: PCefApp; registrar: PCefSchemeRegistrar); cconv;
+Var
+  r: TCefSchemeRegistrarRef;
 begin
-  With TCefAppOwn(CefGetObject(self)) do OnRegisterCustomSchemes(TCefSchemeRegistrarRef.UnWrap(registrar));
+  try
+    r := TCefSchemeRegistrarRef.Create(registrar);
+    TCefAppOwn(CefGetObject(self)).OnRegisterCustomSchemes(r);
+  finally
+    FreeAndNil(r);
+  end;
 end;
 
 function cef_app_get_resource_bundle_handler(self: PCefApp): PCefResourceBundleHandler; cconv;
@@ -953,7 +969,7 @@ begin
     CefOnBeforeCommandLineProcessing(processType, commandLine);
 end;
 
-procedure TInternalApp.OnRegisterCustomSchemes(const registrar: ICefSchemeRegistrar);
+procedure TInternalApp.OnRegisterCustomSchemes(const registrar: TCefSchemeRegistrarRef);
 begin
   If Assigned(CefOnRegisterCustomSchemes) then CefOnRegisterCustomSchemes(registrar);
 end;
@@ -1898,12 +1914,6 @@ begin
   end;
 end;
 
-function TCefBaseOwn.Wrap : Pointer;
-begin
-  Result := FData;
-  If Assigned(PCefBase(FData)^.add_ref) then PCefBase(FData)^.add_ref(FData);
-end;
-
 { TCefFindHandlerOwn }
 
 procedure cef_find_handler_on_find_result(self: PCefFindHandler; browser: PCefBrowser;
@@ -2315,6 +2325,27 @@ begin
     ExecuteCommand(TCefMenuModelRef.UnWrap(menu_model), command_id, event_flags);
 end;
 
+procedure cef_menu_model_delegate_mouse_outside_menu(self: PCefMenuModelDelegate;
+  menu_model: PCefMenuModel; const screen_point: PCefPoint); cconv;
+begin
+  TCefMenuModelDelegateOwn(CefGetObject(self)).
+    MouseOutsideMenu(TCefMenuModelRef.UnWrap(menu_model), screen_point^);
+end;
+
+procedure cef_menu_model_delegate_unhandled_open_submenu(self: PCefMenuModelDelegate;
+  menu_model: PCefMenuModel; is_rtl: Integer); cconv;
+begin
+  TCefMenuModelDelegateOwn(CefGetObject(self)).
+    UnhandledOpenSubmenu(TCefMenuModelRef.UnWrap(menu_model), is_rtl <> 0);
+end;
+
+procedure cef_menu_model_delegate_unhandled_close_submenu(self: PCefMenuModelDelegate;
+  menu_model: PCefMenuModel; is_rtl: Integer); cconv;
+begin
+  TCefMenuModelDelegateOwn(CefGetObject(self)).
+    UnhandledCloseSubmenu(TCefMenuModelRef.UnWrap(menu_model), is_rtl <> 0);
+end;
+
 procedure cef_menu_model_delegate_menu_will_show(self: PCefMenuModelDelegate;
   menu_model: PCefMenuModel); cconv;
 begin
@@ -2344,6 +2375,22 @@ begin
   { empty }
 end;
 
+procedure TCefMenuModelDelegateOwn.MouseOutsideMenu(menuModel: ICefMenuModel;
+  const screenPoint: TCefPoint);
+begin
+  { empty }
+end;
+
+procedure TCefMenuModelDelegateOwn.UnhandledOpenSubmenu(menuModel: ICefMenuModel; isRTL: Boolean);
+begin
+  { empty }
+end;
+
+procedure TCefMenuModelDelegateOwn.UnhandledCloseSubmenu(menuModel: ICefMenuModel; isRTL: Boolean);
+begin
+  { empty }
+end;
+
 procedure TCefMenuModelDelegateOwn.MenuWillShow(menuModel: ICefMenuModel);
 begin
   { empty }
@@ -2366,6 +2413,9 @@ begin
   With PCefMenuModelDelegate(fData)^ do
   begin
     execute_command := @cef_menu_model_delegate_execute_command;
+    mouse_outside_menu := @cef_menu_model_delegate_mouse_outside_menu;
+    unhandled_open_submenu := @cef_menu_model_delegate_unhandled_open_submenu;
+    unhandled_close_submenu := @cef_menu_model_delegate_unhandled_close_submenu;
     menu_will_show := @cef_menu_model_delegate_menu_will_show;
     menu_closed := @cef_menu_model_delegate_menu_closed;
     format_label := @cef_menu_model_delegate_format_label;
@@ -3504,8 +3554,7 @@ begin
   Result := fClass.Create(browser, frame, schemeName, request);
 end;
 
-constructor TCefSchemeHandlerFactoryOwn.Create(const AClass: TCefResourceHandlerClass;
-  SyncMainThread: Boolean);
+constructor TCefSchemeHandlerFactoryOwn.Create(const AClass: TCefResourceHandlerClass);
 begin
   inherited CreateData(SizeOf(TCefSchemeHandlerFactory));
   fClass := AClass;

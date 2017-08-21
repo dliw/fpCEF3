@@ -34,10 +34,10 @@ Uses
   SysUtils, Classes, LCLProc, Graphics, FPimage,
   cef3api, cef3types, cef3intf, cef3ref, cef3own;
 
-function CefInitDefault: Boolean; deprecated;
+function CefInitDefault: Boolean; deprecated 'Use CefInitialize instead.';
 
 function CefGetObject(ptr: Pointer): TObject; {$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
-function CefGetData(const i: ICefBase): Pointer; {$IFDEF SUPPORTS_INLINE}inline; {$ENDIF}
+function CefGetData(const i: ICefBaseRefCounted): Pointer; {$IFDEF SUPPORTS_INLINE}inline; {$ENDIF}
 
 function CefTimeToDateTime(const dt: TCefTime): TDateTime;
 function DateTimeToCefTime(dt: TDateTime): TCefTime;
@@ -121,7 +121,7 @@ function CefGetPath(key: TCefPathKey; out path: ustring): Boolean;
 function CefLaunchProcess(commandLine: ICefCommandLine): Boolean;
 
 function CefRegisterSchemeHandlerFactory(const SchemeName, HostName: ustring;
-  SyncMainThread: Boolean; const handler: TCefResourceHandlerClass): Boolean;
+  const handler: TCefResourceHandlerClass): Boolean;
 function CefClearSchemeHandlerFactories: Boolean;
 
 function CefIsCertStatusError(status: TCefCertStatus): Boolean;
@@ -265,7 +265,7 @@ begin
   Result := TObject(ptr^);
 end;
 
-function CefGetData(const i: ICefBase): Pointer; {$IFDEF SUPPORTS_INLINE}inline; {$ENDIF}
+function CefGetData(const i: ICefBaseRefCounted): Pointer; {$IFDEF SUPPORTS_INLINE}inline; {$ENDIF}
 begin
   If i <> nil then Result := i.Wrap
   Else Result := nil;
@@ -855,7 +855,7 @@ begin
 end;
 
 function CefRegisterSchemeHandlerFactory(const SchemeName, HostName: ustring;
-  SyncMainThread: Boolean; const handler: TCefResourceHandlerClass): Boolean;
+  const handler: TCefResourceHandlerClass): Boolean;
 Var
   s, h: TCefString;
 begin
@@ -863,7 +863,7 @@ begin
   s := CefString(SchemeName);
   h := CefString(HostName);
   Result := cef_register_scheme_handler_factory(
-    @s, @h, CefGetData(TCefSchemeHandlerFactoryOwn.Create(handler, SyncMainThread) as ICefBase)) <> 0;
+    @s, @h, CefGetData(TCefSchemeHandlerFactoryOwn.Create(handler) as ICefBaseRefCounted)) <> 0;
 end;
 
 function CefClearSchemeHandlerFactories: Boolean;

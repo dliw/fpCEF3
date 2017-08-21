@@ -8,7 +8,7 @@ interface
 
 uses
   cef3types, cef3api, cef3lib, cef3intf, cef3ref, cef3own, cef3gui, cef3lcl, cef3osr, cef3context,
-  LazarusPackageIntf;
+  cef3scp, LazarusPackageIntf;
 
 implementation
 

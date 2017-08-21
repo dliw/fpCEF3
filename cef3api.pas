@@ -32,7 +32,8 @@ Uses
   cef3types;
 
 Type
-  PCefBase = ^TCefBase;
+  PCefBaseRefCounted = ^TCefBaseRefCounted;
+  PCefBaseScoped = ^TCefBaseScoped;
 
   PCefApp = ^TCefApp;
 
@@ -208,23 +209,32 @@ Type
   PCefZipReader = ^TCefZipReader;
 
 { ***  cef_base_capi.h  *** }
-  // Structure defining the reference count implementation functions. All
-  // framework structures must include the cef_base_t structure first.
-  TCefBase = record
+  // All ref-counted framework structures must include this structure first.
+  TCefBaseRefCounted = record
     // Size of the data structure.
     size: csize_t;
 
     // Called to increment the reference count for the object. Should be called
     // for every new copy of a pointer to a given object.
-    add_ref: procedure(self: PCefBase); cconv;
+    add_ref: procedure(self: PCefBaseRefCounted); cconv;
 
     // Called to decrement the reference count for the object. If the reference
     // count falls to 0 the object should self-delete. Returns true (1) if the
     // resulting reference count is 0.
-    release: function(self: PCefBase): Integer; cconv;
+    release: function(self: PCefBaseRefCounted): Integer; cconv;
 
     // Returns true (1) if the current reference count is 1.
-    has_one_ref: function(self: PCefBase): Integer; cconv;
+    has_one_ref: function(self: PCefBaseRefCounted): Integer; cconv;
+  end;
+
+
+  // All scoped framework structures must include this structure first.
+  TCefBaseScoped = record
+    // Size of the data structure.
+    size: csize_t;
+
+    // Called to delete this object. May be NULL if the object is not owned.
+    del: procedure(self: PCefBaseScoped); cconv;
   end;
 
 
@@ -233,7 +243,7 @@ Type
   // called by the process and/or thread indicated.
   TCefApp = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Provides an opportunity to view and/or modify command-line arguments before
     // processing by CEF and Chromium. The |process_type| value will be NULL for
@@ -273,7 +283,7 @@ Type
   // requests.
   TCefAuthCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Continue the authentication request.
     cont: procedure(self: PCefAuthCallback; const username, password: PCefString); cconv;
@@ -290,7 +300,7 @@ Type
   // functions of this structure may only be called on the main thread.
   TCefBrowser = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns the browser host object. This function can only be called in the
     // browser process.
@@ -365,7 +375,7 @@ Type
   // this structure will be called on the browser process UI thread.
   TCefRunFileDialogCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called asynchronously after the file dialog is dismissed.
     // |selected_accept_filter| is the 0-based index of the value selected from
@@ -381,7 +391,7 @@ Type
   // functions of this structure will be called on the browser process UI thread.
   TCefNavigationEntryVisitor = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Method that will be executed. Do not keep a reference to |entry| outside of
     // this callback. Return true (1) to continue visiting entries or false (0) to
@@ -396,7 +406,7 @@ Type
   // structure will be called on the browser process UI thread.
   TCefPdfPrintCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Method that will be executed when the PDF printing has completed. |path| is
     // the output path. |ok| will be true (1) if the printing completed
@@ -409,7 +419,7 @@ Type
   // this structure will be called on the browser process UI thread.
   TCefDownloadImageCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Method that will be executed when the image download has completed.
     // |image_url| is the URL that was downloaded and |http_status_code| is the
@@ -426,7 +436,7 @@ Type
   // in the comments.
   TCefBrowserHost = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns the hosted browser object.
     get_browser: function(self: PCefBrowserHost): PCefBrowser; cconv;
@@ -748,7 +758,7 @@ Type
   // indicated.
   TCefBrowserProcessHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called on the browser process UI thread immediately after the CEF context
     // has been initialized.
@@ -791,7 +801,7 @@ Type
   // Generic callback structure used for asynchronous continuation.
   TCefCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Continue processing.
     cont: procedure(self: PCefCallback); cconv;
@@ -804,7 +814,7 @@ Type
   // Generic callback structure used for asynchronous completion.
   TCefCompletionCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Method that will be called once the task is complete.
     on_complete: procedure(self: PCefCompletionCallback); cconv;
@@ -815,7 +825,7 @@ Type
   // Implement this structure to provide handler implementations.
   TCefClient = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Return the handler for context menus. If no handler is provided the default
     // implementation will be used.
@@ -882,7 +892,7 @@ Type
   // be used before cef_initialize() is called.
   TCefCommandLine = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if this object is valid. Do not call any other functions
     // if this function returns false (0).
@@ -967,7 +977,7 @@ Type
 { ***  cef_context_menu_handler.h  *** }
   TCefRunContextMenuCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Complete context menu display by selecting the specified |command_id| and
     // |event_flags|.
@@ -982,7 +992,7 @@ Type
   // structure will be called on the UI thread.
   TCefContextMenuHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called before a context menu is displayed. |params| provides information
     // about the context menu state. |model| initially contains the default
@@ -1024,7 +1034,7 @@ Type
   // structure can only be accessed on browser process the UI thread.
   TCefContextMenuParams = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns the X coordinate of the mouse where the context menu was invoked.
     // Coords are relative to the associated RenderView's origin.
@@ -1130,7 +1140,7 @@ Type
   // called on any thread unless otherwise indicated.
   TCefCookieManager = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Set the schemes supported by this manager. The default schemes ("http",
     // "https", "ws" and "wss") will always be supported. If |callback| is non-
@@ -1196,7 +1206,7 @@ Type
   // structure will always be called on the IO thread.
   TCefCookieVisitor = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Method that will be called once for each cookie. |count| is the 0-based
     // index for the current cookie. |total| is the total number of cookies. Set
@@ -1212,7 +1222,7 @@ Type
   // cef_cookie_manager_t::set_cookie().
   TCefSetCookieCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Method that will be called upon completion. |success| will be true (1) if
     // the cookie was set successfully.
@@ -1224,7 +1234,7 @@ Type
   // cef_cookie_manager_t::delete_cookies().
   TCefDeleteCookiesCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Method that will be called upon completion. |num_deleted| will be the
     // number of cookies that were deleted or -1 if unknown.
@@ -1236,7 +1246,7 @@ Type
   // Callback structure for asynchronous continuation of file dialog requests.
   TCefFileDialogCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Continue the file selection. |selected_accept_filter| should be the 0-based
     // index of the value selected from the accept filters array passed to
@@ -1255,7 +1265,7 @@ Type
   // structure will be called on the browser process UI thread.
   TCefDialogHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called to run a file chooser dialog. |mode| represents the type of dialog
     // to display. |title| to the title to be used for the dialog and may be NULL
@@ -1282,7 +1292,7 @@ Type
   // The functions of this structure will be called on the UI thread.
   TCefDisplayHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called when a frame's address has changed.
     on_address_change: procedure(self: PCefDisplayHandler;
@@ -1328,7 +1338,7 @@ Type
   // will be called on the render process main thread.
   TCefDomVisitor = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Method executed for visiting the DOM. The document object passed to this
     // function represents a snapshot of the DOM at the time this function is
@@ -1342,7 +1352,7 @@ Type
   // should only be called on the render process main thread thread.
   TCefDomDocument = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns the document type.
     get_type: function(self: PCefDomDocument): TCefDomDocumentType; cconv;
@@ -1403,7 +1413,7 @@ Type
   // should only be called on the render process main thread.
   TCefDomNode = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns the type for this node.
     get_type: function(self: PCefDomNode): TCefDomNodeType; cconv;
@@ -1508,7 +1518,7 @@ Type
   // Callback structure used to asynchronously continue a download.
   TCefBeforeDownloadCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Call to continue the download. Set |download_path| to the full file path
     // for the download including the file name or leave blank to use the
@@ -1522,7 +1532,7 @@ Type
   // Callback structure used to asynchronously cancel a download.
   TCefDownloadItemCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Call to cancel the download.
     cancel: procedure(self: PCefDownloadItemCallback); cconv;
@@ -1539,7 +1549,7 @@ Type
   // called on the browser process UI thread.
   TCefDownloadHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called before a download begins. |suggested_name| is the suggested name for
     // the download file. By default the download will be canceled. Execute
@@ -1565,7 +1575,7 @@ Type
   // Structure used to represent a download item.
   TCefDownloadItem = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if this object is valid. Do not call any other functions
     // if this function returns false (0).
@@ -1639,7 +1649,7 @@ Type
   // called on any thread.
   TCefDragData = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns a copy of the current object.
     clone: function(self: PCefDragData): PCefDragData; cconv;
@@ -1735,7 +1745,7 @@ Type
   // of this structure will be called on the UI thread.
   TCefDragHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called when an external drag event enters the browser window. |dragData|
     // contains the drag event data and |mask| represents the type of drag
@@ -1760,7 +1770,7 @@ Type
   // functions of this structure will be called on the UI thread.
   TCefFindHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called to report find results returned by cef_browser_host_t::find().
     // |identifer| is the identifier passed to find(), |count| is the number of
@@ -1778,7 +1788,7 @@ Type
   // this structure will be called on the UI thread.
   TCefFocusHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called when the browser component is about to loose focus. For instance, if
     // focus was on the last HTML element and the user pressed the TAB key. |next|
@@ -1804,7 +1814,7 @@ Type
   // the functions of this structure may only be called on the main thread.
   TCefFrame = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // True if this object is currently attached to a valid frame.
     is_valid: function(self: PCefFrame): Integer; cconv;
@@ -1908,7 +1918,7 @@ Type
   // this structure will be called on the browser process UI thread.
   TCefGetGeolocationCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called with the 'best available' location information or, if the location
     // update failed, with error information.
@@ -1921,7 +1931,7 @@ Type
   // permission requests.
   TCefGeolocationCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Call to allow or deny geolocation access.
     cont: procedure(self: PCefGeolocationCallback; allow: Integer); cconv;
@@ -1933,7 +1943,7 @@ Type
   // process UI thread.
   TCefGeolocationHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called when a page requests permission to access geolocation information.
     // |requesting_url| is the URL requesting permission and |request_id| is the
@@ -1960,7 +1970,7 @@ Type
   // structure must be called on the browser process UI thread.
   TCefImage = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if this Image is NULL.
     is_empty: function(self: PCefImage): Integer; cconv;
@@ -2045,7 +2055,7 @@ Type
   // requests.
   TCefJsDialogCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Continue the JS dialog request. Set |success| to true (1) if the OK button
     // was pressed. The |user_input| value should be specified for prompt dialogs.
@@ -2057,7 +2067,7 @@ Type
   // functions of this structure will be called on the UI thread.
   TCefJsDialogHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called to run a JavaScript dialog. If |origin_url| is non-NULL it can be
     // passed to the CefFormatUrlForSecurityDisplay function to retrieve a secure
@@ -2104,7 +2114,7 @@ Type
   // functions of this structure will be called on the UI thread.
   TCefKeyboardHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called before a keyboard event is sent to the renderer. |event| contains
     // information about the keyboard event. |os_event| is the operating system
@@ -2129,7 +2139,7 @@ Type
   // indicated.
   TCefLifeSpanHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called on the IO thread before a new popup browser is created. The
     // |browser| and |frame| values represent the source of the popup request. The
@@ -2263,7 +2273,7 @@ Type
   // or render process main thread (TID_RENDERER).
   TCefLoadHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called when the loading state has changed. This callback will be executed
     // twice -- once when loading is initiated either programmatically or by user
@@ -2311,7 +2321,10 @@ Type
   // this structure can only be accessed on the browser process the UI thread.
   TCefMenuModel = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
+
+    // Returns true (1) if this menu is a submenu.
+    is_sub_menu: function(self: PCefMenuModel): Integer; cconv;
 
     // Clears the menu. Returns true (1) on success.
     clear: function(self: PCefMenuModel): Integer; cconv;
@@ -2505,6 +2518,61 @@ Type
     // (1) on success.
     get_accelerator_at: function(self: PCefMenuModel; index: Integer; key_code,
       shift_pressed, ctrl_pressed, alt_pressed: PInteger): Integer; cconv;
+
+    // Set the explicit color for |command_id| and |color_type| to |color|.
+    // Specify a |color| value of 0 to remove the explicit color. If no explicit
+    // color or default color is set for |color_type| then the system color will
+    // be used. Returns true (1) on success.
+    set_color: function(self: PCefMenuModel; command_id: Integer; color_type: TCefMenuColorType;
+      color: TCefColor): Integer; cconv;
+
+    // Set the explicit color for |command_id| and |index| to |color|. Specify a
+    // |color| value of 0 to remove the explicit color. Specify an |index| value
+    // of -1 to set the default color for items that do not have an explicit color
+    // set. If no explicit color or default color is set for |color_type| then the
+    // system color will be used. Returns true (1) on success.
+    set_color_at: function(self: PCefMenuModel; index: Integer; color_type: TCefMenuColorType;
+      color: TCefColor): Integer; cconv;
+
+    // Returns in |color| the color that was explicitly set for |command_id| and
+    // |color_type|. If a color was not set then 0 will be returned in |color|.
+    // Returns true (1) on success.
+    get_color: function(self: PCefMenuModel; command_id: Integer; color_type: TCefMenuColorType;
+      color: PCefColor): Integer; cconv;
+
+    // Returns in |color| the color that was explicitly set for |command_id| and
+    // |color_type|. Specify an |index| value of -1 to return the default color in
+    // |color|. If a color was not set then 0 will be returned in |color|. Returns
+    // true (1) on success.
+    get_color_at: function(self: PCefMenuModel; index: Integer; color_type: TCefMenuColorType;
+      color: PCefColor): Integer; cconv;
+
+    // Sets the font list for the specified |command_id|. If |font_list| is NULL
+    // the system font will be used. Returns true (1) on success. The format is
+    // "<FONT_FAMILY_LIST>,[STYLES] <SIZE>", where: - FONT_FAMILY_LIST is a comma-
+    // separated list of font family names, - STYLES is an optional space-
+    // separated list of style names (case-sensitive
+    //   "Bold" and "Italic" are supported), and
+    // - SIZE is an integer font size in pixels with the suffix "px".
+    //
+    // Here are examples of valid font description strings: - "Arial, Helvetica,
+    // Bold Italic 14px" - "Arial, 14px"
+    set_font_list: function(self: PCefMenuModel; command_id: Integer;
+      const font_list: PCefString): Integer; cconv;
+
+    // Sets the font list for the specified |index|. Specify an |index| value of
+    // -1 to set the default font. If |font_list| is NULL the system font will be
+    // used. Returns true (1) on success. The format is
+    // "<FONT_FAMILY_LIST>,[STYLES] <SIZE>", where: - FONT_FAMILY_LIST is a comma-
+    // separated list of font family names, - STYLES is an optional space-
+    // separated list of style names (case-sensitive
+    //   "Bold" and "Italic" are supported), and
+    // - SIZE is an integer font size in pixels with the suffix "px".
+    //
+    // Here are examples of valid font description strings: - "Arial, Helvetica,
+    // Bold Italic 14px" - "Arial, 14px"
+    set_font_list_at: function(self: PCefMenuModel; index: Integer;
+      const font_list: PCefString): Integer; cconv;
   end;
 
 
@@ -2514,12 +2582,27 @@ Type
   // indicated.
   TCefMenuModelDelegate = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Perform the action associated with the specified |command_id| and optional
     // |event_flags|.
     execute_command: procedure(self: PCefMenuModelDelegate; menu_model: PCefMenuModel;
       command_id: Integer; event_flags: TCefEventFlags); cconv;
+
+    // Called when the user moves the mouse outside the menu and over the owning
+    // window.
+    mouse_outside_menu: procedure(self: PCefMenuModelDelegate; menu_model: PCefMenuModel;
+      const screen_point: PCefPoint); cconv;
+
+    // Called on unhandled open submenu keyboard commands. |is_rtl| will be true
+    // (1) if the menu is displaying a right-to-left language.
+    unhandled_open_submenu: procedure(self: PCefMenuModelDelegate; menu_model: PCefMenuModel;
+      is_rtl: Integer); cconv;
+
+    // Called on unhandled close submenu keyboard commands. |is_rtl| will be true
+    // (1) if the menu is displaying a right-to-left language.
+    unhandled_close_submenu: procedure(self: PCefMenuModelDelegate; menu_model: PCefMenuModel;
+      is_rtl: Integer); cconv;
 
     // The menu is about to show.
     menu_will_show: procedure(self: PCefMenuModelDelegate; menu_model: PCefMenuModel); cconv;
@@ -2538,7 +2621,7 @@ Type
   // Structure used to represent an entry in navigation history.
   TCefNavigationEntry = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if this object is valid. Do not call any other functions
     // if this function returns false (0).
@@ -2591,7 +2674,7 @@ Type
   // Callback structure for asynchronous continuation of print dialog requests.
   TCefPrintDialogCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Continue printing with the specified |settings|.
     cont: procedure(self: PCefPrintDialogCallback; settings: PCefPrintSettings); cconv;
@@ -2602,7 +2685,7 @@ Type
 
   TCefPrintJobCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Indicate completion of the print job.
     cont: procedure(self: PCefPrintJobCallback); cconv;
@@ -2612,7 +2695,7 @@ Type
   // structure will be called on the browser process UI thread.
   TCefPrintHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called when printing has started for the specified |browser|. This function
     // will be called before the other OnPrint*() functions and irrespective of
@@ -2649,7 +2732,7 @@ Type
 { ***  cef_print_settings_capi.h  *** }
   TCefPrintSettings = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if this object is valid. Do not call any other functions
     // if this function returns false (0).
@@ -2733,7 +2816,7 @@ Type
   // Structure representing a message. Can be used on any process and thread.
   TCefProcessMessage = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if this object is valid. Do not call any other functions
     // if this function returns false (0).
@@ -2761,7 +2844,7 @@ Type
   // The functions of this structure will be called on the UI thread.
   TCefRenderHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called to retrieve the root window rectangle in screen coordinates. Return
     // true (1) if the rectangle was provided.
@@ -2853,7 +2936,7 @@ Type
   // unless otherwise indicated.
   TCefRenderProcessHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called after the render process main thread has been created. |extra_info|
     // is a read-only value originating from
@@ -2926,7 +3009,7 @@ Type
   // may be called on any thread.
   TCefRequest = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if this object is read-only.
     is_read_only: function(self: PCefRequest): Integer; cconv;
@@ -3017,7 +3100,7 @@ Type
   // this structure may be called on any thread.
   TCefPostData = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if this object is read-only.
     is_read_only: function(self: PCefPostData):Integer; cconv;
@@ -3050,7 +3133,7 @@ Type
   // functions of this structure may be called on any thread.
   TCefPostDataElement = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if this object is read-only.
     is_read_only: function(self: PCefPostDataElement): Integer; cconv;
@@ -3086,7 +3169,7 @@ Type
   // Callback structure for cef_request_tContext::ResolveHost.
   TCefResolveCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called after the ResolveHost request has completed. |result| will be the
     // result code. |resolved_ips| will be the list of resolved IP addresses or
@@ -3111,7 +3194,7 @@ Type
   // function and all other request context objects will be ignored.
   TCefRequestContext = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if this object is pointing to the same context as |that|
     // object.
@@ -3235,7 +3318,7 @@ Type
   // been destroyed.
   TCefRequestContextHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called on the browser process IO thread to retrieve the cookie manager. If
     // this function returns NULL the default cookie manager retrievable via
@@ -3269,7 +3352,7 @@ Type
   // Callback structure used for asynchronous continuation of url requests.
   TCefRequestCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Continue the url request. If |allow| is true (1) the request will be
     // continued. Otherwise, the request will be canceled.
@@ -3282,7 +3365,7 @@ Type
   // Callback structure used to select a client certificate for authentication.
   TCefSelectClientCertificateCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Chooses the specified certificate for client certificate authentication.
     // NULL value means that no client certificate should be used.
@@ -3294,7 +3377,7 @@ Type
   // functions of this structure will be called on the thread indicated.
   TCefRequestHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called on the UI thread before browser navigation. Return true (1) to
     // cancel the navigation or false (0) to allow the navigation to proceed. The
@@ -3449,7 +3532,7 @@ Type
   // structure may be called on any thread unless otherwise indicated.
   TCefResourceBundle = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns the localized string for the specified |string_id| or an NULL
     // string if the value is not found. Include cef_pack_strings.h for a listing
@@ -3486,7 +3569,7 @@ Type
   // functions of this structure may be called on multiple threads.
   TCefResourceBundleHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called to retrieve a localized translation for the specified |string_id|.
     // To provide the translation set |string| to the translation string and
@@ -3520,7 +3603,7 @@ Type
   // of this structure will always be called on the IO thread.
   TCefResourceHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Begin processing the request. To handle the request return true (1) and
     // call cef_callback_t::cont() once the response header information is
@@ -3569,7 +3652,7 @@ Type
   // may be called on any thread.
   TCefResponse = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if this object is read-only.
     is_read_only: function(self: PCefResponse): Integer; cconv;
@@ -3621,7 +3704,7 @@ Type
   // of this structure will be called on the browser process IO thread.
   TCefResponseFilter = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Initialize the response filter. Will only be called a single time. The
     // filter will not be installed if this function returns false (0).
@@ -3666,7 +3749,7 @@ Type
   // Structure that manages custom scheme registrations.
   TCefSchemeRegistrar = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseScoped;
 
     // Register a custom scheme. This function should not be called for the built-
     // in HTTP, HTTPS, FILE, FTP, ABOUT and DATA schemes.
@@ -3694,26 +3777,36 @@ Type
     // is. For example, "scheme:///some%20text" will remain the same. Non-standard
     // scheme URLs cannot be used as a target for form submission.
     //
-    // If |is_local| is true (1) the scheme will be treated as local (i.e., with
-    // the same security rules as those applied to "file" URLs). Normal pages
-    // cannot link to or access local URLs. Also, by default, local URLs can only
-    // perform XMLHttpRequest calls to the same URL (origin + path) that
-    // originated the request. To allow XMLHttpRequest calls from a local URL to
-    // other URLs with the same origin set the
-    // CefSettings.file_access_from_file_urls_allowed value to true (1). To allow
-    // XMLHttpRequest calls from a local URL to all origins set the
-    // CefSettings.universal_access_from_file_urls_allowed value to true (1).
+    // If |is_local| is true (1) the scheme will be treated with the same security
+    // rules as those applied to "file" URLs. Normal pages cannot link to or
+    // access local URLs. Also, by default, local URLs can only perform
+    // XMLHttpRequest calls to the same URL (origin + path) that originated the
+    // request. To allow XMLHttpRequest calls from a local URL to other URLs with
+    // the same origin set the CefSettings.file_access_from_file_urls_allowed
+    // value to true (1). To allow XMLHttpRequest calls from a local URL to all
+    // origins set the CefSettings.universal_access_from_file_urls_allowed value
+    // to true (1).
     //
-    // If |is_display_isolated| is true (1) the scheme will be treated as display-
-    // isolated. This means that pages cannot display these URLs unless they are
-    // from the same scheme. For example, pages in another origin cannot create
-    // iframes or hyperlinks to URLs with this scheme.
+    // If |is_display_isolated| is true (1) the scheme can only be displayed from
+    // other content hosted with the same scheme. For example, pages in other
+    // origins cannot create iframes or hyperlinks to URLs with the scheme. For
+    // schemes that must be accessible from other schemes set this value to false
+    // (0), set |is_cors_enabled| to true (1), and use CORS "Access-Control-Allow-
+    // Origin" headers to further restrict access.
+    //
+    // If |is_secure| is true (1) the scheme will be treated with the same
+    // security rules as those applied to "https" URLs. For example, loading this
+    // scheme from other secure schemes will not trigger mixed content warnings.
+    //
+    // If |is_cors_enabled| is true (1) the scheme that can be sent CORS requests.
+    // This value should be true (1) in most cases where |is_standard| is true
+    // (1).
     //
     // This function may be called on any thread. It should only be called once
     // per unique |scheme_name| value. If |scheme_name| is already registered or
     // if an error occurs this function will return false (0).
     add_custom_scheme: function(self: PCefSchemeRegistrar; const scheme_name: PCefString;
-      is_standard, is_local, is_display_isolated: Integer): Integer; cconv;
+      is_standard, is_local, is_display_isolated, is_secure, is_cors_enabled: Integer): Integer; cconv;
   end;
 
 
@@ -3722,7 +3815,7 @@ Type
   // thread.
   TCefSchemeHandlerFactory = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Return a new resource handler instance to handle the request or an NULL
     // reference to allow default handling of the request. |browser| and |frame|
@@ -3739,7 +3832,7 @@ Type
   // Structure representing SSL information.
   TCefSslinfo = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns a bitmask containing any and all problems verifying the server
     // certificate.
@@ -3754,7 +3847,7 @@ Type
   // Structure representing the SSL information for a navigation entry.
   TCefSslstatus = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if the status is related to a secure SSL/TLS connection.
     is_secure_connection: function(self: PCefSslStatus): Integer; cconv;
@@ -3779,7 +3872,7 @@ Type
   // functions of this structure may be called on any thread.
   TCefReadHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Read raw binary data.
     read: function(self: PCefReadHandler; ptr: Pointer; size, n: csize_t): csize_t; cconv;
@@ -3805,7 +3898,7 @@ Type
   // may be called on any thread.
   TCefStreamReader = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Read raw binary data.
     read: function(self: PCefStreamReader; ptr: Pointer; size, n: csize_t): csize_t; cconv;
@@ -3831,7 +3924,7 @@ Type
   // functions of this structure may be called on any thread.
   TCefWriteHandler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Write raw binary data.
     write: function(self: PCefWriteHandler; const ptr: Pointer; size, n: csize_t): csize_t; cconv;
@@ -3857,7 +3950,7 @@ Type
   // be called on any thread.
   TCefStreamWriter = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Write raw binary data.
     write: function(self: PCefStreamWriter; const ptr: Pointer; size, n: csize_t): csize_t; cconv;
@@ -3883,7 +3976,7 @@ Type
   // Implement this structure to receive string values asynchronously.
   TCefStringVisitor = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Method that will be executed.
     visit: procedure(self: PCefStringVisitor; const str: PCefString); cconv;
@@ -3899,7 +3992,7 @@ Type
   // task object destructor.
   TCefTask = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Method that will be executed on the target thread.
     execute: procedure(self: PCefTask); cconv;
@@ -3915,7 +4008,7 @@ Type
   // other CEF threads as appropriate (for example, V8 WebWorker threads).
   TCefTaskRunner = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if this object is pointing to the same task runner as
     // |that| object.
@@ -3951,7 +4044,7 @@ Type
   // new one; see cef_task.h for details.
   TCefThread = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns the cef_task_tRunner that will execute code on this thread's
     // message loop. This function is safe to call from any thread.
@@ -3978,7 +4071,7 @@ Type
   // thread.
   TCefEndTracingCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Called after all processes have sent their trace data. |tracing_file| is
     // the path at which tracing data was written. The client is responsible for
@@ -3995,7 +4088,7 @@ Type
   // accessed on the same thread that created it.
   TCefUrlRequest = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns the request object used to create this URL request. The returned
     // object is read-only and should not be modified.
@@ -4026,7 +4119,7 @@ Type
   // the request unless otherwise documented.
   TCefUrlRequestClient = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Notifies the client that the request has completed. Use the
     // cef_urlrequest_t::GetRequestStatus function to determine if the request was
@@ -4073,7 +4166,7 @@ Type
   // retrieved via the cef_v8context_t::get_task_runner() function.
   TCefV8Context = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns the task runner associated with this context. V8 handles can only
     // be accessed from the thread on which they are created. This function can be
@@ -4128,7 +4221,7 @@ Type
   // V8 function.
   TCefV8Handler = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Handle execution of the function identified by |name|. |object| is the
     // receiver ('this' object) of the function. |arguments| is the list of
@@ -4147,7 +4240,7 @@ Type
   // V8 accessor.
   TCefV8Accessor = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Handle retrieval the accessor value identified by |name|. |object| is the
     // receiver ('this' object) of the accessor. If retrieval succeeds set
@@ -4175,7 +4268,7 @@ Type
   // by integer.
   TCefV8Interceptor = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Handle retrieval of the interceptor value identified by |name|. |object| is
     // the receiver ('this' object) of the interceptor. If retrieval succeeds, set
@@ -4219,7 +4312,7 @@ Type
   // called on any render process thread.
   TCefV8Exception = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns the exception message.
     //
@@ -4266,7 +4359,7 @@ Type
   // retrieved via the cef_v8context_t::get_task_runner() function.
   TCefV8Value = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if the underlying handle is valid and it can be accessed
     // on the current thread. Do not call any other functions if this function
@@ -4415,10 +4508,10 @@ Type
     // Sets the user data for this object and returns true (1) on success. Returns
     // false (0) if this function is called incorrectly. This function can only be
     // called on user created objects.
-    set_user_data: function(self: PCefv8Value; user_data: PCefBase): Integer; cconv;
+    set_user_data: function(self: PCefv8Value; user_data: PCefBaseRefCounted): Integer; cconv;
 
     // Returns the user data, if any, assigned to this object.
-    get_user_data: function(self: PCefv8Value): PCefBase; cconv;
+    get_user_data: function(self: PCefv8Value): PCefBaseRefCounted; cconv;
 
     // Returns the amount of externally allocated memory registered for the
     // object.
@@ -4482,7 +4575,7 @@ Type
   // thread can be retrieved via the cef_v8context_t::get_task_runner() function.
   TCefV8StackTrace = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if the underlying handle is valid and it can be accessed
     // on the current thread. Do not call any other functions if this function
@@ -4504,7 +4597,7 @@ Type
   // thread can be retrieved via the cef_v8context_t::get_task_runner() function.
   TCefV8StackFrame = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if the underlying handle is valid and it can be accessed
     // on the current thread. Do not call any other functions if this function
@@ -4549,7 +4642,7 @@ Type
   // used on any process and thread.
   TCefValue = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if the underlying data is valid. This will always be true
     // (1) for simple types. For complex types (binary, dictionary and list) the
@@ -4659,7 +4752,7 @@ Type
   // Structure representing a binary value. Can be used on any process and thread.
   TCefBinaryValue = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if this object is valid. This object may become invalid if
     // the underlying data is owned by another object (e.g. list or dictionary)
@@ -4694,7 +4787,7 @@ Type
   // thread.
   TCefDictionaryValue = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if this object is valid. This object may become invalid if
     // the underlying data is owned by another object (e.g. list or dictionary)
@@ -4830,7 +4923,7 @@ Type
   // Structure representing a list value. Can be used on any process and thread.
   TCefListValue = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns true (1) if this object is valid. This object may become invalid if
     // the underlying data is owned by another object (e.g. list or dictionary)
@@ -4971,7 +5064,7 @@ Type
   // process UI or IO threads.
   TCefWaitableEvent = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Put the event in the un-signaled state.
     reset: procedure(self: PCefWaitableEvent); cconv;
@@ -5003,7 +5096,7 @@ Type
   // Information about a specific web plugin.
   TCefWebPluginInfo = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns the plugin name (i.e. Flash).
     //
@@ -5031,7 +5124,7 @@ Type
   // this structure will be called on the browser process UI thread.
   TCefWebPluginInfoVisitor = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Method that will be called once for each plugin. |count| is the 0-based
     // index for the current plugin. |total| is the total number of plugins.
@@ -5046,7 +5139,7 @@ Type
   // functions of this structure will be called on the browser process IO thread.
   TCefWebPluginUnstableCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Method that will be called for the requested plugin. |unstable| will be
     // true (1) if the plugin has reached the crash count threshold of 3 times in
@@ -5061,7 +5154,7 @@ Type
   // process UI thread.
   TCefRegisterCdmCallback = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Method that will be called when CDM registration is complete. |result| will
     // be CEF_CDM_REGISTRATION_ERROR_NONE if registration completed successfully.
@@ -5076,7 +5169,7 @@ Type
   // Structure representing the issuer or subject field of an X.509 certificate.
   TCefX509certPrincipal = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns a name that can be used to represent the issuer. It tries in this
     // order: Common Name (CN), Organization Name (O) and Organizational Unit Name
@@ -5122,7 +5215,7 @@ Type
   // Structure representing a X.509 certificate.
   TCefX509Certificate = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Returns the subject of the X.509 certificate. For HTTPS server certificates
     // this represents the web server.  The common name of the subject should
@@ -5174,7 +5267,7 @@ Type
   // creates the object.
   TCefXmlReader = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Moves the cursor to the next node in the document. This function must be
     // called at least once to set the current cursor position. Returns true (1)
@@ -5325,7 +5418,7 @@ Type
   // creates the object.
   TCefZipReader = record
     // Base structure.
-    base: TCefBase;
+    base: TCefBaseRefCounted;
 
     // Moves the cursor to the first file in the archive. Returns true (1) if the
     // cursor position was set successfully.
@@ -6321,6 +6414,12 @@ Var
   cef_string_userfree_free: procedure(str: PCefStringUserFree); cdecl;
 
 
+  // These functions convert utf16 string case using the current ICU locale. This
+  // may change the length of the string in some cases.
+  cef_string_utf16_to_lower: function(const src: PChar16; src_len: csize_t; output: PCefStringUtf16): Integer; cdecl;
+  cef_string_utf16_to_upper: function(const src: PChar16; src_len: csize_t; output: PCefStringUtf16): Integer; cdecl;
+
+
 { ***  cef_string_list.h  *** }
 
   // Allocate a new string map.
@@ -6631,6 +6730,8 @@ begin
     Pointer(cef_string_userfree_wide_free)   := GetProcAddress(LibHandle, 'cef_string_userfree_wide_free');
     Pointer(cef_string_userfree_utf8_free)   := GetProcAddress(LibHandle, 'cef_string_userfree_utf8_free');
     Pointer(cef_string_userfree_utf16_free)  := GetProcAddress(LibHandle, 'cef_string_userfree_utf16_free');
+    Pointer(cef_string_utf16_to_lower)       := GetProcAddress(LibHandle, 'cef_string_utf16_to_lower');
+    Pointer(cef_string_utf16_to_upper)       := GetProcAddress(LibHandle, 'cef_string_utf16_to_upper');
 
 {$IFDEF CEF_STRING_TYPE_UTF8}
     cef_string_set            := cef_string_utf8_set;
@@ -6883,6 +6984,8 @@ begin
       Assigned(cef_string_userfree_wide_free) and
       Assigned(cef_string_userfree_utf8_free) and
       Assigned(cef_string_userfree_utf16_free) and
+      Assigned(cef_string_utf16_to_lower) and
+      Assigned(cef_string_utf16_to_upper) and
 
       Assigned(cef_string_list_alloc) and
       Assigned(cef_string_list_size) and

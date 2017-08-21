@@ -32,14 +32,14 @@ Uses
   cef3api, cef3types, cef3intf, cef3own;
 
 Type
-  TCefBaseRef = class(TInterfacedObject, ICefBase)
+  TCefBaseRef = class(TInterfacedObject, ICefBaseRefCounted)
   private
     fData: Pointer;
   public
     constructor Create(data: Pointer); virtual;
     destructor Destroy; override;
     function Wrap: Pointer;
-    class function UnWrap(data: Pointer): ICefBase;
+    class function UnWrap(data: Pointer): ICefBaseRefCounted;
   end;
 
   TCefBrowserRef = class(TCefBaseRef, ICefBrowser)
@@ -434,6 +434,7 @@ Type
 
   TCefMenuModelRef = class(TCefBaseRef, ICefMenuModel)
   protected
+    function IsSubMenu: Boolean;
     function Clear: Boolean;
     function GetCount: Integer;
     function AddSeparator: Boolean;
@@ -483,6 +484,12 @@ Type
     function RemoveAcceleratorAt(index: Integer): Boolean;
     function GetAccelerator(commandId: Integer; out keyCode: Integer; out shiftPressed, ctrlPressed, altPressed: Boolean): Boolean;
     function GetAcceleratorAt(index: Integer; out keyCode: Integer; out shiftPressed, ctrlPressed, altPressed: Boolean): Boolean;
+    function SetColor(commandId: Integer; colorType: TCefMenuColorType; color: TCefColor): Boolean;
+    function SetColorAt(index: Integer; colorType: TCefMenuColorType; color: TCefColor): Boolean;
+    function GetColor(commandId: Integer; colorType: TCefMenuColorType; out color: TCefColor): Boolean;
+    function GetColorAt(index: Integer; colorType: TCefMenuColorType; out color: TCefColor): Boolean;
+    function SetFontList(commandId: Integer; const fontList: ustring): Boolean;
+    function SetFontListAt(index: Integer; const fontList: ustring): Boolean;
   public
     class function UnWrap(data: Pointer): ICefMenuModel;
   end;
@@ -705,14 +712,6 @@ Type
   public
     class function UnWrap(data: Pointer): ICefResponse;
     class function New: ICefResponse;
-  end;
-
-  TCefSchemeRegistrarRef = class(TCefBaseRef, ICefSchemeRegistrar)
-  protected
-    function AddCustomScheme(const schemeName: ustring; IsStandard, IsLocal,
-      IsDisplayIsolated: Boolean): Boolean; cconv;
-  public
-    class function UnWrap(data: Pointer): ICefSchemeRegistrar;
   end;
 
   TCefSslinfoRef = class(TCefBaseRef, ICefSslinfo)
@@ -1183,12 +1182,12 @@ Uses cef3lib;
 constructor TCefBaseRef.Create(data: Pointer);
 begin
   Assert(data <> nil);
-  fData := Data;
+  fData := data;
 end;
 
 destructor TCefBaseRef.Destroy;
 begin
-  If Assigned(PCefBase(fData)^.release) then PCefBase(fData)^.release(fData);
+  If Assigned(PCefBaseRefCounted(fData)^.release) then PCefBaseRefCounted(fData)^.release(fData);
 
   inherited;
 end;
@@ -1196,12 +1195,12 @@ end;
 function TCefBaseRef.Wrap: Pointer;
 begin
   Result := fData;
-  If Assigned(PCefBase(fData)^.add_ref) then PCefBase(fData)^.add_ref(fData);
+  If Assigned(PCefBaseRefCounted(fData)^.add_ref) then PCefBaseRefCounted(fData)^.add_ref(fData);
 end;
 
-class function TCefBaseRef.UnWrap(data: Pointer): ICefBase;
+class function TCefBaseRef.UnWrap(data: Pointer): ICefBaseRefCounted;
 begin
-  If data <> nil then Result := Create(data) as ICefBase
+  If data <> nil then Result := Create(data) as ICefBaseRefCounted
   Else Result := nil;
 end;
 
@@ -2982,6 +2981,11 @@ end;
 
 { TCefMenuModelRef }
 
+function TCefMenuModelRef.IsSubMenu: Boolean;
+begin
+  Result := PCefMenuModel(fData)^.is_sub_menu(fData) <> 0;
+end;
+
 function TCefMenuModelRef.Clear : Boolean;
 begin
   Result := PCefMenuModel(fData)^.clear(fData) <> 0;
@@ -3278,6 +3282,46 @@ begin
   shiftPressed := sp <> 0;
   ctrlPressed := cp <> 0;
   altPressed := ap <> 0;
+end;
+
+function TCefMenuModelRef.SetColor(commandId: Integer; colorType: TCefMenuColorType;
+  color: TCefColor): Boolean;
+begin
+  Result := PCefMenuModel(fData)^.set_color(fData, commandId, colorType, color) <> 0;
+end;
+
+function TCefMenuModelRef.SetColorAt(index: Integer; colorType: TCefMenuColorType;
+  color: TCefColor): Boolean;
+begin
+  Result := PCefMenuModel(fData)^.set_color_at(fData, index, colorType, color) <> 0;
+end;
+
+function TCefMenuModelRef.GetColor(commandId: Integer; colorType: TCefMenuColorType;
+  out color: TCefColor): Boolean;
+begin
+  Result := PCefMenuModel(fData)^.get_color(fData, commandId, colorType, @color) <> 0;
+end;
+
+function TCefMenuModelRef.GetColorAt(index: Integer; colorType: TCefMenuColorType;
+  out color: TCefColor): Boolean;
+begin
+  Result := PCefMenuModel(fData)^.get_color_at(fData, index, colorType, @color) <> 0;
+end;
+
+function TCefMenuModelRef.SetFontList(commandId: Integer; const fontList: ustring): Boolean;
+Var
+  f: TCefString;
+begin
+  f := CefString(fontList);
+  Result := PCefMenuModel(fData)^.set_font_list(fData, commandId, @f) <> 0;
+end;
+
+function TCefMenuModelRef.SetFontListAt(index: Integer; const fontList: ustring): Boolean;
+Var
+  f: TCefString;
+begin
+  f := CefString(fontList);
+  Result := PCefMenuModel(fData)^.set_font_list_at(fData, index, @f) <> 0;
 end;
 
 class function TCefMenuModelRef.UnWrap(data : Pointer) : ICefMenuModel;
@@ -4143,23 +4187,6 @@ end;
 class function TCefResponseRef.New : ICefResponse;
 begin
   Result := UnWrap(cef_response_create());
-end;
-
-{ TCefSchemeRegistrarRef }
-
-function TCefSchemeRegistrarRef.AddCustomScheme(const schemeName : ustring;
-  IsStandard, IsLocal, IsDisplayIsolated : Boolean) : Boolean; cconv;
-Var
-  s : TCefString;
-begin
-  s := CefString(schemeName);
-  Result := PCefSchemeRegistrar(fData)^.add_custom_scheme(fData, @s, Ord(IsStandard), Ord(IsLocal), Ord(IsDisplayIsolated)) <> 0;
-end;
-
-class function TCefSchemeRegistrarRef.UnWrap(data : Pointer) : ICefSchemeRegistrar;
-begin
-  If data <> nil then Result := Create(data) as ICefSchemeRegistrar
-  Else Result := nil;
 end;
 
 { TCefSslinfoRef }

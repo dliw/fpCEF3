@@ -133,7 +133,7 @@ begin
   CefSingleProcess := False;
   If not CefInitialize then
   begin
-    Debugln('CefInitDefault failed.');
+    Debugln('CefInitialize failed.');
     Exit;
   end;
   try

@@ -2117,6 +2117,11 @@ Type
     page_width: Integer;
     page_height: Integer;
 
+    // The percentage to scale the PDF by before printing (e.g. 50 is 50%).
+    // If this value is less than or equal to zero the default value of 100
+    // will be used.
+    scale_factor: Integer;
+
     // Margins in millimeters. Only used if |margin_type| is set to
     // PDF_PRINT_MARGIN_CUSTOM.
     margin_top: Double;
@@ -2338,6 +2343,17 @@ Type
     CEF_MENU_ANCHOR_TOPLEFT,
     CEF_MENU_ANCHOR_TOPRIGHT,
     CEF_MENU_ANCHOR_BOTTOMCENTER
+  );
+
+  // Supported color types for menu items.
+  TCefMenuColorType = (
+    CEF_MENU_COLOR_TEXT,
+    CEF_MENU_COLOR_TEXT_HOVERED,
+    CEF_MENU_COLOR_TEXT_ACCELERATOR,
+    CEF_MENU_COLOR_TEXT_ACCELERATOR_HOVERED,
+    CEF_MENU_COLOR_BACKGROUND,
+    CEF_MENU_COLOR_BACKGROUND_HOVERED,
+    CEF_MENU_COLOR_COUNT
   );
 
   // Supported SSL version values. See net/ssl/ssl_connection_status_flags.h

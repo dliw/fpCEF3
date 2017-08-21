@@ -30,7 +30,7 @@ Var
   Frame           : PCefFrame;
   Host            : PCefBrowserHost;
 
-procedure Release(var base : TCefBase);
+procedure Release(var base : TCefBaseRefCounted);
 begin
   base.release(@base);
 end;
