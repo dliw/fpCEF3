@@ -535,12 +535,15 @@ Type
     print_to_pdf: procedure(self: PCefBrowserHost; const path: PCefString; const settings: PCefPdfPrintSettings;
       callback: PCefPdfPrintCallback); cconv;
 
-    // Search for |searchText|. |identifier| can be used to have multiple searches
-    // running simultaniously. |forward| indicates whether to search forward or
-    // backward within the page. |matchCase| indicates whether the search should
-    // be case-sensitive. |findNext| indicates whether this is the first request
-    // or a follow-up. The cef_find_handler_t instance, if any, returned via
-    // cef_client_t::GetFindHandler will be called to report find results.
+    // Search for |searchText|. |identifier| must be a unique ID and these IDs
+    // must strictly increase so that newer requests always have greater IDs than
+    // older requests. If |identifier| is zero or less than the previous ID value
+    // then it will be automatically assigned a new valid ID. |forward| indicates
+    // whether to search forward or backward within the page. |matchCase|
+    // indicates whether the search should be case-sensitive. |findNext| indicates
+    // whether this is the first request or a follow-up. The cef_find_handler_t
+    // instance, if any, returned via cef_client_t::GetFindHandler will be called
+    // to report find results.
     find: procedure(self: PCefBrowserHost; identifier: Integer; const searchText: PCefString;
       forward_, matchCase, findNext: Integer); cconv;
 
@@ -2158,7 +2161,9 @@ Type
     // is set to false (0) the new browser will not be scriptable and may not be
     // hosted in the same renderer process as the source browser. Any
     // modifications to |windowInfo| will be ignored if the parent browser is
-    // wrapped in a cef_browser_view_t.
+    // wrapped in a cef_browser_view_t. Popup browser creation will be canceled if
+    // the parent browser is destroyed before the popup browser creation completes
+    // (indicated by a call to OnAfterCreated for the popup browser).
     on_before_popup: function(self: PCefLifeSpanHandler; browser: PCefBrowser; frame: PCefFrame;
       const target_url, target_frame_name: PCefString; target_disposition: TCefWindowOpenDisposition;
       user_gesture: Integer; const popupFeatures: PCefPopupFeatures;
@@ -2283,15 +2288,16 @@ Type
     on_loading_state_change: procedure(self: PCefLoadHandler; browser: PCefBrowser;
       isLoading, canGoBack, canGoForward: Integer); cconv;
 
-    // Called when the browser begins loading a frame. The |frame| value will
-    // never be NULL -- call the is_main() function to check if this frame is the
-    // main frame. |transition_type| provides information about the source of the
-    // navigation and an accurate value is only available in the browser process.
-    // Multiple frames may be loading at the same time. Sub-frames may start or
-    // continue loading after the main frame load has ended. This function will
-    // always be called for all frames irrespective of whether the request
-    // completes successfully. For notification of overall browser load status use
-    // OnLoadingStateChange instead.
+    // Called after a navigation has been committed and before the browser begins
+    // loading contents in the frame. The |frame| value will never be NULL -- call
+    // the is_main() function to check if this frame is the main frame.
+    // |transition_type| provides information about the source of the navigation
+    // and an accurate value is only available in the browser process. Multiple
+    // frames may be loading at the same time. Sub-frames may start or continue
+    // loading after the main frame load has ended. This function will not be
+    // called for same page navigations (fragments, history state, etc.) or for
+    // navigations that fail or are canceled before commit. For notification of
+    // overall browser load status use OnLoadingStateChange instead.
     on_load_start: procedure(self: PCefLoadHandler; browser: PCefBrowser; frame: PCefFrame;
       transition_type: TCefTransitionType); cconv;
 
@@ -2299,16 +2305,18 @@ Type
     // never be NULL -- call the is_main() function to check if this frame is the
     // main frame. Multiple frames may be loading at the same time. Sub-frames may
     // start or continue loading after the main frame load has ended. This
-    // function will always be called for all frames irrespective of whether the
-    // request completes successfully. For notification of overall browser load
-    // status use OnLoadingStateChange instead.
+    // function will not be called for same page navigations (fragments, history
+    // state, etc.) or for navigations that fail or are canceled before commit.
+    // For notification of overall browser load status use OnLoadingStateChange
+    // instead.
     on_load_end: procedure(self: PCefLoadHandler; browser: PCefBrowser;
       frame: PCefFrame; httpStatusCode: Integer); cconv;
 
-    // Called when the resource load for a navigation fails or is canceled.
-    // |errorCode| is the error code number, |errorText| is the error text and
-    // |failedUrl| is the URL that failed to load. See net\base\net_error_list.h
-    // for complete descriptions of the error codes.
+    // Called when a navigation fails or is canceled. This function may be called
+    // by itself if before commit or in combination with OnLoadStart/OnLoadEnd if
+    // after commit. |errorCode| is the error code number, |errorText| is the
+    // error text and |failedUrl| is the URL that failed to load. See
+    // net\base\net_error_list.h for complete descriptions of the error codes.
     on_load_error: procedure(self: PCefLoadHandler; browser: PCefBrowser;
       frame: PCefFrame; errorCode: TCefErrorCode; const errorText, failedUrl: PCefString); cconv;
   end;
@@ -3798,15 +3806,19 @@ Type
     // security rules as those applied to "https" URLs. For example, loading this
     // scheme from other secure schemes will not trigger mixed content warnings.
     //
-    // If |is_cors_enabled| is true (1) the scheme that can be sent CORS requests.
-    // This value should be true (1) in most cases where |is_standard| is true
-    // (1).
+    // If |is_cors_enabled| is true (1) the scheme can be sent CORS requests. This
+    // value should be true (1) in most cases where |is_standard| is true (1).
+    //
+    // If |is_csp_bypassing| is true (1) the scheme can bypass Content-Security-
+    // Policy (CSP) checks. This value should be false (0) in most cases where
+    // |is_standard| is true (1).
     //
     // This function may be called on any thread. It should only be called once
     // per unique |scheme_name| value. If |scheme_name| is already registered or
     // if an error occurs this function will return false (0).
     add_custom_scheme: function(self: PCefSchemeRegistrar; const scheme_name: PCefString;
-      is_standard, is_local, is_display_isolated, is_secure, is_cors_enabled: Integer): Integer; cconv;
+      is_standard, is_local, is_display_isolated, is_secure, is_cors_enabled,
+      is_csp_bypassing: Integer): Integer; cconv;
   end;
 
 

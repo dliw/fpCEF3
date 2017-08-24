@@ -36,7 +36,7 @@ Type
   TCefSchemeRegistrarRef = class(TCefBaseScopedRef)
   public
     function AddCustomScheme(const schemeName: ustring;
-      isStandard, isLocal, isDisplayIsolated, isSecure, isCorsEnabled: Boolean): Boolean;
+      isStandard, isLocal, isDisplayIsolated, isSecure, isCorsEnabled, isCspBypassing: Boolean): Boolean;
   end;
 
 implementation
@@ -58,14 +58,14 @@ end;
 
 { TCefSchemeRegistrarRef }
 
-function TCefSchemeRegistrarRef.AddCustomScheme(const schemeName : ustring;
-  isStandard, isLocal, isDisplayIsolated, isSecure, isCorsEnabled : Boolean) : Boolean;
+function TCefSchemeRegistrarRef.AddCustomScheme(const schemeName: ustring;
+  isStandard, isLocal, isDisplayIsolated, isSecure, isCorsEnabled, isCspBypassing: Boolean): Boolean;
 Var
   s : TCefString;
 begin
   s := CefString(schemeName);
   Result := PCefSchemeRegistrar(fData)^.add_custom_scheme(fData, @s, Ord(isStandard), Ord(isLocal),
-    Ord(isDisplayIsolated), Ord(isSecure), Ord(isCorsEnabled)) <> 0;
+    Ord(isDisplayIsolated), Ord(isSecure), Ord(isCorsEnabled), Ord(isCspBypassing)) <> 0;
 end;
 
 end.

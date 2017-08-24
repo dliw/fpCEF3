@@ -193,7 +193,6 @@ Type
     fJavascriptCloseWindows: TCefState;
     fJavascriptAccessClipboard: TCefState;
     fJavascriptDomPaste: TCefState;
-    fCaretBrowsing: TCefState;
     fPlugins: TCefState;
     fUniversalAccessFromFileUrls: TCefState;
     fFileAccessFromFileUrls: TCefState;

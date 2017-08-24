@@ -584,7 +584,7 @@ end;
 
 procedure RegisterSchemes(const registrar: TCefSchemeRegistrarRef);
 begin
-  registrar.AddCustomScheme('fpcef', False, True, False, False, False);
+  registrar.AddCustomScheme('fpcef', False, True, False, False, False, False);
 end;
 
 

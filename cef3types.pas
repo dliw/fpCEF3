@@ -1758,7 +1758,6 @@ Type
 
     fullscreen: Integer;
     dialog: Integer;
-    additionalFeatures: TCefStringList;
   end;
 
   // DOM document types.
