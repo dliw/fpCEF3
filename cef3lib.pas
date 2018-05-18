@@ -1,17 +1,16 @@
 (*
  *                       Free Pascal Chromium Embedded 3
  *
- * Usage allowed under the restrictions of the Lesser GNU General Public License
- * or alternatively the restrictions of the Mozilla Public License 1.1
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/.
  *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
- * the specific language governing rights and limitations under the License.
+ * Author:     dev.dliw@gmail.com
+ * Repository: https://github.com/dliw/fpCEF3
  *
- * Author: dliw <dev.dliw@gmail.com>
- * Repository: http://github.com/dliw/fpCEF3
  *
- * Based on 'Delphi Chromium Embedded' by: Henri Gourvest <hgourvest@gmail.com>
+ * Originally based on 'Delphi Chromium Embedded 3' by Henri Gourvest
+ * <hgourvest@gmail.com>
  *
  * Embarcadero Technologies, Inc is not permitted to use or redistribute
  * this source code without explicit permission.

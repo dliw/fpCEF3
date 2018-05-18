@@ -1,16 +1,13 @@
 (*
  *                       Free Pascal Chromium Embedded 3
  *
- * Usage allowed under the restrictions of the Lesser GNU General Public License
- * or alternatively the restrictions of the Mozilla Public License 1.1
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
- * the specific language governing rights and limitations under the License.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/.
  *
  * Original author: Dmitry Boyarintsev <skalogryz.lists@gmail.com>
  * Integrated from: http://github.com/skalogryz/fpCEF3
- * Repository: http://github.com/dliw/fpCEF3
+ * Repository: https://github.com/dliw/fpCEF3
  *
  *)
 
