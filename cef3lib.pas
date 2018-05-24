@@ -33,8 +33,6 @@ Uses
   SysUtils, Classes, LCLProc, Graphics, FPimage,
   cef3api, cef3types, cef3intf, cef3ref, cef3own;
 
-function CefInitDefault: Boolean; deprecated 'Use CefInitialize instead.';
-
 function CefGetObject(ptr: Pointer): TObject; {$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
 function CefGetData(const i: ICefBaseRefCounted): Pointer; {$IFDEF SUPPORTS_INLINE}inline; {$ENDIF}
 
@@ -175,6 +173,7 @@ function CefApiHash(entry: Integer): String;
   procedure CefXWindowResize(const ABrowser: ICefBrowser; const Top, Left, Width, Height: Integer);
   procedure CefXLooseFocus(const ABrowser: ICefBrowser);
   procedure CefXSetVisibility(const ABrowser: ICefBrowser; const Value: Boolean);
+  procedure CefXDestroyWindow(const Handle: TXID);
 
   function XErrorHandler(display: PDisplay; event: PXErrorEvent): Integer; cdecl;
   function XIOErrorHandler(display: PDisplay): Integer; cdecl;
@@ -220,6 +219,9 @@ Var
   CefOnBeforeCommandLineProcessing: TOnBeforeCommandLineProcessing = nil;
   CefOnRegisterCustomSchemes: TOnRegisterCustomSchemes = nil;
 
+  // allow custom library location, can be relative
+  CefLibraryDirPath: String = '';
+
 Implementation
 
 Type
@@ -247,15 +249,6 @@ function SystemTimeToTzSpecificLocalTime(
 Var
   CefIsMainProcess: Boolean = False;
 
-
-function CefInitDefault: Boolean;
-begin
-  {$IFDEF DEBUG}
-  Debugln('CefInitDefault');
-  {$ENDIF}
-
-  Result := CefInitialize;
-end;
 
 function CefGetObject(ptr: Pointer): TObject; {$IFDEF SUPPORTS_INLINE}inline; {$ENDIF}
 begin
@@ -357,9 +350,11 @@ begin
 end;
 
 function FPColorToCefColor(const aColor: TFPColor): TCefColor;
+Const
+  F =  1 / high(Word) * 255;
 begin
   With aColor do
-    Result := CefColorSetARGB(alpha, red, green, blue);
+   Result := CefColorSetARGB(Round(alpha * F), Round(red * F), Round(green * F), Round(blue * F));
 end;
 
 function CefString(const str: ustring): TCefString;
@@ -439,7 +434,7 @@ begin
   Debugln('CefInitialize');
   {$ENDIF}
 
-  If not CefLoadLibrary then
+  If not CefLoadLibrary(CefLibraryDirPath) then
   begin
     Result := True;
     Exit;
@@ -1126,7 +1121,7 @@ end;
 
   procedure CefXLooseFocus(const ABrowser: ICefBrowser);
   begin
-    XSetInputFocus(cef_get_xdisplay(), X.None, RevertToParent, CurrentTime);
+    XSetInputFocus(cef_get_xdisplay(), X.None, RevertToNone, CurrentTime);
 
     ABrowser.Host.SendCaptureLostEvent;
   end;
@@ -1137,7 +1132,14 @@ end;
     Else XUnmapWindow(cef_get_xdisplay(), ABrowser.Host.WindowHandle);
   end;
 
+  procedure CefXDestroyWindow(const Handle: TXID);
+  begin
+    XDestroyWindow(cef_get_xdisplay(), Handle);
+  end;
+
   function XErrorHandler(display: PDisplay; event: PXErrorEvent): Integer; cdecl;
+  Var
+    error_msg: array[0..100] of Char;
   begin
     {$IFDEF DEBUG}
     WriteLn('X error received: ');
@@ -1146,6 +1148,10 @@ end;
     WriteLn(' error code:   ', event^.error_code);
     WriteLn(' request code: ', event^.request_code);
     WriteLn(' minor code:   ', event^.minor_code);
+
+    XGetErrorText(display, event^.error_code, @error_msg, Length(error_msg));
+
+    WriteLn(PChar(@error_msg));
     {$ENDIF}
 
     Result := 0;

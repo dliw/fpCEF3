@@ -6,9 +6,10 @@ object Mainform: TMainform
   Caption = 'Browser -'
   ClientHeight = 475
   ClientWidth = 762
+  DesignTimePPI = 94
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  LCLVersion = '1.6.4.0'
+  LCLVersion = '1.8.2.0'
   object BGo: TButton
     AnchorSideTop.Control = Owner
     AnchorSideRight.Control = Owner

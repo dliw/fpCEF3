@@ -6,8 +6,9 @@ object Mainform: TMainform
   Caption = 'Browser -'
   ClientHeight = 476
   ClientWidth = 810
-  OnCreate = FormCreate
-  LCLVersion = '1.6.4.0'
+  DesignTimePPI = 94
+  OnCloseQuery = FormCloseQuery
+  LCLVersion = '1.8.2.0'
   object BGo: TButton
     AnchorSideTop.Control = Owner
     AnchorSideRight.Control = Owner
@@ -67,6 +68,8 @@ object Mainform: TMainform
     TabOrder = 3
     OnTitleChange = ChromiumTitleChange
     OnTakeFocus = ChromiumTakeFocus
+    OnBeforeUnloadDialog = ChromiumBeforeUnloadDialog
+    OnBeforeClose = ChromiumBeforeClose
     OnLoadEnd = ChromiumLoadEnd
     DefaultUrl = 'about:blank'
   end

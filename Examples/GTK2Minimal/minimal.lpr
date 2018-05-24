@@ -87,7 +87,7 @@ Var
 begin
   WriteLn('Reloading...');
 
-  Dest := CefString('http://youtube.com');
+  Dest := CefString('https://github.com/dliw/fpCEF3');
   Frame := Browser^.get_main_frame(Browser);
   Frame^.load_url(Frame, @Dest);
 

@@ -34,7 +34,7 @@
       </Other>
     </CompilerOptions>
     <Description Value="Chromium component for Lazarus"/>
-    <Version Major="3" Minor="3029"/>
+    <Version Major="3" Minor="3029" Release="1"/>
     <Files Count="13">
       <Item1>
         <Filename Value="../cef.inc"/>

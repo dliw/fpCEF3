@@ -6615,7 +6615,7 @@ Var
   {$ENDIF}
 
 
-function CefLoadLibrary: Boolean;
+function CefLoadLibrary(LibraryPath: String = ''): Boolean;
 procedure CefCloseLibrary;
 
 Implementation
@@ -6698,10 +6698,9 @@ end;
     LibPath := ExeDir + PathDelim + FWName + PathDelim + CefLibrary;
     Result := LoadLibrary(LibPath);
   end;
-
 {$ENDIF}
 
-function CefLoadLibrary: Boolean;
+function CefLoadLibrary(LibraryPath: String): Boolean;
 begin
   {$IFDEF DEBUG}
   Debugln('CefLoadLibrary');
@@ -6712,7 +6711,9 @@ begin
     Set8087CW(Get8087CW or $3F); // deactivate FPU exception
     SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
 
-    LibHandle := LoadLibrary(CefLibrary);
+    If LibraryPath <> '' then LibraryPath := IncludeTrailingPathDelimiter(LibraryPath);
+
+    LibHandle := LoadLibrary(LibraryPath + CefLibrary);
     {$IFDEF DARWIN}
       If LibHandle = 0 then LibHandle := LoadLibraryFromBundlePath(CefLibrary);
     {$ENDIF}
@@ -7208,7 +7209,7 @@ begin
   If LibHandle <> 0 then
   begin
     {$IFDEF DEBUG}
-    Debugln('-> Freed');
+    Debugln('-> freed');
     {$ENDIF}
 
     FreeLibrary(LibHandle);

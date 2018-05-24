@@ -18,12 +18,16 @@ Type
     EUrl: TEdit;
     LUrl: TStaticText;
     procedure BGoClick(Sender: TObject);
+    procedure ChromiumBeforeClose(Sender: TObject; const Browser: ICefBrowser);
+    procedure ChromiumBeforeUnloadDialog(Sender: TObject; const Browser: ICefBrowser;
+      const messageText: ustring; isReload: Boolean; const callback: ICefJsDialogCallback;
+      out Result: Boolean);
     procedure ChromiumLoadEnd(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame;
       httpStatusCode: Integer);
     procedure ChromiumTakeFocus(Sender: TObject; const Browser: ICefBrowser; next_: Boolean);
     procedure ChromiumTitleChange(Sender: TObject; const Browser: ICefBrowser; const title: ustring);
     procedure EUrlKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-    procedure FormCreate(Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
   private
     { private declarations }
   public
@@ -42,6 +46,27 @@ Implementation
 procedure TMainform.BGoClick(Sender: TObject);
 begin
   Chromium.Load(EUrl.Text);
+end;
+
+procedure TMainform.ChromiumBeforeClose(Sender: TObject; const Browser: ICefBrowser);
+begin
+  Halt;
+end;
+
+procedure TMainform.ChromiumBeforeUnloadDialog(Sender: TObject; const Browser: ICefBrowser;
+  const messageText: ustring; isReload: Boolean; const callback: ICefJsDialogCallback;
+  out Result: Boolean);
+Var
+  AllowClose: Boolean;
+begin
+  // use custom dialog
+  Result := True;
+
+  // show dialog
+  AllowClose := MessageDlg('Confirmation', messageText, mtConfirmation, [mbYes,mbNo], 0) = mrYes;
+
+  // execute callback
+  callback.Cont(AllowClose, '');
 end;
 
 procedure TMainform.ChromiumLoadEnd(Sender: TObject; const Browser: ICefBrowser; const Frame: ICefFrame;
@@ -65,15 +90,16 @@ begin
   If Key = VK_RETURN then BGoClick(Sender);
 end;
 
-procedure TMainform.FormCreate(Sender: TObject);
+procedure TMainform.FormCloseQuery(Sender: TObject; var CanClose: boolean);
 begin
-  {$IFDEF DARWIN}
-    // Uncomment for a single process application
-    //CefSingleProcess := True;
-  {$ELSE}
-    {$INFO subprocess is set here, comment out to use the main program as subprocess}
-    CefBrowserSubprocessPath := '.' + PathDelim + 'subprocess'{$IFDEF WINDOWS}+'.exe'{$ENDIF};
-  {$ENDIF}
+  CanClose := Chromium.Browser.Host.TryCloseBrowser;
 end;
+
+
+Initialization
+  {$IFNDEF DARWIN}
+    {$INFO subprocess is set here, uncomment to use a subprocess}
+    //CefBrowserSubprocessPath := '.' + PathDelim + 'subprocess'{$IFDEF WINDOWS}+'.exe'{$ENDIF};
+  {$ENDIF}
 
 end.

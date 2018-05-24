@@ -527,7 +527,7 @@ Type
     class procedure OnTimer(Sender : TObject);
   public
     constructor Create(const crm: IChromiumEvents); override;
-    destructor Destroy; override;
+    procedure Disconnect;
     procedure StartTimer;
   end;
 
@@ -577,16 +577,18 @@ begin
   {$ENDIF}
 end;
 
-destructor TOSRClientHandler.Destroy;
+procedure TOSRClientHandler.Disconnect;
 begin
+  inherited;
+
   {$IFDEF DEBUG}
-  Debugln('OSRClientHandler.Cleanup');
+  Debugln('TOSRClientHandler.Disconnect');
   {$ENDIF}
 
   {$IFNDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
   InterLockedDecrement(CefInstances);
 
-  If CefInstances = 0 then
+  If (CefInstances = 0) and Assigned(Timer) then
   begin
     Timer.Enabled := False;
 
@@ -597,8 +599,6 @@ begin
     {$ENDIF}
   end;
   {$ENDIF}
-
-  inherited;
 end;
 
 procedure TOSRClientHandler.StartTimer;
@@ -1200,7 +1200,7 @@ begin
 
   If fHandler <> nil then
   begin
-    (fHandler as ICefClientHandler).Disconnect;
+    (fHandler as TOSRClientHandler).Disconnect;
     fHandler := nil;
   end;
 

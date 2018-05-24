@@ -11,12 +11,17 @@ Uses
   FaviconGetter;
 
 Type
+  TWebPanelOnClose = procedure(const Index: Integer) of object;
 
   TWebPanel = class(TTabSheet)
   private
     fChromium: TChromium;
     fUrl: String;
     fIconGetter: TFaviconGetter;
+
+    // callbacks
+    fTabOnClose: TWebPanelOnClose;
+    fTabOnCloseStopped: TNotifyEvent;
 
     procedure ChromiumTakeFocus(Sender: TObject; const Browser: ICefBrowser; next_: Boolean);
     procedure ChromiumTitleChange(Sender: TObject; const Browser: ICefBrowser; const title: ustring);
@@ -46,12 +51,16 @@ Type
       const downloadItem: ICefDownloadItem; const suggestedName: ustring;
       const callback: ICefBeforeDownloadCallback);
 
+    procedure ChromiumBeforeUnloadDialog(Sender: TObject; const Browser: ICefBrowser;
+      const messageText: ustring; isReload: Boolean; const callback: ICefJsDialogCallback;
+      out Result: Boolean);
+    procedure ChromiumBeforeClose(Sender: TObject; const Browser: ICefBrowser);
+    procedure ChromiumClose(Sender: TObject; const Browser: ICefBrowser; out
+      Result: Boolean);
+
     procedure PrintToPdf(const Browser: ICefBrowser);
 
     procedure IconReady(const Success: Boolean; const Icon: TIcon);
-  protected
-    procedure DoHide; override;
-    procedure DoShow; override;
   public
     destructor Destroy; override;
 
@@ -62,6 +71,8 @@ Type
     procedure SetIcon(const Icon: TCustomIcon);
 
     property Url: String read fUrl write fUrl;
+    property OnClose: TWebPanelOnClose read fTabOnClose write fTabOnClose;
+    property OnCloseStopped: TNotifyEvent read fTabOnCloseStopped write fTabOnCloseStopped;
   end;
 
   { custom browser process handler }
@@ -78,7 +89,8 @@ Type
 Implementation
 
 Uses Main, cef3ref, cef3scp, SchemeHandler
-  {$IFDEF LINUX}, PrintHandler{$ENDIF};
+  {$IFDEF LINUX}, PrintHandler{$ENDIF}
+  {$IFDEF WINDOWS}, Windows{$ENDIF};
 
 Const
   // client menu IDs
@@ -94,6 +106,14 @@ Type
     procedure Execute; override;
   public
     constructor Create(targetURL: ustring); reintroduce;
+  end;
+
+  TCefCloseTask = class(TCefTaskOwn)
+  protected
+    fTab: TWebPanel;
+    procedure Execute; override;
+  public
+    constructor Create(Tab: TWebPanel); reintroduce;
   end;
 
 
@@ -116,9 +136,9 @@ begin
   Write(CefString(@tmp), ' ');
 
   try
-    WriteLn(DateTimeToStr(CefTimeToDateTime(cookie.expires)));
+    DebugLn(DateTimeToStr(CefTimeToDateTime(cookie.expires)));
   except
-    WriteLn('Invalid datetime.');
+    DebugLn('Invalid datetime.');
   end;
 
   deleteCookie := False;
@@ -139,6 +159,22 @@ begin
   inherited Create;
 
   fTargetUrl := targetURL;
+end;
+
+{ TCefCloseTask }
+
+procedure TCefCloseTask.Execute;
+begin
+  Assert(CefCurrentlyOn(TID_UI));
+
+  fTab.RequestClose;
+end;
+
+constructor TCefCloseTask.Create(Tab: TWebPanel);
+begin
+  inherited Create;
+
+  fTab := Tab;
 end;
 
 { TWebPanel }
@@ -258,7 +294,7 @@ begin
   Case commandId of
     CLIENT_ID_VISIT_COOKIES: TCefCookieManagerRef.Global(nil).VisitAllCookiesProc(@VisitCookies);
     CLIENT_ID_PRINT_TO_PDF: PrintToPdf(Browser);
-    CLIENT_ID_EXIT: Application.Terminate;
+    CLIENT_ID_EXIT: FMain.Close;
   Else Result := False;
   end;
 end;
@@ -432,6 +468,58 @@ begin
   callback.Cont('', True);
 end;
 
+procedure TWebPanel.ChromiumBeforeUnloadDialog(Sender: TObject; const Browser: ICefBrowser;
+  const messageText: ustring; isReload: Boolean; const callback: ICefJsDialogCallback;
+  out Result: Boolean);
+Var
+  AllowClose: Boolean;
+begin
+  // use custom dialog
+  Result := True;
+
+  // show dialog
+  AllowClose := MessageDlg('Confirmation', messageText, mtConfirmation, [mbYes,mbNo], 0) = mrYes;
+
+  // execute callback
+  callback.Cont(AllowClose, '');
+
+  // notify main form that closing was stopped
+  If (not AllowClose) and Assigned(fTabOnCloseStopped) then fTabOnCloseStopped(Self);
+end;
+
+procedure TWebPanel.ChromiumBeforeClose(Sender: TObject; const Browser: ICefBrowser);
+Var
+  Callback: TWebPanelOnClose;
+  Index: Integer;
+begin
+  // save for use after Free
+  Callback := fTabOnClose;
+  Index := TabIndex;
+
+  // CEF browser is destroyed -> free tab
+  Free;
+
+  // callback after tab is removed
+  If Assigned(Callback) then Callback(Index);
+end;
+
+procedure TWebPanel.ChromiumClose(Sender: TObject; const Browser: ICefBrowser; out Result: Boolean);
+begin
+  {$IFDEF WINDOWS}
+    Result := True;
+    // only send destroy message to browser
+    SendMessage(Browser.Host.WindowHandle, WM_DESTROY, 0, 0);
+  {$ENDIF}
+  {$IFDEF LINUX}
+    Result := True;
+    // destroy message does not work correctly (on QT)
+    ChromiumBeforeClose(Sender, Browser);
+  {$ENDIF}
+  {$IFDEF DARWIN}
+    Result := False;
+  {$ENDIF}
+end;
+
 procedure PdfPrintCallback(const path: ustring; ok: Boolean);
 begin
   If ok then ShowMessage('Successfully printed to pdf file.' + LineEnding + path)
@@ -475,20 +563,6 @@ begin
   Else SetIcon(nil);
 end;
 
-procedure TWebPanel.DoHide;
-begin
-  inherited DoHide;
-
-  If Assigned(fChromium) then fChromium.Hide;
-end;
-
-procedure TWebPanel.DoShow;
-begin
-  inherited DoShow;
-
-  If Assigned(fChromium) then fChromium.Show;
-end;
-
 destructor TWebPanel.Destroy;
 begin
   // Cancel icon request
@@ -502,11 +576,13 @@ begin
   If not Assigned(fChromium) then
   begin
     fChromium := TChromium.Create(Self);
+
+    If DefaultUrl <> '' then fChromium.DefaultUrl := DefaultUrl;
+
     fChromium.TabStop := True;
     fChromium.Parent := Self;
     fChromium.AnchorAsAlign(alClient, 0);
 
-    If DefaultUrl <> '' then fChromium.DefaultUrl := DefaultUrl;
 
     // Register callbacks
     fChromium.OnTakeFocus := @ChromiumTakeFocus;
@@ -525,13 +601,25 @@ begin
     {$ENDIF}
 
     fChromium.OnBeforeDownload := @ChromiumBeforeDownload;
+
+    fChromium.OnBeforeUnloadDialog := @ChromiumBeforeUnloadDialog;
+    fChromium.OnBeforeClose := @ChromiumBeforeClose;
+    fChromium.OnClose := @ChromiumClose;
   end
   Else raise Exception.Create('Chromium already initialized.');
 end;
 
 procedure TWebPanel.RequestClose;
 begin
-  fChromium.Browser.Host.CloseBrowser(False);
+  If PageControl.ActivePage <> Self then
+  begin
+    // focus tab
+    PageControl.ActivePage := Self;
+
+    // wait for focus
+    CefPostDelayedTask(TID_UI, TCefCloseTask.Create(Self), 100);
+  end
+  Else fChromium.Browser.Host.CloseBrowser(False);
 end;
 
 procedure TWebPanel.OpenUrl(AUrl: String);
@@ -589,12 +677,10 @@ end;
 
 
 Initialization
-  Path := GetCurrentDirUTF8 + DirectorySeparator;
+  Path := GetCurrentDirUTF8 + PathDelim;
 
   CefResourcesDirPath := Path + 'Resources';
-  CefLocalesDirPath := Path + 'Resources' + DirectorySeparator + 'locales';
-  //CefCachePath := Path + 'Cache';
-  //CefBrowserSubprocessPath := '.' + PathDelim + 'subprocess'{$IFDEF WINDOWS}+'.exe'{$ENDIF};
+  CefLocalesDirPath := Path + 'Resources' + PathDelim + 'locales';
 
   // register handler
   CefBrowserProcessHandler := TCustomBrowserProcessHandler.Create;
@@ -606,3 +692,4 @@ Initialization
   CefInitialize;
 
 end.
+

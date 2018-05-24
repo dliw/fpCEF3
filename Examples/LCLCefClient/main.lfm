@@ -6,8 +6,9 @@ object FMain: TFMain
   Caption = 'LCLCefClient'
   ClientHeight = 533
   ClientWidth = 1201
-  OnCreate = FormCreate
-  LCLVersion = '1.6.4.0'
+  DesignTimePPI = 94
+  OnCloseQuery = FormCloseQuery
+  LCLVersion = '1.8.2.0'
   object LUrl: TStaticText
     AnchorSideTop.Control = Owner
     Left = 8

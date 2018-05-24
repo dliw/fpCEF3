@@ -82,11 +82,9 @@ begin
     callback.Cont(True, '');
     Result := True;
   end
-  Else
-  begin
-    suppressMessage := False;
-    Result := False;
-  end;
+  Else Result := False;
+
+  suppressMessage := False;
 end;
 
 procedure TMainform.ChromiumTitleChange(Sender: TObject; const Browser: ICefBrowser; const title: ustring);

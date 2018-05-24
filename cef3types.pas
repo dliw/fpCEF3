@@ -1029,7 +1029,7 @@ Type
     DRAG_OPERATION_MOVE    = 16,
     DRAG_OPERATION_DELETE  = 32,
     DRAG_OPERATION_EVERY   = High(UInt32)
-    );
+  );
 
   // V8 access control values.
   TCefV8AccessControl = (
@@ -1195,22 +1195,22 @@ Type
   // Flags used to customize the behavior of CefURLRequest.
   TCefUrlRequestFlag = (
     // If set the cache will be skipped when handling the request.
-    UR_FLAG_SKIP_CACHE,               //= 1 shl 0
+    UR_FLAG_SKIP_CACHE               = 0, //= 1 shl 0
 
     // If set user name, password, and cookies may be sent with the request, and
     // cookies may be saved from the response.
-    UR_FLAG_ALLOW_CACHED_CREDENTIALS, //= 1 shl 1
+    UR_FLAG_ALLOW_CACHED_CREDENTIALS = 1, //= 1 shl 1
 
     // If set upload progress events will be generated when a request has a body.
-    UR_FLAG_REPORT_UPLOAD_PROGRESS,   //= 1 shl 3
+    UR_FLAG_REPORT_UPLOAD_PROGRESS   = 3, //= 1 shl 3
 
     // If set the CefURLRequestClient::OnDownloadData method will not be called.
-    UR_FLAG_NO_DOWNLOAD_DATA,         //= 1 shl 6
+    UR_FLAG_NO_DOWNLOAD_DATA         = 6, //= 1 shl 6
 
     // If set 5XX redirect errors will be propagated to the observer instead of
     // automatically re-tried. This currently only applies for requests
     // originated in the browser process.
-    UR_FLAG_NO_RETRY_ON_5XX           //= 1 shl 7
+    UR_FLAG_NO_RETRY_ON_5XX          = 7 //= 1 shl 7
   );
   TCefUrlRequestFlags = set of TCefUrlRequestFlag;
 
@@ -2358,13 +2358,13 @@ Type
   // for more information.
   TCefSslVersion = (
     SSL_CONNECTION_VERSION_UNKNOWN = 0,  // Unknown SSL version.
-    SSL_CONNECTION_VERSION_SSL2 = 1,
-    SSL_CONNECTION_VERSION_SSL3 = 2,
-    SSL_CONNECTION_VERSION_TLS1 = 3,
-    SSL_CONNECTION_VERSION_TLS1_1 = 4,
-    SSL_CONNECTION_VERSION_TLS1_2 = 5,
+    SSL_CONNECTION_VERSION_SSL2    = 1,
+    SSL_CONNECTION_VERSION_SSL3    = 2,
+    SSL_CONNECTION_VERSION_TLS1    = 3,
+    SSL_CONNECTION_VERSION_TLS1_1  = 4,
+    SSL_CONNECTION_VERSION_TLS1_2  = 5,
     // Reserve 6 for TLS 1.3.
-    SSL_CONNECTION_VERSION_QUIC = 7
+    SSL_CONNECTION_VERSION_QUIC    = 7
   );
 
   // Supported SSL content status flags. See content/public/common/ssl_status.h

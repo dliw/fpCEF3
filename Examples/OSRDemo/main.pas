@@ -211,11 +211,6 @@ end;
 
 procedure TMainform.FormCreate(Sender : TObject);
 begin
-  {$IFNDEF DARWIN}
-    {$INFO subprocess is set here, uncomment to use a subprocess}
-    //CefBrowserSubprocessPath := '.' + PathDelim + 'subprocess'{$IFDEF WINDOWS}+'.exe'{$ENDIF};
-  {$ENDIF}
-
   fTextureWidth := 0;
   fTextureHeigth := 0;
 
@@ -416,9 +411,9 @@ begin
 end;
 
 Initialization
-  {$IFDEF DARWIN}
-    CefBrowserSubprocessPath := ExtractFileDir(ExtractFileDir(ExpandFileName(Paramstr(0)))) +
-      PathDelim + 'Frameworks/subprocess.app/Contents/MacOS/subprocess';
+  {$IFNDEF DARWIN}
+    {$INFO subprocess is set here, uncomment to use a subprocess}
+    //CefBrowserSubprocessPath := '.' + PathDelim + 'subprocess'{$IFDEF WINDOWS}+'.exe'{$ENDIF};
   {$ENDIF}
 
 end.

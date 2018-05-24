@@ -49,7 +49,7 @@ Unit cef3lcl;
 
 Interface
 Uses
-  Classes, SysUtils, LCLProc, Forms, Controls, LCLType, LCLIntf, LResources, InterfaceBase,
+  Classes, SysUtils, LCLProc, Forms, Controls, LCLType, LCLIntf, LResources,
   Graphics, LMessages,
   {$IFDEF WINDOWS}
   Windows,
@@ -58,10 +58,10 @@ Uses
   Gtk2Def, gdk2x, gtk2, Gtk2Int,  Gtk2Proc, Gtk2Extra,
   {$ENDIF}
   {$IFDEF LCLQT}
-  qt4, qtwidgets,
+  InterfaceBase, qt4, qtwidgets,
   {$ENDIF}
   {$IFDEF LCLCOCOA}
-  CocoaInt, cef3cocoa,
+  cef3cocoa,
   {$ENDIF}
   cef3types, cef3lib, cef3intf, cef3gui, cef3context;
 
@@ -71,8 +71,6 @@ Type
 
   TCustomChromium = class(TWinControl, IChromiumEvents)
     private
-      fParentForm: TCustomForm;
-
       fHandler: ICefClient;
       fBrowser: ICefBrowser;
       fBrowserId: Integer;
@@ -182,7 +180,6 @@ Type
       {$IFDEF LINUX}
         procedure DoExit; override;
         procedure DoEnter; override;
-        procedure SetVisible(Value: Boolean); override;
       {$ENDIF}
 
       procedure Resize; override;
@@ -531,7 +528,7 @@ Uses ExtCtrls;
 Var
   CefInstances : Integer = 0;
   Timer        : TTimer;
-  Looping : Boolean = False;
+  Looping      : Boolean = False;
 {$ENDIF}
 
 Type
@@ -543,7 +540,7 @@ Type
     class procedure OnTimer(Sender : TObject);
   public
     constructor Create(const crm: IChromiumEvents); override;
-    destructor Destroy; override;
+    procedure Disconnect;
     procedure StartTimer;
   end;
 
@@ -593,10 +590,12 @@ begin
   {$ENDIF}
 end;
 
-destructor TLCLClientHandler.Destroy;
+procedure TLCLClientHandler.Disconnect;
 begin
+  inherited;
+
   {$IFDEF DEBUG}
-  Debugln('LCLClientHandler.Destroy');
+  Debugln('TLCLClientHandler.Disconnect');
   {$ENDIF}
 
   {$IFNDEF CEF_MULTI_THREADED_MESSAGE_LOOP}
@@ -613,8 +612,6 @@ begin
     {$ENDIF}
   end;
   {$ENDIF}
-
-  inherited;
 end;
 
 procedure TLCLClientHandler.StartTimer;
@@ -670,50 +667,35 @@ procedure TCustomChromium.CreateBrowser;
 Var
   info: TCefWindowInfo;
   settings: TCefBrowserSettings;
-
-{$IF DEFINED(WINDOWS) OR DEFINED(DARWIN)}
-  rect : TRect;
-{$ENDIF}
+  rect: TRect;
 begin
   If not (csDesigning in ComponentState) then
   begin
     FillChar(info, SizeOf(info), 0);
 
-    {$IFDEF WINDOWS}
-      rect := GetClientRect;
+    rect := GetClientRect;
 
+    {$IFDEF WINDOWS}
       info.style := WS_CHILD or WS_VISIBLE or WS_CLIPCHILDREN or WS_CLIPSIBLINGS or WS_TABSTOP;
       info.parent_window := Handle;
-      info.x := rect.Left;
-      info.y := rect.Top;
-      info.width := rect.Right - rect.Left;
-      info.height := rect.Bottom - rect.Top;
     {$ENDIF}
     {$IFDEF LINUX}
-      fParentForm := GetParentForm(Self);
-
       {$IFDEF LCLGTK2}
-        gtk_widget_realize(PGtkWidget(fParentForm.Handle));
-        info.parent_window := gdk_window_xwindow(PGtkWidget(fParentForm.Handle)^.window);
+        info.parent_window := gdk_window_xwindow(PGtkWidget(Parent.Handle)^.window);
       {$ENDIF}
       {$IFDEF LCLQT}
-        info.parent_window := QWidget_winId(TQtWidget(fParentForm.Handle).Widget);
+        info.parent_window := QWidget_winId(TQtWidget(Parent.Handle).GetContainerWidget);
+        WidgetSet.AppProcessMessages;
       {$ENDIF}
-
-      info.x := Left;
-      info.y := Top;
-      info.width := Width;
-      info.height := Height;
     {$ENDIF}
     {$IFDEF LCLCOCOA}
-      rect := GetClientRect;
-
       info.parent_view := TCefWindowHandle(Handle);
-      info.x := rect.Left;
-      info.y := rect.Top;
-      info.width := rect.Right - rect.Left;
-      info.height := rect.Bottom - rect.Top;
     {$ENDIF}
+
+    info.x := rect.Left;
+    info.y := rect.Top;
+    info.width := rect.Right - rect.Left;
+    info.height := rect.Bottom - rect.Top;
 
     FillChar(settings, SizeOf(TCefBrowserSettings), 0);
     settings.size := SizeOf(TCefBrowserSettings);
@@ -805,13 +787,6 @@ begin
 
   inherited;
 end;
-
-procedure TCustomChromium.SetVisible(Value: Boolean);
-begin
-  inherited SetVisible(Value);
-
-  If (not (csDesigning in ComponentState)) and Assigned(fBrowser) then CefXSetVisibility(fBrowser, Value);
-end;
 {$ENDIF}
 
 procedure TCustomChromium.Resize;
@@ -819,10 +794,6 @@ procedure TCustomChromium.Resize;
 Var
   Hand: THandle;
   Rect: TRect;
-{$ENDIF}
-{$IFDEF LINUX}
-Var
-  Offset: TPoint;
 {$ENDIF}
 begin
   inherited Resize;
@@ -843,9 +814,7 @@ begin
       end;
     {$ENDIF}
     {$IFDEF LINUX}
-      Offset := ClientToParent(Point(0, 0), fParentForm);
-
-      CefXWindowResize(fBrowser, Offset.Y, Offset.X, Width, Height);
+      CefXWindowResize(fBrowser, Top, Left, Width, Height);
     {$ENDIF}
   end;
 end;
@@ -884,6 +853,10 @@ end;
 
 destructor TCustomChromium.Destroy;
 begin
+  {$IFDEF DEBUG}
+  Debugln('TCustomChromium.Destroy');
+  {$ENDIF}
+
   FreeAndNil(fCanvas);
 
   If fBrowser <> nil then
@@ -895,7 +868,7 @@ begin
 
   If fHandler <> nil then
   begin
-    (fHandler as ICefClientHandler).Disconnect;
+    (fHandler as TLCLClientHandler).Disconnect;
     fHandler := nil;
   end;
 
@@ -1055,10 +1028,13 @@ end;
 
 procedure TCustomChromium.doOnGotFocus(const Browser: ICefBrowser);
 begin
-  // Make Chromium the active control
-  GetParentForm(Self).ActiveControl := Self;
+  If CanSetFocus then
+  begin
+    // Make Chromium the active control
+    GetParentForm(Self).ActiveControl := Self;
 
-  If Assigned(fOnGotFocus) then fOnGotFocus(Self, Browser)
+    If Assigned(fOnGotFocus) then fOnGotFocus(Self, Browser)
+  end;
 end;
 
 function TCustomChromium.doOnRequestGeolocationPermission(const browser: ICefBrowser;
