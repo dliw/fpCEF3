@@ -680,7 +680,9 @@ begin
       info.parent_window := Handle;
     {$ENDIF}
     {$IFDEF LINUX}
+      Parent := GetParentForm(Self); 
       {$IFDEF LCLGTK2}
+        gtk_widget_realize(PGtkWidget(Parent.Handle));
         info.parent_window := gdk_window_xwindow(PGtkWidget(Parent.Handle)^.window);
       {$ENDIF}
       {$IFDEF LCLQT}
