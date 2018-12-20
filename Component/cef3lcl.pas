@@ -55,7 +55,7 @@ Uses
   Windows,
   {$ENDIF}
   {$IFDEF LCLGTK2}
-  Gtk2Def, gdk2x, gtk2, Gtk2Int,  Gtk2Proc, Gtk2Extra,
+  gtk2, gdk2x,
   {$ENDIF}
   {$IFDEF LCLQT}
   InterfaceBase, qt4, qtwidgets,
@@ -98,6 +98,8 @@ Type
       fOnTooltip: TOnTooltip;
       fOnStatusMessage: TOnStatusMessage;
       fOnConsoleMessage: TOnConsoleMessage;
+      fOnAutoResize: TOnAutoResize;
+      fOnLoadingProgressChange: TOnLoadingProgressChange;
 
       { DownloadHandler }
       fOnBeforeDownload: TOnBeforeDownload;
@@ -114,10 +116,6 @@ Type
       fOnTakeFocus: TOnTakeFocus;
       fOnSetFocus: TOnSetFocus;
       fOnGotFocus: TOnGotFocus;
-
-      { GeolocationHandler }
-      fOnRequestGeolocationPermission: TOnRequestGeolocationPermission;
-      fOnCancelGeolocationPermission: TOnCancelGeolocationPermission;
 
       { JsDialogHandler }
       fOnJsdialog: TOnJsdialog;
@@ -142,6 +140,7 @@ Type
       fOnLoadError: TOnLoadError;
 
       { RequestHandler }
+      fOnGetAccessibilityHandler: TOnGetAccessibilityHandler;
       fOnBeforeBrowse: TOnBeforeBrowse;
       fOnOpenUrlFromTab: TOnOpenUrlFromTab;
       fOnBeforeResourceLoad: TOnBeforeResourceLoad;
@@ -151,6 +150,8 @@ Type
       fOnGetResourceResponseFilter: TOnGetResourceResponseFilter;
       fOnResourceLoadComplete: TOnResourceLoadComplete;
       fOnGetAuthCredentials: TOnGetAuthCredentials;
+      fOnCanGetCookies: TOnCanGetCookies;
+      fOnCanSetCookie: TOnCanSetCookie;
       fOnQuotaRequest: TOnQuotaRequest;
       fOnProtocolExecution: TOnProtocolExecution;
       fOnCertificateError: TOnCertificateError;
@@ -211,7 +212,10 @@ Type
       procedure doOnFullscreenModeChange(const browser: ICefBrowser; fullscreen: Boolean); virtual;
       function doOnTooltip(const Browser: ICefBrowser; var atext: ustring): Boolean; virtual;
       procedure doOnStatusMessage(const Browser: ICefBrowser; const value: ustring); virtual;
-      function doOnConsoleMessage(const Browser: ICefBrowser; const Message, Source: ustring; line: Integer): Boolean; virtual;
+      function doOnConsoleMessage(const Browser: ICefBrowser; Level: TCefLogSeverity;
+        const Message, Source: ustring; line: Integer): Boolean; virtual;
+      function doOnAutoResize(const Browser: ICefBrowser; const newSize: TCefSize): Boolean; virtual;
+      procedure doOnLoadingProgressChange(const Browser: ICefBrowser; progress: Double); virtual;
 
       { DownloadHandler }
       procedure doOnBeforeDownload(const Browser: ICefBrowser; const downloadItem: ICefDownloadItem;
@@ -230,11 +234,6 @@ Type
       procedure doOnTakeFocus(const Browser: ICefBrowser; next_: Boolean); virtual;
       function doOnSetFocus(const Browser: ICefBrowser; Source: TCefFocusSource): Boolean; virtual;
       procedure doOnGotFocus(const Browser: ICefBrowser); virtual;
-
-      { GeolocationHandler }
-      function doOnRequestGeolocationPermission(const browser: ICefBrowser; const requestingUrl: ustring;
-        requestId: Integer; const callback: ICefGeolocationCallback): Boolean; virtual;
-      procedure doOnCancelGeolocationPermission(const Browser: ICefBrowser; requestId: Integer); virtual;
 
       { JsDialogHandler }
       function doOnJsdialog(const Browser: ICefBrowser; const originUrl: ustring;
@@ -269,6 +268,7 @@ Type
         const errorText, failedUrl: ustring); virtual;
 
       { RenderHandler }
+      function doOnGetAccessibilityHandler: ICefAccessibilityHandler; virtual;
       function doOnGetRootScreenRect(const Browser: ICefBrowser; rect: PCefRect): Boolean; virtual;
       function doOnGetViewRect(const Browser: ICefBrowser; rect: PCefRect): Boolean; virtual;
       function doOnGetScreenPoint(const Browser: ICefBrowser; viewX, viewY: Integer;
@@ -287,6 +287,8 @@ Type
       procedure doOnScrollOffsetChanged(const browser: ICefBrowser; x,y: Double); virtual;
       procedure doOnImeCompositionRangeChanged(const browser: ICefBrowser; const selectedRange: TCefRange;
         characterBoundsCount: TSize; characterBounds: TCefRectArray); virtual;
+      procedure doOnTextSelectionChanged(const browser: ICefBrowser; const selectedText: ustring;
+        const selectedRange: TCefRange); virtual;
 
       { RequestHandler }
       function doOnBeforeBrowse(const browser: ICefBrowser; const frame: ICefFrame;
@@ -311,6 +313,10 @@ Type
       function doOnGetAuthCredentials(const Browser: ICefBrowser; const Frame: ICefFrame;
         isProxy: Boolean; const host: ustring; port: Integer; const realm, scheme: ustring;
         const callback: ICefAuthCallback): Boolean; virtual;
+      function doOnCanGetCookies(const browser: ICefBrowser; const frame: ICefFrame;
+        const request: ICefRequest): Boolean; virtual;
+      function doOnCanSetCookie(const browser: ICefBrowser; const frame: ICefFrame;
+        const request: ICefRequest; const cookie: TCefCookie): Boolean; virtual;
       function doOnQuotaRequest(const Browser: ICefBrowser; const originUrl: ustring;
         newSize: Int64; const callback: ICefRequestCallback): Boolean; virtual;
       procedure doOnProtocolExecution(const Browser: ICefBrowser;
@@ -344,6 +350,8 @@ Type
       property OnTooltip: TOnTooltip read fOnTooltip write fOnTooltip;
       property OnStatusMessage: TOnStatusMessage read fOnStatusMessage write fOnStatusMessage;
       property OnConsoleMessage: TOnConsoleMessage read fOnConsoleMessage write fOnConsoleMessage;
+      property OnAutoResize: TOnAutoResize read fOnAutoResize write fOnAutoResize;
+      property OnLoadingProgressChange: TOnLoadingProgressChange read fOnLoadingProgressChange write fOnLoadingProgressChange;
 
       { DownloadHandler }
       property OnBeforeDownload: TOnBeforeDownload read fOnBeforeDownload write fOnBeforeDownload;
@@ -360,10 +368,6 @@ Type
       property OnTakeFocus: TOnTakeFocus read fOnTakeFocus write fOnTakeFocus;
       property OnSetFocus: TOnSetFocus read fOnSetFocus write fOnSetFocus;
       property OnGotFocus: TOnGotFocus read fOnGotFocus write fOnGotFocus;
-
-      { GeolocationHandler }
-      property OnRequestGeolocationPermission: TOnRequestGeolocationPermission read fOnRequestGeolocationPermission write fOnRequestGeolocationPermission;
-      property OnCancelGeolocationPermission: TOnCancelGeolocationPermission read fOnCancelGeolocationPermission write fOnCancelGeolocationPermission;
 
       { JsDialogHandler }
       property OnJsdialog: TOnJsdialog read fOnJsdialog write fOnJsdialog;
@@ -456,6 +460,8 @@ Type
       property OnTooltip;
       property OnStatusMessage;
       property OnConsoleMessage;
+      property OnAutoResize;
+      property OnLoadingProgressChange;
 
       property OnBeforeDownload;
       property OnDownloadUpdated;
@@ -468,9 +474,6 @@ Type
       property OnTakeFocus;
       property OnSetFocus;
       property OnGotFocus;
-
-      property OnRequestGeolocationPermission;
-      property OnCancelGeolocationPermission;
 
       property OnJsdialog;
       property OnBeforeUnloadDialog;
@@ -641,7 +644,6 @@ begin
 
   settings.remote_fonts := fOptions.RemoteFonts;
   settings.javascript := fOptions.Javascript;
-  settings.javascript_open_windows := fOptions.JavascriptOpenWindows;
   settings.javascript_close_windows := fOptions.JavascriptCloseWindows;
   settings.javascript_access_clipboard := fOptions.JavascriptAccessClipboard;
   settings.javascript_dom_paste := fOptions.JavascriptDomPaste;
@@ -681,7 +683,8 @@ begin
     {$ENDIF}
     {$IFDEF LINUX}
       {$IFDEF LCLGTK2}
-        info.parent_window := gdk_window_xwindow(PGtkWidget(Parent.Handle)^.window);
+        gtk_widget_realize(PGtkWidget(Parent.Handle));
+        info.parent_window := GDK_WINDOW_XID(PGtkWidget(Parent.Handle)^.window);
       {$ENDIF}
       {$IFDEF LCLQT}
         info.parent_window := QWidget_winId(TQtWidget(Parent.Handle).GetContainerWidget);
@@ -972,12 +975,24 @@ begin
   If Assigned(fOnStatusMessage) then fOnStatusMessage(Self, Browser, value);
 end;
 
-function TCustomChromium.doOnConsoleMessage(const Browser: ICefBrowser;
+function TCustomChromium.doOnConsoleMessage(const Browser: ICefBrowser; Level: TCefLogSeverity;
   const Message, Source: ustring; line: Integer): Boolean;
 begin
   If Assigned(fOnConsoleMessage) then
-    fOnConsoleMessage(Self, Browser, Message, Source, line, Result)
+    fOnConsoleMessage(Self, Browser, Level, Message, Source, line, Result)
   Else Result := False;
+end;
+
+function TCustomChromium.doOnAutoResize(const Browser: ICefBrowser;
+  const newSize: TCefSize): Boolean;
+begin
+  If Assigned(fOnAutoResize) then fOnAutoResize(Self, Browser, newSize, Result)
+  Else Result := False;
+end;
+
+procedure TCustomChromium.doOnLoadingProgressChange(const Browser: ICefBrowser; progress: Double);
+begin
+  If Assigned(fOnLoadingProgressChange) then fOnLoadingProgressChange(Self, Browser, progress);
 end;
 
 procedure TCustomChromium.doOnBeforeDownload(const Browser: ICefBrowser;
@@ -1034,23 +1049,7 @@ begin
     GetParentForm(Self).ActiveControl := Self;
 
     If Assigned(fOnGotFocus) then fOnGotFocus(Self, Browser)
-  end;
-end;
-
-function TCustomChromium.doOnRequestGeolocationPermission(const browser: ICefBrowser;
-  const requestingUrl: ustring; requestId: Integer;
-  const callback: ICefGeolocationCallback): Boolean;
-begin
-  If Assigned(fOnRequestGeolocationPermission) then
-    fOnRequestGeolocationPermission(Self, Browser, requestingUrl, requestId, callback, Result)
-  Else Result := False;
-end;
-
-procedure TCustomChromium.doOnCancelGeolocationPermission(
-  const Browser: ICefBrowser; requestId: Integer);
-begin
-  If Assigned(fOnCancelGeolocationPermission) then
-    fOnCancelGeolocationPermission(Self, Browser, requestId);
+ end;
 end;
 
 function TCustomChromium.doOnJsdialog(const Browser: ICefBrowser;
@@ -1141,7 +1140,7 @@ begin
 end;
 
 procedure TCustomChromium.doOnLoadEnd(const Browser: ICefBrowser; const Frame: ICefFrame;
-    httpStatusCode: Integer);
+  httpStatusCode: Integer);
 begin
   If Assigned(fOnLoadEnd) then fOnLoadEnd(Self, Browser, Frame, httpStatusCode);
 end;
@@ -1150,6 +1149,12 @@ procedure TCustomChromium.doOnLoadError(const Browser: ICefBrowser; const Frame:
   errorCode: TCefErrorCode; const errorText, failedUrl: ustring);
 begin
   If Assigned(fOnLoadError) then fOnLoadError(Self, Browser, Frame, errorCode, errorText, failedUrl);
+end;
+
+function TCustomChromium.doOnGetAccessibilityHandler: ICefAccessibilityHandler;
+begin
+  Result := nil;
+  If Assigned(fOnGetAccessibilityHandler) then Result := fOnGetAccessibilityHandler(Self);
 end;
 
 function TCustomChromium.doOnGetRootScreenRect(const Browser: ICefBrowser; rect: PCefRect): Boolean;
@@ -1215,6 +1220,12 @@ end;
 
 procedure TCustomChromium.doOnImeCompositionRangeChanged(const browser: ICefBrowser;
   const selectedRange: TCefRange; characterBoundsCount: TSize; characterBounds: TCefRectArray);
+begin
+  { empty }
+end;
+
+procedure TCustomChromium.doOnTextSelectionChanged(const browser: ICefBrowser;
+  const selectedText: ustring; const selectedRange: TCefRange);
 begin
   { empty }
 end;
@@ -1291,6 +1302,20 @@ begin
   If Assigned(fOnGetAuthCredentials) then
     fOnGetAuthCredentials(Self, Browser, Frame, isProxy, host, port, realm, scheme, callback, Result)
   Else Result := False;
+end;
+
+function TCustomChromium.doOnCanGetCookies(const browser: ICefBrowser; const frame: ICefFrame;
+  const request: ICefRequest): Boolean;
+begin
+  If Assigned(fOnCanGetCookies) then fOnCanGetCookies(Self, browser, frame, request, Result)
+  Else Result := True;
+end;
+
+function TCustomChromium.doOnCanSetCookie(const browser: ICefBrowser; const frame: ICefFrame;
+  const request: ICefRequest; const cookie: TCefCookie): Boolean;
+begin
+  If Assigned(fOnCanSetCookie) then fOnCanSetCookie(Self, browser, frame, request, cookie, Result)
+  Else Result := True;
 end;
 
 function TCustomChromium.doOnQuotaRequest(const Browser: ICefBrowser; const originUrl: ustring;

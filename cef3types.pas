@@ -217,13 +217,9 @@ Type
       // monitor will be used and some functionality that requires a parent window
       // may not function correctly. In order to create windowless browsers the
       // CefSettings.windowless_rendering_enabled value must be set to true.
+      // Transparent painting is enabled by default but can be disabled by setting
+      // CefBrowserSettings.background_color to an opaque value.
       windowless_rendering_enabled: Integer;
-
-      // Set to true (1) to enable transparent painting in combination with
-      // windowless rendering. When this value is true a transparent background
-      // color will be used (RGBA=0x00000000). When this value is false the
-      // background will be white and opaque.
-      transparent_painting_enabled: Integer;
 
       // Handle for the new browser window. Only used with windowed rendering.
       window: TCefWindowHandle;
@@ -245,13 +241,9 @@ Type
       // monitor will be used and some functionality that requires a parent window
       // may not function correctly. In order to create windowless browsers the
       // CefSettings.windowless_rendering_enabled value must be set to true.
+      // Transparent painting is enabled by default but can be disabled by setting
+      // CefBrowserSettings.background_color to an opaque value.
       windowless_rendering_enabled: Integer;
-
-      // Set to true (1) to enable transparent painting in combination with
-      // windowless rendering. When this value is true a transparent background
-      // color will be used (RGBA=0x00000000). When this value is false the
-      // background will be white and opaque.
-      transparent_painting_enabled: Integer;
 
       // Pointer for the new browser window. Only used with windowed rendering.
       window: TCefWindowHandle;
@@ -274,13 +266,9 @@ Type
       // monitor will be used and some functionality that requires a parent view
       // may not function correctly. In order to create windowless browsers the
       // CefSettings.windowless_rendering_enabled value must be set to true.
+      // Transparent painting is enabled by default but can be disabled by setting
+      // CefBrowserSettings.background_color to an opaque value.
       windowless_rendering_enabled: Integer;
-
-      // Set to true (1) to enable transparent painting in combination with
-      // windowless rendering. When this value is true a transparent background
-      // color will be used (RGBA=0x00000000). When this value is false the
-      // background will be white and opaque.
-      transparent_painting_enabled: Integer;
 
       // NSView pointer for the new browser view. Only used with windowed rendering.
       view: TCefWindowHandle;
@@ -329,7 +317,6 @@ function CefColorGetB(color: TCefColor): Byte;
 function CefColorSetARGB(a, r, g, b: Byte): TCefColor;
 
 Type
-
   // Log severity levels.
   TCefLogSeverity = (
     // Default logging (currently INFO logging).
@@ -351,6 +338,11 @@ Type
     LOGSEVERITY_DISABLE = 99
   );
 
+Const
+  // DEBUG logging.
+  LOGSEVERITY_DEBUG = LOGSEVERITY_VERBOSE;
+
+Type
   // Represents the state of a setting.
   TCefState = (
     // Use the default state for the setting.
@@ -370,12 +362,6 @@ Type
   TCefSettings = record
     // Size of this structure.
     size: csize_t;
-
-    // Set to true (1) to use a single process for the browser and renderer. This
-    // run mode is not officially supported by Chromium and is less stable than
-    // the multi-process default. Also configurable using the "single-process"
-    // command-line switch.
-    single_process: Integer;
 
     // Set to true (1) to disable the sandbox for sub-processes. See
     // cef_sandbox_win.h for requirements to enable the sandbox on Windows. Also
@@ -400,7 +386,7 @@ Type
     // Set to true (1) to have the browser process message loop run in a separate
     // thread. If false (0) than the CefDoMessageLoopWork() function must be
     // called from your application message loop. This option is only supported on
-    // Windows.
+    // Windows and Linux.
     multi_threaded_message_loop: Integer;
 
     // Set to true (1) to control browser process main (UI) thread message pump
@@ -528,26 +514,6 @@ Type
     // "uncaught-exception-stack-size" command-line switch.
     uncaught_exception_stack_size: Integer;
 
-    // By default CEF V8 references will be invalidated (the IsValid() method will
-    // return false) after the owning context has been released. This reduces the
-    // need for external record keeping and avoids crashes due to the use of V8
-    // references after the associated context has been released.
-    //
-    // CEF currently offers two context safety implementations with different
-    // performance characteristics. The default implementation (value of 0) uses a
-    // map of hash values and should provide better performance in situations with
-    // a small number contexts. The alternate implementation (value of 1) uses a
-    // hidden value attached to each context and should provide better performance
-    // in situations with a large number of contexts.
-    //
-    // If you need better performance in the creation of V8 references and you
-    // plan to manually track context lifespan you can disable context safety by
-    // specifying a value of -1.
-    //
-    // Also configurable using the "context-safety-implementation" command-line
-    // switch.
-    context_safety_implementation: Integer;
-
     // Set to true (1) to ignore errors related to invalid SSL certificates.
     // Enabling this setting can lead to potential security vulnerabilities like
     // "man in the middle" attacks. Applications that load content from the
@@ -568,10 +534,14 @@ Type
     // CefRequestContextSettings.enable_net_security_expiration value.
     enable_net_security_expiration: Integer;
 
-    // Opaque background color used for accelerated content. By default the
-    // background color will be white. Only the RGB compontents of the specified
-    // value will be used. The alpha component must greater than 0 to enable use
-    // of the background color but will be otherwise ignored.
+    // Background color used for the browser before a document is loaded and when
+    // no document color is specified. The alpha component must be either fully
+    // opaque (0xFF) or fully transparent (0x00). If the alpha component is fully
+    // opaque then the RGB components will be used as the background color. If the
+    // alpha component is fully transparent for a windowed browser then the
+    // default value of opaque white be used. If the alpha component is fully
+    // transparent for a windowless (off-screen) browser then transparent painting
+    // will be enabled.
     background_color: TCefColor;
 
     // Comma delimited ordered list of language codes without any whitespace that
@@ -681,11 +651,6 @@ Type
     // "disable-javascript" command-line switch.
     javascript: TCefState;
 
-    // Controls whether JavaScript can be used for opening windows. Also
-    // configurable using the "disable-javascript-open-windows" command-line
-    // switch.
-    javascript_open_windows: TCefState;
-
     // Controls whether JavaScript can be used to close windows that were not
     // opened via JavaScript. JavaScript can still be used to close windows that
     // were opened via JavaScript or that have no back/forward history. Also
@@ -756,11 +721,14 @@ Type
     // configurable using the "disable-webgl" command-line switch.
     webgl: TCefState;
 
-    // Opaque background color used for the browser before a document is loaded
-    // and when no document color is specified. By default the background color
-    // will be the same as CefSettings.background_color. Only the RGB compontents
-    // of the specified value will be used. The alpha component must greater than
-    // 0 to enable use of the background color but will be otherwise ignored.
+    // Background color used for the browser before a document is loaded and when
+    // no document color is specified. The alpha component must be either fully
+    // opaque (0xFF) or fully transparent (0x00). If the alpha component is fully
+    // opaque then the RGB components will be used as the background color. If the
+    // alpha component is fully transparent for a windowed browser then the
+    // CefSettings.background_color value will be used. If the alpha component is
+    // fully transparent for a windowless (off-screen) browser then transparent
+    // painting will be enabled.
     background_color: TCefColor;
 
     // Comma delimited ordered list of language codes without any whitespace that
@@ -862,7 +830,10 @@ Type
     TS_PROCESS_WAS_KILLED,
 
     // Segmentation fault.
-    TS_PROCESS_CRASHED
+    TS_PROCESS_CRASHED,
+
+    // Out of memory. Some platforms may use TS_PROCESS_CRASHED instead.
+    TS_PROCESS_OOM
   );
 
   // Path key values.
@@ -892,7 +863,11 @@ Type
 
     // "Application Data" directory under the user profile directory on Windows
     // and "~/Library/Application Support" directory on Mac OS X.
-    PK_USER_DATA
+    PK_USER_DATA,
+
+    // Directory containing application resources. Can be configured via
+    // CefSettings.resources_dir_path.
+    PK_DIR_RESOURCES
   );
 
   // Storage types.
@@ -1194,23 +1169,36 @@ Type
 
   // Flags used to customize the behavior of CefURLRequest.
   TCefUrlRequestFlag = (
-    // If set the cache will be skipped when handling the request.
+    // If set the cache will be skipped when handling the request. Setting this
+    // value is equivalent to specifying the "Cache-Control: no-cache" request
+    // header. Setting this value in combination with UR_FLAG_ONLY_FROM_CACHE will
+    // cause the request to fail.
     UR_FLAG_SKIP_CACHE               = 0, //= 1 shl 0
+
+    // If set the request will fail if it cannot be served from the cache (or some
+    // equivalent local store). Setting this value is equivalent to specifying the
+    // "Cache-Control: only-if-cached" request header. Setting this value in
+    // combination with UR_FLAG_SKIP_CACHE will cause the request to fail.
+    UR_FLAG_ONLY_FROM_CACHE          = 1, //= 1 shl 1
 
     // If set user name, password, and cookies may be sent with the request, and
     // cookies may be saved from the response.
-    UR_FLAG_ALLOW_CACHED_CREDENTIALS = 1, //= 1 shl 1
+    UR_FLAG_ALLOW_CACHED_CREDENTIALS = 2, //= 1 shl 2
 
     // If set upload progress events will be generated when a request has a body.
     UR_FLAG_REPORT_UPLOAD_PROGRESS   = 3, //= 1 shl 3
 
     // If set the CefURLRequestClient::OnDownloadData method will not be called.
-    UR_FLAG_NO_DOWNLOAD_DATA         = 6, //= 1 shl 6
+    UR_FLAG_NO_DOWNLOAD_DATA         = 4, //= 1 shl 4
 
     // If set 5XX redirect errors will be propagated to the observer instead of
     // automatically re-tried. This currently only applies for requests
     // originated in the browser process.
-    UR_FLAG_NO_RETRY_ON_5XX          = 7 //= 1 shl 7
+    UR_FLAG_NO_RETRY_ON_5XX          = 5, //= 1 shl 5
+
+    // If set 3XX responses will cause the fetch to halt immediately rather than
+    // continue through the redirect.
+    UR_FLAG_STOP_ON_REDIRECT         = 6  //= 1 shl 6
   );
   TCefUrlRequestFlags = set of TCefUrlRequestFlag;
 
@@ -1307,34 +1295,61 @@ Type
     // BROWSER PROCESS THREADS -- Only available in the browser process.
     // The main thread in the browser. This will be the same as the main
     // application thread if CefInitialize() is called with a
-    // CefSettings.multi_threaded_message_loop value of false.
+    // CefSettings.multi_threaded_message_loop value of false. Do not perform
+    // blocking tasks on this thread. All tasks posted after
+    // CefBrowserProcessHandler::OnContextInitialized() and before CefShutdown()
+    // are guaranteed to run. This thread will outlive all other CEF threads.
     TID_UI,
 
-    // Used to interact with the database.
-    TID_DB,
+    // Used for blocking tasks (e.g. file system access) where the user won't
+    // notice if the task takes an arbitrarily long time to complete. All tasks
+    // posted after CefBrowserProcessHandler::OnContextInitialized() and before
+    // CefShutdown() are guaranteed to run.
+    TID_FILE_BACKGROUND,
 
-    // Used to interact with the file system.
-    TID_FILE,
+    // Used for blocking tasks (e.g. file system access) that affect UI or
+    // responsiveness of future user interactions. Do not use if an immediate
+    // response to a user interaction is expected. All tasks posted after
+    // CefBrowserProcessHandler::OnContextInitialized() and before CefShutdown()
+    // are guaranteed to run.
+    // Examples:
+    // - Updating the UI to reflect progress on a long task.
+    // - Loading data that might be shown in the UI after a future user
+    //   interaction.
+    TID_FILE_USER_VISIBLE,
 
     // Used for file system operations that block user interactions.
     // Responsiveness of this thread affects users.
+    // Used for blocking tasks (e.g. file system access) that affect UI
+    // immediately after a user interaction. All tasks posted after
+    // CefBrowserProcessHandler::OnContextInitialized() and before CefShutdown()
+    // are guaranteed to run.
+    // Example: Generating data shown in the UI immediately after a click.
     TID_FILE_USER_BLOCKING,
 
     // Used to launch and terminate browser processes.
     TID_PROCESS_LAUNCHER,
 
-    // Used to handle slow HTTP cache operations.
-    TID_CACHE,
-
-    // Used to process IPC and network messages.
+    // Used to process IPC and network messages. Do not perform blocking tasks on
+    // this thread. All tasks posted after
+    // CefBrowserProcessHandler::OnContextInitialized() and before CefShutdown()
+    // are guaranteed to run.
     TID_IO,
 
     // RENDER PROCESS THREADS -- Only available in the render process.
 
     // The main thread in the renderer. Used for all WebKit and V8 interaction.
+    // Tasks may be posted to this thread after
+    // CefRenderProcessHandler::OnRenderThreadCreated but are not guaranteed to
+    // run before sub-process termination (sub-processes may be killed at any time
+    // without warning).
     TID_RENDERER
   );
 
+Const
+  TID_FILE = TID_FILE_BACKGROUND;
+
+Type
   // Thread priority values listed in increasing order of importance.
   TCefThreadPriority = (
     // Suitable for threads that shouldn't disrupt high priority work.
@@ -1751,12 +1766,7 @@ Type
     menuBarVisible: Integer;
     statusBarVisible: Integer;
     toolBarVisible: Integer;
-    locationBarVisible: Integer;
     scrollbarsVisible: Integer;
-    resizable: Integer;
-
-    fullscreen: Integer;
-    dialog: Integer;
   end;
 
   // DOM document types.
@@ -1841,51 +1851,6 @@ Type
     // Do not display read-only files.
     FILE_DIALOG_HIDEREADONLY_FLAG = $02000000
   );
-
-  // Geoposition error codes.
-  TCefGeopositionErrorCode = (
-    GEOPOSITON_ERROR_NONE = 0,
-    GEOPOSITON_ERROR_PERMISSION_DENIED,
-    GEOPOSITON_ERROR_POSITION_UNAVAILABLE,
-    GEOPOSITON_ERROR_TIMEOUT
-  );
-
-  // Structure representing geoposition information. The properties of this
-  // structure correspond to those of the JavaScript Position object although
-  // their types may differ.
-  PCefGeoposition = ^TCefGeoposition;
-  TCefGeoposition = record
-    // Latitude in decimal degrees north (WGS84 coordinate frame).
-    latitude: Double;
-
-    // Longitude in decimal degrees west (WGS84 coordinate frame).
-    longitude: Double;
-
-    // Altitude in meters (above WGS84 datum).
-    altitude: Double;
-
-    // Accuracy of horizontal position in meters.
-    accuracy: Double;
-
-    // Accuracy of altitude in meters.
-    altitude_accuracy: Double;
-
-    // Heading in decimal degrees clockwise from true north.
-    heading: Double;
-
-    // Horizontal component of device velocity in meters per second.
-    speed: Double;
-
-    // Time of position measurement in milliseconds since Epoch in UTC time. This
-    // is taken from the host computer's system clock.
-    timestamp: TCefTime;
-
-    // Error code, see enum above.
-    error_code: TCefGeopositionErrorCode;
-
-    // Human-readable error message.
-    error_message: TCefString;
-  end;
 
   // Print job color mode values.
   TCefColorModel = (
@@ -2181,30 +2146,48 @@ Type
   // Policy for how the Referrer HTTP header value will be sent during navigation.
   // If the `--no-referrers` command-line flag is specified then the policy value
   // will be ignored and the Referrer value will never be sent.
+  // Must be kept synchronized with net::URLRequest::ReferrerPolicy from Chromium.
   TCefReferrerPolicy = (
-    // Always send the complete Referrer value.
-    REFERRER_POLICY_ALWAYS,
+    // Clear the referrer header if the header value is HTTPS but the request
+    // destination is HTTP. This is the default behavior.
+    REFERRER_POLICY_CLEAR_REFERRER_ON_TRANSITION_FROM_SECURE_TO_INSECURE,
 
-    // Use the default policy. This is REFERRER_POLICY_ORIGIN_WHEN_CROSS_ORIGIN
-    // when the `--reduced-referrer-granularity` command-line flag is specified
-    // and REFERRER_POLICY_NO_REFERRER_WHEN_DOWNGRADE otherwise.
-    REFERRER_POLICY_DEFAULT,
+    // A slight variant on CLEAR_REFERRER_ON_TRANSITION_FROM_SECURE_TO_INSECURE:
+    // If the request destination is HTTP, an HTTPS referrer will be cleared. If
+    // the request's destination is cross-origin with the referrer (but does not
+    // downgrade), the referrer's granularity will be stripped down to an origin
+    // rather than a full URL. Same-origin requests will send the full referrer.
+    REFERRER_POLICY_REDUCE_REFERRER_GRANULARITY_ON_TRANSITION_CROSS_ORIGIN,
 
-    // When navigating from HTTPS to HTTP do not send the Referrer value.
-    // Otherwise, send the complete Referrer value.
-    REFERRER_POLICY_NO_REFERRER_WHEN_DOWNGRADE,
+    // Strip the referrer down to an origin when the origin of the referrer is
+    // different from the destination's origin.
+    REFERRER_POLICY_ORIGIN_ONLY_ON_TRANSITION_CROSS_ORIGIN,
 
-    // Never send the Referrer value.
-    REFERRER_POLICY_NEVER,
+    // Never change the referrer.
+    REFERRER_POLICY_NEVER_CLEAR_REFERRER,
 
-    // Only send the origin component of the Referrer value.
+    // Strip the referrer down to the origin regardless of the redirect location.
     REFERRER_POLICY_ORIGIN,
 
-    // When navigating cross-origin only send the origin component of the Referrer
-    // value. Otherwise, send the complete Referrer value.
-    REFERRER_POLICY_ORIGIN_WHEN_CROSS_ORIGIN
+    // Clear the referrer when the request's referrer is cross-origin with the
+    // request's destination.
+    REFERRER_POLICY_CLEAR_REFERRER_ON_TRANSITION_CROSS_ORIGIN,
+
+    // Strip the referrer down to the origin, but clear it entirely if the
+    // referrer value is HTTPS and the destination is HTTP.
+    REFERRER_POLICY_ORIGIN_CLEAR_ON_TRANSITION_FROM_SECURE_TO_INSECURE,
+
+    // Always clear the referrer regardless of the request destination.
+    REFERRER_POLICY_NO_REFERRER,
+
+    // Always the last value in this enumeration.
+    REFERRER_POLICY_LAST_VALUE
   );
 
+Const
+  REFERRER_POLICY_DEFAULT = REFERRER_POLICY_CLEAR_REFERRER_ON_TRANSITION_FROM_SECURE_TO_INSECURE;
+
+Type
   // Return values for CefResponseFilter::Filter().
   TCefResponseFilterStatus = (
     // Some or all of the pre-filter data was read successfully but more data is

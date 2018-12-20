@@ -90,9 +90,7 @@ function CefCreateTempDirectoryInDirectory(const baseDir, prefix: ustring; out n
 function CefDirectoryExists(const path: ustring): Boolean;
 function CefDeleteFile(const path: ustring; recursive: Boolean): Boolean;
 function CefZipDirectory(const srcDir, destFile: ustring; includeHiddenFiles: Boolean): Boolean;
-
-function CefGetGeolocation(const callback: ICefGetGeolocationCallback): Boolean;
-function CefGetGeolocationProc(const callback: TCefGetGeolocationCallbackProc): Boolean;
+procedure CefLoadCrlsetsFile(const path: ustring);
 
 function CefAddCrossOriginWhitelistEntry(const SourceOrigin, TargetProtocol, TargetDomain: ustring; AllowTargetSubdomains: Boolean): Boolean;
 function CefRemoveCrossOriginWhitelistEntry(const SourceOrigin, TargetProtocol, TargetDomain: ustring; AllowTargetSubdomains: Boolean): Boolean;
@@ -120,6 +118,8 @@ function CefLaunchProcess(commandLine: ICefCommandLine): Boolean;
 function CefRegisterSchemeHandlerFactory(const SchemeName, HostName: ustring;
   const handler: TCefResourceHandlerClass): Boolean;
 function CefClearSchemeHandlerFactories: Boolean;
+
+procedure CefServerCreate(const address: ustring; port: UInt16; backlog: Integer; handler: ICefServerHandler);
 
 function CefIsCertStatusError(status: TCefCertStatus): Boolean;
 function CefIsCertStatusMinorError(status: TCefCertStatus): Boolean;
@@ -181,7 +181,6 @@ function CefApiHash(entry: Integer): String;
 
 
 Var
-  CefSingleProcess: Boolean = False;
   CefNoSandbox: Boolean = True;
   CefBrowserSubprocessPath: ustring = '';
   CefFrameworkDirPath: ustring = '';
@@ -203,7 +202,6 @@ Var
   CefPackLoadingDisabled: Boolean = False;
   CefRemoteDebuggingPort: Integer = 0;
   CefUncaughtExceptionStackSize: Integer = 10;
-  CefContextSafetyImplementation: Integer = 0;
   CefIgnoreCertificateError: Boolean = False;
   CefEnableNetSecurityExpiration: Boolean = False;
   CefBackgroundColor: TFPColor = (red: 255; green: 255; blue: 255; alpha: 0);
@@ -443,7 +441,6 @@ begin
   FillChar(Settings, SizeOf(settings), 0);
 
   Settings.size := SizeOf(Settings);
-  Settings.single_process := Ord(CefSingleProcess);
   Settings.no_sandbox := Ord(CefNoSandbox);
   Settings.browser_subprocess_path := CefString(CefBrowserSubprocessPath);
   Settings.framework_dir_path := CefString(CefFrameworkDirPath);
@@ -471,7 +468,6 @@ begin
   Settings.pack_loading_disabled := Ord(CefPackLoadingDisabled);
   Settings.remote_debugging_port := CefRemoteDebuggingPort;
   Settings.uncaught_exception_stack_size := CefUncaughtExceptionStackSize;
-  Settings.context_safety_implementation := CefContextSafetyImplementation;
   Settings.ignore_certificate_error := Ord(CefIgnoreCertificateError);
   Settings.enable_net_security_expiration := Ord(CefEnableNetSecurityExpiration);
   Settings.background_color := FPColorToCefColor(CefBackgroundColor);
@@ -652,14 +648,12 @@ begin
   Result := cef_zip_directory(@s, @d, Ord(includeHiddenFiles)) <> 0;
 end;
 
-function CefGetGeolocation(const callback: ICefGetGeolocationCallback): Boolean;
+procedure CefLoadCrlsetsFile(const path: ustring);
+Var
+  p: TCefString;
 begin
-  Result := cef_get_geolocation(CefGetData(callback)) <> 0;
-end;
-
-function CefGetGeolocationProc(const callback: TCefGetGeolocationCallbackProc): Boolean;
-begin
-  Result := CefGetGeolocation(TCefFastGetGeolocationCallback.Create(callback));
+  p := CefString(path);
+  cef_load_crlsets_file(@p);
 end;
 
 function CefAddCrossOriginWhitelistEntry(const SourceOrigin, TargetProtocol, TargetDomain: ustring;
@@ -852,18 +846,29 @@ function CefRegisterSchemeHandlerFactory(const SchemeName, HostName: ustring;
   const handler: TCefResourceHandlerClass): Boolean;
 Var
   s, h: TCefString;
+  f: ICefSchemeHandlerFactory;
 begin
   CefInitialize;
   s := CefString(SchemeName);
   h := CefString(HostName);
+  f := TCefSchemeHandlerFactoryOwn.Create(handler);
   Result := cef_register_scheme_handler_factory(
-    @s, @h, CefGetData(TCefSchemeHandlerFactoryOwn.Create(handler) as ICefBaseRefCounted)) <> 0;
+    @s, @h, CefGetData(f)) <> 0;
 end;
 
 function CefClearSchemeHandlerFactories: Boolean;
 begin
   CefInitialize;
   Result := cef_clear_scheme_handler_factories() <> 0;
+end;
+
+procedure CefServerCreate(const address: ustring; port: UInt16; backlog: Integer;
+  handler: ICefServerHandler);
+Var
+  a: TCefString;
+begin
+  a := CefString(address);
+  cef_server_create(@a, port, backlog, CefGetData(handler));
 end;
 
 function CefIsCertStatusError(status: TCefCertStatus): Boolean;

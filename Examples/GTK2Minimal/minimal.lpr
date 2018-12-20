@@ -111,12 +111,10 @@ begin
   XSetIOErrorHandler(@XIOErrorHandler);
 
   Settings.size := SizeOf(Settings);
-  Settings.single_process := Ord(False);
   Settings.no_sandbox := Ord(True);
   Settings.multi_threaded_message_loop := Ord(False);
   Settings.log_severity := LOGSEVERITY_INFO;
   Settings.uncaught_exception_stack_size := 20;
-  Settings.context_safety_implementation := 0;
 
   cef_initialize(@MainArgs, @Settings, nil, nil);
 

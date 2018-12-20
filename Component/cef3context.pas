@@ -31,6 +31,7 @@ Type
 
       fSharedContext: TCustomChromiumContext;
 
+      fOnRequestContextInitialized: TOnRequestContextInitialized;
       fOnGetCookieManager: TOnGetCookieManager;
       fOnBeforePluginLoad: TOnBeforePluginLoad;
 
@@ -42,6 +43,7 @@ Type
     protected
       function NewRequestContext: ICefRequestContext;
 
+      procedure doOnRequestContextInitialized(requestContext: ICefRequestContext);
       function doOnGetCookieManager: ICefCookieManager;
       function doOnBeforePluginLoad(const mimeType, pluginUrl: ustring; isMainFrame: Boolean;
         const topOriginUrl: ustring; pluginInfo: ICefWebPluginInfo;
@@ -49,6 +51,7 @@ Type
 
       property SharedContext: TCustomChromiumContext read fSharedContext write fSharedContext default nil;
 
+      property OnRequestContextInitialized: TOnRequestContextInitialized read fOnRequestContextInitialized write fOnRequestContextInitialized;
       property OnGetCookieManager: TOnGetCookieManager read fOnGetCookieManager write fOnGetCookieManager;
       property OnBeforePluginLoad: TOnBeforePluginLoad read fOnBeforePluginLoad write fOnBeforePluginLoad;
 
@@ -67,6 +70,7 @@ Type
     published
       property SharedContext;
 
+      property OnRequestContextInitialized;
       property OnGetCookieManager;
       property OnBeforePluginLoad;
 
@@ -112,6 +116,11 @@ begin
 
     Result := TCefRequestContextRef.New(settings, fRequestContextHandler);
   end;
+end;
+
+procedure TCustomChromiumContext.doOnRequestContextInitialized(requestContext: ICefRequestContext);
+begin
+  If Assigned(fOnRequestContextInitialized) then fOnRequestContextInitialized(Self, requestContext);
 end;
 
 function TCustomChromiumContext.doOnGetCookieManager: ICefCookieManager;

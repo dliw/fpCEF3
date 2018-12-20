@@ -89,6 +89,9 @@ begin
       begin
         if brows <> nil then
           brows.Host.CloseBrowser(True);
+
+        CefQuitMessageLoop;
+
         result := DefWindowProc(Wnd, message, wParam, lParam);
       end
   else
@@ -129,8 +132,6 @@ end;
 Var
   wndClass : TWndClass;
 begin
-  // multi process
-  CefSingleProcess := False;
   If not CefInitialize then
   begin
     Debugln('CefInitialize failed.');
@@ -169,4 +170,6 @@ begin
   finally
     handl := nil;
   end;
+
+  CefShutDown;
 end.
